@@ -13,16 +13,15 @@ User can also use these delimiters to delimitate regular expressions.
 ( )       [ ]       { }       < >
 « »       » «       ‹ ›       › ‹
 „ ”       “ ”       ‘ ’       ‚ ’
-〈 〉    〈 〉     《 》
-「 」     『 』     【 】     〔 〕
-〖 〗     〘 〙     〚 〛     ⸨ ⸩
-⌈ ⌉       ⌊ ⌋       〈 〉     ❨ ❩
+〈 〉    〈 〉     《 》     「 」
+『 』     【 】     〔 〕    〖 
+〘 〙     〚 〛     ⌈ ⌉       ⌊ ⌋
 ❪ ❫       ❬ ❭       ❮ ❯       ❰ ❱
 ❲ ❳       ❴ ❵       ⟅ ⟆       ⟦ ⟧
 ⟨ ⟩       ⟪ ⟫       ⟬ ⟭       ⟮ ⟯
-⦃ ⦄       ⦅ ⦆       ⦇ ⦈       ⦉ ⦊
+⦃ ⦄       ⦅ ⦆
 ⦋ ⦌       ⦍ ⦎       ⦏ ⦐       ⦑ ⦒
-⦗ ⦘       ⧘ ⧙       ⧚ ⧛       ⧼ ⧽
+⦗ ⦘        ⧼ ⧽    〈 〉     ❨ ❩
 ```
 
 - `Map`: key-value args `{key1 -> "Perl", "key2" -> 2}`, quote keys that are not ascii encoded.
