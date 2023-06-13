@@ -43,15 +43,16 @@ User can also use these delimiters to delimitate regular expressions.
 
 ## Extended unary operator
 
-- `say`: (b) print to the standard output with a new line at the end
+- `say`: (b) print to the standard output with a trailing new line
 - `print`: (b) print without a new line
+- `printf`: (b) print formatted string without adding a trailing new line
 - `@`: (b) length of (array, hash values, string)
 - `%`: (b) return keys of a hash in an array
-- `defined`: (b) check if a varible is `nil` and return true otherwise.
+- `defined`: (b) check if a varible is `nil` and return true otherwise
 
 # Binary operators
 
-- `,`, `->`: comma operator, use `->` for readability in the hash datastructure.
+- `,`, `:`: comma operator, and key-value separator infix operator
 - `!`: negation operator ex: `! true == false`
 - `=`: (i) Assignment Operator
 - `//`: (i) `a // b`, return `a` if set otherwise `b` (Perl feature)
@@ -67,7 +68,11 @@ User can also use these delimiters to delimitate regular expressions.
 
 # Special variables 
 
-## The ones with `$` prepended
+## Type I special variables
+
+Expand the content of special variables with `$`
+
+`"Running on #{$OS}".say`
 
 - `OS`: OS version on which `pity` was build
 - `_` : Topic variable, mostly in blocks
@@ -76,17 +81,31 @@ User can also use these delimiters to delimitate regular expressions.
 - `$`: pid of the current pity program
 - `0`: program name
 
+## Type II special variable
+
+Here, we donot expand the content of this variable `$`
+
+- `ARGV`: for cmd line args, it is an object of type `Array`
+- `ARGC`: represents the argument count, it is an object of type `Int`
+
 # Pity Objects 
 
 All types are objects and support a set of method specific/common to them.
 
 Paranthesis are optional in method and function call
 
-## Number
+## Int
+
+Let `i` be a variable whose content is an object of type `Int`, `i` supports
+the following public methods:
+
+- `i.times { BLOCK }`:
+
 
 ## String
 
-Let `s` be a string, `s` of type `String` supports the following methods
+Let `s` be a variable whose content is a object of type `String`, `s` of type
+`String` supports the following public methods:
 
 - `s.len`: return string length
 - `s.gt(s1)`: return true if `s` gt `s1` else false, see opts above
