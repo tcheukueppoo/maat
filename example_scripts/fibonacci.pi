@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl 
 
 # x is a global variable which can be accessed from other namespaces
 # ex: if we were in the namespace ONE::TWO then access 'a' with ONE::TWO::W
@@ -113,7 +113,7 @@ foreach v in array { ... }
 
 # classes
 class Person { ... }
-class Student << Person [, classA classB ] {
+class Student << Person {
    has class is rw
    has notes is ro
 
@@ -125,6 +125,4 @@ class Student << Person [, classA classB ] {
    multi method get_nodes(v, k) {
       self.notes.each{x < _ < k}
    }
-
-   ...
 }
