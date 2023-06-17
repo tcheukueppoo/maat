@@ -94,7 +94,7 @@ operators (substitution, transliteration and pattern matching).
 
 ### Examples
 
-```ruby
+```raku
 a = <one two three>
 
 # [ "Three", "TWo", "One" ], Lennon Stella album :)
@@ -113,7 +113,7 @@ quoted strings(`qq`), single quoted strings(`q`) and regex operators, Just like 
 
 ### Examples
 
-```ruby
+```raku
 let a = qw|ONE TWO THREE|
 a.each{ .lc }
 
