@@ -1,0 +1,42 @@
+#!/usr/bin/env ruby
+
+func factors(n) {
+  var k = 1
+  gather {
+    while k ** 2 < n {
+        if n % k {
+            take k
+            take n.div(k)
+        }
+        k++
+    }
+    take k if k ** 2 == n
+  }
+}
+
+factors(36).say
+
+var primes = ^10_000.grep{ .is_prime }
+
+func weird(elems, direction = "foward") {
+  var directions = {
+    forward  => func { take for elems },
+    backward => func { take for elems.reverse },
+    random   => func { take for elems.pick(*) },
+  }
+
+  return gather directions{direction}
+}
+
+var list = <1 2 3 4>
+for list { say "#a, #b" }
+
+with ^10.pick -> x { ++x.say }
+
+given 34 {
+  when Num { say "Num" }
+  when 42  { say "42" }
+  default  { say "Default" }
+}
+
+loop { say "Hello" }

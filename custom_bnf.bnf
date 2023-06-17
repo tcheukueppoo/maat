@@ -1,12 +1,12 @@
-# list of terminals
+# List of terminals (refer to perl regular expressions)
 Term_var_name: 
-Term_sep: 
-Term_real_sep: [;|\n]
-Term_space:    [\t\r]* # TODO
+Term_comment: #.* \z
+Term_comment: /\* .*? \*/
+Term_whitespace: \R | \h
 
-sep                  -> Term_space Term_real_sep Term_space
-statements           -> statement [ sep statement, sep ... ]
-statement            -> declaration | flow_construct
+separators           -> Term_comment | Term_whitespace 
+statements           -> separators [ separators ... ] statement [ separators [ separators ... ] statement ]
+statement            -> declaration | expression | flow_constructs
 delcaration          -> variable_declaration | block_declaration | class_declaration
 block_declaration    -> named_block_declaration | function_declaration
 class_declaration    -> class Term_class_name

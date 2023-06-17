@@ -1,4 +1,8 @@
-#!/usr/bin/env perl 
+#!/usr/bin/env ruby
+
+export_var   qw(var_one var_two)
+export_class qw(class_one class_two)
+export_func  qw(func_one func_two func_three)
 
 # x is a global variable which can be accessed from other namespaces
 # ex: if we were in the namespace ONE::TWO then access 'a' with ONE::TWO::W
@@ -6,8 +10,8 @@
 global W = 2
 
 # fibonacci sequence with ret value cached
-fun fibonacci(n) is cached {
-   n < 2 ? n : _F_(n - 1) * _F_(n - 2)
+func fibonacci(n) is cached {
+   n < 2 ? n : __FUNC__(n - 1) * __FUNC__(n - 2)
 }
 
 # forever loop
@@ -20,7 +24,7 @@ async forever {
    ["Hello", "World"].each{ .uc.shuffle + _ }
 }
 
-# fun fibonacci asyncronously
+# func fibonacci asyncronously
 async fibonacci(10)
 
 # Working with blocks
@@ -47,42 +51,46 @@ LABEL: {
 
 ## Hash
 # declare a hash and store it in a lexically scope variable
-let bhash = {one: 2, two: 1} # or
-let ahash = Hash.new(
-                     2   -> two,
-                     3   -> "this three",
-                     one -> 1,
+var bhash = {one => 2, two => 1} # or
+var ahash = Hash.new(
+                     2   => two,
+                     3   => "this three",
+                     one => 1,
                     ) # can replace '->' with ','
 
 # declaring a code/block
-let code = {
+var code = {
    let(k, v) = (_[0], _[2])
    say "#k, #{v isa Num ? v + 1 : v.uc }"
 }
 
 code(k, v) foreach k,v in ahash
 ahash.each_kv{ a.say; b.say }
+ahash.each_kv -> a, b {
+   a.say
+   b.say
+}
 
 # _ is a topic variable
-hash.keys{ (_ + .lc).say }
+hash.keys{ (_ + .lc) }.each{ .say }
+hash.keys -> a { (a + a.lc) }
 
 ahash{one}.say # accessing elements
 ahash{one, 2, 3}.each{ ... } # returns an array
-ahash{one, 2, 3} = ["One", 2, "ThReE"] # change values
+ahash{qw(one 2 3)} = ["One", 2, "ThReE"] # change values
 
-let key = "Hello"
+var key = "Hello"
 say ahash{key} if ahash.exists(key)
 
 del key # delete lexical var 'key'
 
 ## Arrays
-let array  = ["one", 2, 3] # or
-let barray = Array.new("one", 2, 3)
+var array  = ["one", 2, 3] # or
+var barray = Array.new("one", 2, 3)
 array.say
 array.each{ ... }.grep{ ... }
 
-let r = 3..4 # returns an array of values ranging from 3 to 4
-r.each { .say }
+var r = (3..4).map{ .say } # returns an array of values ranging from 3 to 4
 
 # access values
 barray[0].say
@@ -94,35 +102,44 @@ array[0..1] = qw(i j)
 'a'..'z'.each{ ahash.exists(_) && .say }
 
 ## Complex data structures
-let wtf = {
-   one   -> [ { two -> 3, three -> 4 }, [qw(a b c d)] ],
-   two   -> do { ... },
-   three -> True ? [ { one -> 1, two -> 2 } ] : do { ... },
+var wtf = {
+   one   => [ { two => 3, three => 4 }, [qw(a b c d)] ],
+   two   => do { ... },
+   three => True ? [ { one => 1, two => 2 } ] : do { ... },
 }
 
-let b = [wtf, True]
+var b = [wtf, True]
 
 ## Working with Files
 const file = "/path/to/file"
-<file>.each_line{ .uc.say } # <a> open file "a" for reading if exists and return the File object
-<>.each_line{ ... } # read from standard input
 
-# flow constructs
-while (True) { ... }
-foreach v in array { ... }
+<file>.each_line{ .uc.say } # <a> open file "a" for reading if exists and return the File object
+
+<>.each_line{ ... } # read from standard input
 
 # classes
 class Person { ... }
-class Student << Person {
+class Student is Person {
    has class is rw
    has notes is ro
 
    # multiple dispatch
-   multi method get_nodes(v) {
-      self.notes.each{ _ > v}
-   }
-
-   multi method get_nodes(v, k) {
-      self.notes.each{x < _ < k}
+   method get_nodes(v) {
+      self.notes.each{_ > v}
    }
 }
+
+# flow constructs
+var k = qw(one two three)
+for k -> a { a.uc.say }
+
+for k -> a is rw {
+   a.shuffle
+}
+
+for k { .uc.say }
+
+
+var b = {one => 1, two => 2, three => 4}
+for b -> k, v { (a + ':' + b).say }
+
