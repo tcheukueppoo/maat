@@ -399,6 +399,7 @@ the dynamic scope of code passed as argument to gather.
 ```raku
 fun factors(n) {
   let k = 1
+
   gather {
     while k ** 2 < n {
         if n % k {
@@ -429,17 +430,47 @@ given 34 {
 
 just like the C-for loop
 
-general form: `loop initialization; condition; step { ... }`
+general form: `loop initializer; condition; step { ... }`
 
 ```raku
-let k
+loop let k = 0; k <= 20; k++ { k.say }
 
-loop k = 0; k <= 20; k++ { }
+loop let k = 0;;k++ {
+    k.say
+    break if k == 10
+}
+
+loop { say "looping forever" }
 ```
 
 12. `while`, `until`
 
+```raku
+k = 6
+while k > 1 {
+    k.say
+    k--
+}
+
+until k == 0 {
+    say "not entering"
+}
+```
+
 13. `repeat` `while`/`until`
+
+```raku
+k = Set.new(2, 4, 5)
+b = [2, 7, 3]
+
+repeat {
+    k.add(b.pop)
+} while [2, 7] ∉  k
+
+repeat {
+    say "forever"
+} until false;
+```
 
 14. `LABELS`
 
