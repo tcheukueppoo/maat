@@ -15,7 +15,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 # Operators
 
-### Lonely operator
+## Lonely operator
 
 `…`, `...`: to specify unimplemented code
 
@@ -29,46 +29,94 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - `+`: (b) absolute
 - `~`: (b) binary complement
 - `…` or `...`: (b) untight operator
+- `^`: (p) `^5` return a list of element i.e `0` to `5`
+- `⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`: (p) super-script power operators
 
-## Function like unary operator
+## Named unary operators
+
+- `defined`: (b) check if a varible is `nil` and return true otherwise
+- `chop`:
+- `chomp`:
+- `chop`:
+- `sleep`:
+- ``:
+
+## Named list operators
 
 - `say`: (b) print to the standard output with a trailing new line
+- `die`: program dies instantly
+- `warn`: warn on stderr
 - `print`: (b) print without a new line
 - `printf`: (b) print formatted string without adding a trailing new line
-- `defined`: (b) check if a varible is `nil` and return true otherwise
-- `isa`: (i) check if the left object `isa`(of the same class or kind of inherited) the right object
+- `printfln`:
+- `sprintf`:
+- `sprintfln`:
+- `min`: (p) yield min from a list
+- `max`: (p) yield max from a list
+- `minmax`: (p) yield min and max, return it in a list
+
+## Named binary operators
+
+- `isa`: (i) checks if the left object `isa`(of the same class or kind of inherited) the right object
 
 ## Binary operators for pity objects
 
-- `,`, `=>`: comma operator, and key-value separator infix operator
+- `,`, `=>`: (i, b) comma operator, and key-value separator infix operator
 
-- `!`: negation operator ex: `!true == false`
+- `!`: (p) negation operator ex: `!true == false`
 
-- `=`: (i) Assignment Operator
+- `=`, `:=`: (i) assignment and binding operator
 
-- `//`: (i) `a // b`, return `a` if set otherwise `b` (Perl feature)
+- `//`: (i) `a // b`, return `a` it is set otherwise `b`
 
-- `==` / `⩵  `, `!=` or ` ≠`, `>`, `>=`, `<`, `<=`: (i) Object ==, !=, >, >=, <, <= respectively.
+- `==` / `⩵  `, `!=` / ` ≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: (i) basic operators between objects
 
-- `+`, `-`, `\`, `÷`, `*`,  `%`, `..`, ``: (i) add, sub, div, div, mul, remainder and range operator.
+- `+`, `-`, `/` / `÷`, `*`,  `%`, `..`, ``: (i) add, sub, div, div, mul, remainder and range operator.
 
-- `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=` `%=`: (i) `left operand(a variable)` `=` `left operand value` `op` `right operand`
+- `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: (i) `left operand(a variable)` `=` `left operand value` `op` `right operand`
 
-- `<<`, `>>`, `^`, `&`: (i)bitwise shift on left and right, logical `or` and `and`
+- `<<`, `>>`, `^`, `&`, `&=`, `|=`: (i) bitwise shift on left and right, logical `or` and `and`
 
-- `=<<`, `=>>`, `=^`, `=&`: counterparts
+- `&&`, `||`, `&&=`, `||=`: (i) logical "and" and "or" operator
 
-- `&&`, `||`: logical "and" and "or" operator
+- `≅  ` /  `=~`, `~~`: (i) regex operator and smart match operator
 
-- `&&=`, `||=`: counterparts
+- `∉ `,  `∈  `, `∊`,  `∍ `, `∋ `,  `∌ `, `⊂  `, ` ⊄ ` , `⊆ `, `⊈  `, ` ⊃  `, `⊅ ` , ` ⊇  `, ` ⊉  `, `≡ `, `≢  `, `⊖`, `∖`, ``, ``, ``, ``: (i) set operators.
 
-- `.`, `x`: string concat, string multiplication("o" x 2 give "oo")
+- `<=>` : `op1 <=> op2` says if `op1 < op2` yield `-1`, `op1 == op2` yield `0`, `op1 > op2` yield `1`
 
-- `...`, ``: destruction operator
+- `∘`: mathematic function composition, take two subroutines as operand
 
-- `≅  ` /  `=~`: 
+- `?:`: tenary operator
 
-- `∉ `,  `∈  `, `∋ `,  `∌ `, `⊂  `, ` ⊄ ` , `⊆ `, `⊈  `, ` ⊃  `, `⊅ ` , ` ⊇  `, ` ⊉  `, `≡ `, `≢  `: (i) set operators.
+## List of all operators from highest precedence to lowest
+
+- left        terms and list operators (leftward)
+- left        method call operator (`.`)
+- nonassoc    `++`, `--` and unary prefix `…` / `...`
+- right       `** ⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`
+- right       `!`, `~` `\` and unary `+` and `-`
+- left        `=~`, `!~`
+- left        `*`, `/`, `%`
+- left        `+`, `-`, `.`, `∘`
+- left        `∩ `
+- left        `∪ `,  `⊖`, `⊎ `, `∖`
+- chained     `∈ `, `∊`, `∉ `, `∋ `, `∍ `, `∌ `, `≡ `, `≢ `, `⊂ `, `⊄ `, `⊃ `, `⊅ `, `⊆ `, `⊈ `, `⊇ `, `⊉ `, `≼ `, `≽ `
+- left        `<<`, `>>`
+- nonassoc    named unary operators
+- nonassoc    `isa`
+- chained     `<`, `>`, `<=`, `>=`
+- chain/na    `==`, `!=`, `<=>`, `~~`
+- left        `&`
+- left        `|`, `^`
+- left        `&&`
+- left        `||`, `//`
+- nonassoc    `..`, lonely operator `…` / `...`
+- right       `?:`
+- right       `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, `dump`
+- left        `,`, `=>`
+- nonassoc    list operators (rightward)
+- 
 
 # Delimiter
 
@@ -132,7 +180,10 @@ b.say
 
 Expand the content of special variables with `$`
 
-e.g `say "Running #$0 on #$OS"`
+### Example
+```raku
+say "Running #$0 on #$OS"
+```
 
 - `OS`: OS version on which `pity` was build
 - `_` : Topic variable, mostly in blocks
@@ -147,6 +198,11 @@ We donot expand type 2 special variables with `$`
 
 - `ARGV`: array of cmd line arguments, it is an object of type `Array`
 - `ARGC`: represents the argument count, it is an object of type `Int`
+
+# Constants
+
+- `π`: pi
+- `` :
 
 # Variables
 
