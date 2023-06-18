@@ -358,31 +358,31 @@ Conditional `with` statement, parathensis are always optional.
 
 let (x, y) = (5, nil)
 
-with(x)   { say _ }
+with(x) { say _ }
 
 with(y)   { say "never here" }
-orwith(y) {:y say y }
+orwith(y) {:m say m }
 else      { say "never here" }
 ```
 
 6. `for`
 
-```raku
+```ruby
 ar = qw(one two three four five)
 
 # output: 3 3 5 4 4
 for ar -> i { i.len.say }
 
-# now ar is [3, 3, 5, 4, 4]
+# "ar" is now [3, 3, 5, 4, 4]
 for ar -> j is rw {
     j = j.len
 }
 
-# output: (3, 3) (5, 4) (4, nil)
+# (3, 3) (5, 4) (4, nil)
 for ar -> i, j { say "(#i, #j)" }
 
 # set a custom value when we are running out of elements
-# output: (3, 3) (5, 4) (4, none)
+# (3, 3) (5, 4) (4, none)
 for ar -> i, j = "none" { say "(#i, #j)" }
 ```
 
