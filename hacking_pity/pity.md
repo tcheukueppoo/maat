@@ -12,6 +12,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - Closures
 - Lazy Evaluation
 - Pattern Matching using PCRE
+- Unicode support
 
 # Operators
 
@@ -35,25 +36,25 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 ## Named unary operators
 
 - `defined`: (b) check if a varible is `nil` and return true otherwise
-- `chop`:
-- `chomp`:
-- `chop`:
-- `sleep`:
+- `chop`: (b)
+- `chomp`: (b)
+- `chop`: (b)
+- `sleep`: (b)
 - ``:
 
 ## Named list operators
 
 - `say`: (b) print to the standard output with a trailing new line
-- `die`: program dies instantly
-- `warn`: warn on stderr
+- `die`: (b) program dies instantly
+- `warn`: (b) warn on stderr
 - `print`: (b) print without a new line
-- `printf`: (b) print formatted string without adding a trailing new line
-- `printfln`:
-- `sprintf`:
-- `sprintfln`:
-- `min`: (p) yield min from a list
-- `max`: (p) yield max from a list
-- `minmax`: (p) yield min and max, return it in a list
+- `printf`: (b) print formatted string
+- `printfln`: (b) formatted string + a trailing new line and return to stdout/stderr
+- `sprintf`: (b) sprintf, return formatted string
+- `sprintfln`: (b) sprintf + a trailing new line
+- `min`: (b) yield min from a list
+- `max`: (b) yield max from a list
+- `minmax`: (b) yield min and max, return it in a list
 
 ## Named binary operators
 
@@ -71,7 +72,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 - `==` / `⩵  `, `!=` / ` ≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: (i) basic operators between objects
 
-- `+`, `-`, `/` / `÷`, `*`,  `%`, `..`, ``: (i) add, sub, div, div, mul, remainder and range operator.
+- `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: (i) add, sub, div, div, mul, remainder and range operator
 
 - `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: (i) `left operand(a variable)` `=` `left operand value` `op` `right operand`
 
@@ -81,7 +82,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 - `≅  ` /  `=~`, `~~`: (i) regex operator and smart match operator
 
-- `∉ `,  `∈  `, `∊`,  `∍ `, `∋ `,  `∌ `, `⊂  `, ` ⊄ ` , `⊆ `, `⊈  `, ` ⊃  `, `⊅ ` , ` ⊇  `, ` ⊉  `, `≡ `, `≢  `, `⊖`, `∖`, ``, ``, ``, ``: (i) set operators.
+- `∉ `,  `∈  `, `∊`,  `∍ `, `∋ `,  `∌ `, `⊂  `, ` ⊄ ` , `⊆ `, `⊈  `, ` ⊃  `, `⊅ ` , ` ⊇  `, ` ⊉  `, `≡ `, `≢  `, `⊖`, `∩ `, `⊍ `, `∪ `,  `⊖`, `⊎ `, `∖`: (i) set operators.
 
 - `<=>` : `op1 <=> op2` says if `op1 < op2` yield `-1`, `op1 == op2` yield `0`, `op1 > op2` yield `1`
 
@@ -92,20 +93,21 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 ## List of all operators from highest precedence to lowest
 
 - left        terms and list operators (leftward)
-- left        method call operator (`.`)
+- right       grouping operator `( )`
+- left        method call operator `.`
 - nonassoc    `++`, `--` and unary prefix `…` / `...`
-- right       `** ⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`
-- right       `!`, `~` `\` and unary `+` and `-`
+- right       `**`, `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`
+- right       `!`, `~`, `\` and unary `+` and `-`
 - left        `=~`, `!~`
 - left        `*`, `/`, `%`
 - left        `+`, `-`, `.`, `∘`
-- left        `∩ `
+- left        `∩ `, `⊍ `
 - left        `∪ `,  `⊖`, `⊎ `, `∖`
 - chained     `∈ `, `∊`, `∉ `, `∋ `, `∍ `, `∌ `, `≡ `, `≢ `, `⊂ `, `⊄ `, `⊃ `, `⊅ `, `⊆ `, `⊈ `, `⊇ `, `⊉ `, `≼ `, `≽ `
 - left        `<<`, `>>`
 - nonassoc    named unary operators
 - nonassoc    `isa`
-- chained     `<`, `>`, `<=`, `>=`
+- chained     `<`, `>`, `<=` / `≤`, `>=` / `≥`
 - chain/na    `==`, `!=`, `<=>`, `~~`
 - left        `&`
 - left        `|`, `^`
@@ -113,10 +115,11 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - left        `||`, `//`
 - nonassoc    `..`, lonely operator `…` / `...`
 - right       `?:`
-- right       `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, `dump`
-- left        `,`, `=>`
-- nonassoc    list operators (rightward)
-- 
+- right       `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`
+- list        `,`, `=>`
+- right       `not`
+- left        `and`
+- left        `or` and `xor
 
 # Delimiter
 
@@ -146,7 +149,7 @@ operators (substitution, transliteration and pattern matching).
 a = <one two three>
 
 # [ "Three", "TWo", "One" ], Lennon Stella album :)
-b = [a].map{ .capitalize }.reverse
+b = [a].map{.capitalize}.reverse
 
 # [ "0ne", "tw0", "three" ]
 a =~ s<o>«0»
@@ -163,7 +166,7 @@ quoted strings(`qq`), single quoted strings(`q`) and regex operators, Just like 
 
 ```raku
 let a = qw|ONE TWO THREE|
-a.each{ .lc }
+a.each{.lc}
 
 say q%interpolation won't work%
 
@@ -174,37 +177,82 @@ b = a.grep{:x x =~ m|o| }.map{ s|o|0| }.map{ .ucfirst }
 b.say
 ```
 
-# Special variables
 
-## Type I special variables
+# Variables
+
+Pity has three types of variables: package, lexical and temporal variables.
+
+Package variable can be accessed from other packages using their full qualified name and lexically
+scoped variables cannot be accessed from outside the package in which it was declared.
+
+Temporal variables are declared within a scope and refers to previously declared package
+variables from the current package if its name isn't fully qualified otherwise refers to the variable
+in the specified package. Any changes made to temporal variables remains local to the scope
+from where it was declare and thus the referenced variables remains untouched. you cannot
+temporarize/localize lexically scoped variables.
+
+Declare package variables with `global`, lexically scoped variables with `let` and temporal variable
+with `temp`.
+
+```raku
+package One::Two {
+    # package variable
+    global x = <one two three>
+
+    let a = {one => 1}
+    {
+        # a: {one => 1, two => 2}
+        let a += {two => 2}
+
+        # could still use "One::Two::x"
+        temp x = {}
+        # empty hash
+        say One::Two::x
+    }
+    # a: {one => 1}
+    a.say
+    
+    # x: ["one", "two", "three"], unchanged!
+    x.say
+}
+
+package One::Two::Three {
+    # refers to package(global) variable "x" declare in the namespace "One::Two"
+    say One::Two::Three::x
+    # returns nil, "a" in "One::Two" is lexically scoped
+    say One::Two::Three::a
+}
+```
+
+## Special package variables
+
+### Type I special variables
 
 Expand the content of special variables with `$`
 
-### Example
+#### Example
+
 ```raku
 say "Running #$0 on #$OS"
 ```
-
 - `OS`: OS version on which `pity` was build
-- `_` : Topic variable, mostly in blocks
+- `\_` : Topic variable, mostly in blocks
 - `Pity`: Pity version
 - `"`: Separator character during interpolation
 - `$`: Pid of the current pity program
 - `0`: Program name
 
-## Type II special variable
+### Type II special variable
 
 We donot expand type 2 special variables with `$`
 
 - `ARGV`: array of cmd line arguments, it is an object of type `Array`
 - `ARGC`: represents the argument count, it is an object of type `Int`
 
-# Constants
+## Constants
 
 - `π`: pi
 - `` :
-
-# Variables
 
 # Types
 
