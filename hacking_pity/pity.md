@@ -148,7 +148,7 @@ operators (substitution, transliteration and pattern matching).
 ```raku
 a = <one two three>
 
-# [ "Three", "TWo", "One" ], Lennon Stella album :)
+# [ "Three", "TWo", "One" ], Lennon Stella :-)
 b = [a].map{.capitalize}.reverse
 
 # [ "0ne", "tw0", "three" ]
@@ -177,26 +177,23 @@ b = a.grep{:x x =~ m|o| }.map{ s|o|0| }.map{ .ucfirst }
 b.say
 ```
 
-
 # Variables
 
-Pity has three types of variables: package, lexical and temporal variables.
+`Pity` has three types of variables: package, lexical and temporal variables.
 
 Package variable can be accessed from other packages using their full qualified name and lexically
 scoped variables cannot be accessed from outside the package in which it was declared.
 
 Temporal variables are declared within a scope and refers to previously declared package
-variables from the current package if its name isn't fully qualified otherwise refers to the variable
-in the specified package. Any changes made to temporal variables remains local to the scope
-from where it was declare and thus the referenced variables remains untouched. you cannot
-temporarize/localize lexically scoped variables.
+variables from the current package if its name at declaration isn't fully qualified otherwise
+refers to the variable in the specified package. Any changes made to temporal variables remains
+local to the scope from where it was declare and thus the referenced variables remains untouched.
+You cannot temporarize/localize lexically scoped variables.
 
-Declare package variables with `global`, lexically scoped variables with `let` and temporal variable
-with `temp`.
+Declare package variables with the keyword `global`, lexically scoped variables with `let` and temporal variable with `temp`.
 
 ```raku
 package One::Two {
-    # package variable
     global x = <one two three>
 
     let a = {one => 1}
@@ -204,20 +201,20 @@ package One::Two {
         # a: {one => 1, two => 2}
         let a += {two => 2}
 
-        # could still use "One::Two::x"
+        # could still use "One::Two::x" at declaration
         temp x = {}
         # empty hash
         say One::Two::x
     }
+
     # a: {one => 1}
     a.say
-    
     # x: ["one", "two", "three"], unchanged!
     x.say
 }
 
 package One::Two::Three {
-    # refers to package(global) variable "x" declare in the namespace "One::Two"
+    # refers to the package variable "x" declared in the namespace "One::Two"
     say One::Two::Three::x
     # returns nil, "a" in "One::Two" is lexically scoped
     say One::Two::Three::a
@@ -226,9 +223,13 @@ package One::Two::Three {
 
 ## Special package variables
 
+Special variables are package variables, some are writetable and can change the
+behavoir of your programs while others are readonly and contain useful information
+to make decisions important decisions.
+
 ### Type I special variables
 
-Expand the content of special variables with `$`
+We expand the content of special variables using the sigil `$`.
 
 #### Example
 
@@ -236,7 +237,7 @@ Expand the content of special variables with `$`
 say "Running #$0 on #$OS"
 ```
 - `OS`: OS version on which `pity` was build
-- `\_` : Topic variable, mostly in blocks
+- `_` : Topic variable, mostly in blocks
 - `Pity`: Pity version
 - `"`: Separator character during interpolation
 - `$`: Pid of the current pity program
@@ -251,12 +252,139 @@ We donot expand type 2 special variables with `$`
 
 ## Constants
 
-- `π`: pi
-- `` :
+- `π`: Pi, 3.14....
+- `e`: Euler's number
 
-# Types
+# Objects
+
+Pity has 16 builtin objects, types are objects and objects are types, check details of
+each types here.
+
+- Pity (itself is an object)
+- Bool (Booleans)
+- Num (Big integers and Big floats)
+- Rat (Rationals)
+- Str (Strings)
+- Array (Arrays)
+- Hash (Maps or Hashes)
+- Set (Sets as in math)
+- Bag (Bags)
+- Fun (Function)
+- File (Working with files)
+- Dir (Working with directories)
+- Pipe (ipc)
+- Socket (Sockets)
+- Regex (regular expressions)
+- Range (Range object)
 
 # Flow control
+
+Here is an overview of pity syntax
+We separate statements with a generic line or a semicolon in case we have more
+than one statements on a single line.
+
+1. Blocks
+
+```raku
+say 1
+say 2; say 3
+{ say 1 }; { say 4 }
+
+{
+    say "one"
+    { say "two" }
+}
+```
+
+2. `do` Block
+
+`do` block
+```raku
+let v = do { 2 }
+# "2"
+say v
+
+# "3"
+do { 3 }.say
+
+do { false } or die "failed"
+```
+
+3. `async` blocks
+
+run a block asyncronously
+
+```raku
+async {
+    sleep 4 && say "done"
+}
+
+# declare a function and assign it to "a"
+let a = fun { sleep 4; say "done" }
+
+# run function in "a" asyncronously
+async a
+```
+
+4. `if`
+
+Conditional `if` statement, note that paranthesis are optional.
+
+`if ... { ... } [elsif ... { ... } ...] [else { ... }]`
+
+```raku
+if true { say "it is true" }
+
+if 0 {
+    say "you are a failure"
+}
+elsif false {
+    say "still a failure, go away!!"
+}
+else {
+    say "welcome my man!"
+}
+
+say 1 if true
+```
+
+5. `with`
+
+Conditional `with` statement, parathensis are always optional.
+
+`with` tests for definedness(that's `!nil`)
+
+```raku
+
+let (x, y) = (5, nil)
+
+with(x)   { say _ }
+
+with(y)   { say "never here" }
+orwith(y) {:y say y }
+else      { say "never here" }
+```
+
+6. `for`
+
+```raku
+ar = qw(one two three four five)
+
+# output: 3 3 5 4 4
+for ar -> i { i.len.say }
+
+# now ar is [3, 3, 5, 4, 4]
+for ar -> j is rw {
+    j = j.len
+}
+
+# output: (3, 3) (5, 4) (4, nil)
+for ar -> i, j { say "(#i, #j)" }
+
+# set a custom value when we are running out of elements
+# output: (3, 3) (5, 4) (4, none)
+for ar -> i, j = "none" { say "(#i, #j)" }
+```
 
 # Functions
 
