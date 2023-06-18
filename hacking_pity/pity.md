@@ -82,7 +82,8 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 - `≅  ` /  `=~`, `~~`: (i) regex operator and smart match operator
 
-- `∉ `,  `∈  `, `∊`,  `∍ `, `∋ `,  `∌ `, `⊂  `, ` ⊄ ` , `⊆ `, `⊈  `, ` ⊃  `, `⊅ ` , ` ⊇  `, ` ⊉  `, `≡ `, `≢  `, `⊖`, `∩ `, `⊍ `, `∪ `,  `⊖`, `⊎ `, `∖`: (i) set operators.
+- `∉ `,  `∈  `, `∊`,  `∍ `, `∋ `,  `∌ `, `⊂  `, ` ⊄ ` , `⊆ `, `⊈  `, ` ⊃  `, `⊅ `
+  ` ⊇  `, ` ⊉  `, `≡ `, `≢  `, `⊖`, `∩ `, `⊍ `, `∪ `,  `⊖`, `⊎ `, `∖`: (i) set operators.
 
 - `<=>` : `op1 <=> op2` says if `op1 < op2` yield `-1`, `op1 == op2` yield `0`, `op1 > op2` yield `1`
 
@@ -179,7 +180,7 @@ b.say
 
 # Variables
 
-`Pity` has three types of variables: package, lexical and temporal variables.
+`Pity` has four types of variables: package, lexical and temporal and state variables.
 
 Package variable can be accessed from other packages using their full qualified name and lexically
 scoped variables cannot be accessed from outside the package in which it was declared.
@@ -221,6 +222,22 @@ package One::Two::Three {
 }
 ```
 
+Persistent variables are lexically scoped variables which retains their values between
+function and block(during recursion or jumps with a loop control) calls.
+
+We declare persistent lexically scoped variables with `state`, just like in Perl.
+
+```raku
+fun increment(n) {
+    state k = n
+    __FUNC__(nil) if ++k != 9
+    return k
+}
+
+# 9
+increment(0, 9).say
+```
+
 ## Special package variables
 
 Special variables are package variables, some are writetable and can change the
@@ -247,8 +264,12 @@ say "Running #$0 on #$OS"
 
 We donot expand type 2 special variables with `$`
 
-- `ARGV`: array of cmd line arguments, it is an object of type `Array`
+- `ARGV`: array containing command line arguments
 - `ARGC`: represents the argument count, it is an object of type `Int`
+- `DATA`: represents a file handle to manipulate data under `__DATA__`, just like in perl
+- `__FUNC__`: for recursion, represents the current functiona, should only be used inside a function
+- `__BLOCK__`: for recursion, represents the current block, should only be used inside a block
+- `__FILE__`: a string object, represents the name of current script in executing
 
 ## Constants
 
@@ -257,30 +278,30 @@ We donot expand type 2 special variables with `$`
 
 # Objects
 
-Pity has 16 builtin objects, types are objects and objects are types, check details of
+Pity has 16 builtin objects, types are objects and objects are types, check details on
 each types here.
 
-- Bool (Booleans)
-- Pity (pity is an object itself)
-- Num (Big integers and Big floats)
-- Rat (Rationals)
-- Str (Strings)
-- Array (Arrays)
-- Hash (Maps or Hashes)
-- Set (Sets as in math)
-- Bag (Bags)
-- Fun (Function)
-- File (Working with files)
-- Dir (Working with directories)
-- Pipe (ipc)
-- Socket (Sockets)
-- Regex (regular expressions)
-- Range (Range object)
-- Date (perform operations on date)
+- Bool
+- Pity
+- Num
+- Rat
+- Str
+- Array
+- Hash
+- Set
+- Bag
+- Fun
+- File
+- Dir
+- Pipe
+- Socket
+- Regex
+- Range
+- Date
 
 # Flow control
 
-Here is an overview of the pity syntax.
+Here is an overview of the `pity` syntax.
 
 We separate statements with a generic newline or a semicolon in case we have more
 than one statement on a single line.
@@ -295,6 +316,9 @@ say 2; say 3
 {
     say "one"
     { say "two" }
+
+    # recall the current block
+    __BLOCK__
 }
 ```
 
@@ -311,20 +335,21 @@ do { 3 }.say
 do { false } or die "failed"
 ```
 
-3. `async` blocks
+3. `bg` blocks
 
 run a block asyncronously
 
 ```javascript
-async {
-    sleep 4 && say "done"
+bg {
+    sleep 4
+    say "done"
 }
 
 # declare a function and assign it to "a"
 let a = fun { sleep 4; say "done" }
 
 # run function in "a" asyncronously
-async a
+bg a
 ```
 
 4. `if`
@@ -353,14 +378,15 @@ say 1 if true
 
 Conditional `with` statement, parathensis are always optional.
 
-`with` tests for definedness(that's `!nil`)
+`with` tests for definedness (that's `!nil`) whereas `if` tests for `truth` in
+the returned value of the expression.
 
 ```raku
 
 let (u, y) = (5, nil)
 
 # 5, 5
-with u { say _, x }
+with u { say _, u }
 
 # 5
 with   y { say "never here" }
@@ -371,13 +397,12 @@ else     { say "never here" }
 6. `for`
 
 ```ruby
-ar = <one two three four five>
-
 for "a", qr/regex/, [2, 4] { .say }
 
 # output: 3 3 5 4 4
 for ar -> i { i.len.say }
 
+ar = <one two three four five>
 # "ar" is now [3, 3, 5, 4, 4]
 for ar -> j is rw {
     j = j.len
@@ -389,12 +414,14 @@ for ar -> i, j { say "(#i, #j)" }
 # set a custom value when we are running out of elements
 # (3, 3) (5, 4) (4, none)
 for ar -> i, j = "none" { say "(#i, #j)" }
+
+.say for ar
 ```
 
 7. `gather`-`take`
 
-statement/block prefix which returns a sequence of values comming from calls to take in
-the dynamic scope of code passed as argument to gather.
+`gather` is statement/block prefix which returns a sequence of values comming from
+calls to `take` in the dynamic scope of block/function passed as argument to `gather`.
 
 ```raku
 fun factors(n) {
@@ -417,24 +444,40 @@ factors(36).say
 
 8. `given`-`when`
 
+We implement the switch-case using `given`-`when`, this construct tests the topic variable
+initialized to the argument passed to `given` against the following cases using the smartmatch
+operator(`~~`). We execute the block of the first matching case and instantly exit the `given` block.
+We can continue to the next case by using the `proceed` instruction within the block of a case.
 
 ```raku
+# output: Num, 42
 given 34 {
-  when Num { say "Num" }
+  when Num { say "Num"; proceed }
   when 42  { say "42" }
   default  { say "Default" }
 }
 ```
 
+You can also use `given` as a standalone statement to specify the variable of concern in
+the execution of a block.
+
+```raku
+x = [2, 5]
+given x {
+    say "variable x has two elements" if x.len == 2
+}
+```
+
 10. `loop`
 
-just like the C-for loop
+Just like the C-for loop
 
 general form: `loop initializer; condition; step { ... }`
 
 ```raku
 loop let k = 0; k <= 20; k++ { k.say }
 
+# you can skip some parts
 loop let k = 0;;k++ {
     k.say
     break if k == 10
@@ -443,7 +486,9 @@ loop let k = 0;;k++ {
 loop { say "looping forever" }
 ```
 
-12. `while`, `until`
+12. `while` and `until`
+
+The basic `while` and `until` loop.
 
 ```raku
 k = 6
@@ -453,11 +498,11 @@ while k > 1 {
 }
 
 until k == 0 {
-    say "not entering"
+    say "not entering here"
 }
 ```
 
-13. `repeat` `while`/`until`
+13. `repeat`-`while`/`until`
 
 ```raku
 k = Set.new(2, 4, 5)
@@ -465,27 +510,90 @@ b = [2, 7, 3]
 
 repeat {
     k.add(b.pop)
-} while [2, 7] ∉  k
+} while [2, 7] ∉ k
 
 repeat {
     say "forever"
 } until false;
 ```
+14. loop control statments: `next`, `break`, and `redo`
 
-14. `LABELS`
+general form: `next [LABEL|LEVEL]`, if you donot specify the label then it
+performs the action for the current block.
 
-15. `once`
+`next`: just like `C`'s `continue` loop control statement
+`break`: just like `C`'s `break` loop control statement
+`redo`: rerun the block without testing the condition
 
-16. `next`, `break`, `redo`
+15. `labels`
+
+labels permits you to jump between labeled blocks using a loop control statement
+
+```raku
+# an infinite loop with prints "one"
+ONE: {
+    say "one"
+    redo ONE
+}
+
+# print "two" to the stdout and repeatly print "three"
+TWO: {
+    say "two"
+    THREE: {
+        say "three"
+        __BLOCK__
+    }
+    # dead code to be wiped by the compiler
+    say "never gonna be executed"
+}
+```
+
+16. `once`
+
+`once` gives you the possibility to execute a statement only once regardless of the
+number of iterations. One great advantage it offers is avoid the burdens of using
+the if construct to avoid the execution of a statement.
+
+```raku
+for {one => 1, two => 1, three => 3}.each_kv -> k, v {
+    once say "I got one" if v == 1
+    printfln "%s => %d", k, v
+}
+```
+
+17. `try`-`catch`-`finally`
+
+
+18. topic variable `_`
 
 # Functions
 
+```raku
+```
+
 # Classes
 
-# Packages
+```raku
+```
 
 # Regular expressions
 
-# Promises
+```raku
+```
+
+# Promises and Concurrency
+
+```raku
+```
 
 # Supply/React
+
+```raku
+```
+
+# Packages
+
+```raku
+```
+
+# Conclusion
