@@ -260,8 +260,8 @@ We donot expand type 2 special variables with `$`
 Pity has 16 builtin objects, types are objects and objects are types, check details of
 each types here.
 
-- Pity (itself is an object)
 - Bool (Booleans)
+- Pity (pity is an object itself)
 - Num (Big integers and Big floats)
 - Rat (Rationals)
 - Str (Strings)
@@ -276,12 +276,14 @@ each types here.
 - Socket (Sockets)
 - Regex (regular expressions)
 - Range (Range object)
+- Date (perform operations on date)
 
 # Flow control
 
-Here is an overview of pity syntax
-We separate statements with a generic line or a semicolon in case we have more
-than one statements on a single line.
+Here is an overview of the pity syntax.
+
+We separate statements with a generic newline or a semicolon in case we have more
+than one statement on a single line.
 
 1. Blocks
 
@@ -298,7 +300,6 @@ say 2; say 3
 
 2. `do` Block
 
-`do` block
 ```raku
 let v = do { 2 }
 # "2"
@@ -314,7 +315,7 @@ do { false } or die "failed"
 
 run a block asyncronously
 
-```raku
+```javascript
 async {
     sleep 4 && say "done"
 }
@@ -356,19 +357,23 @@ Conditional `with` statement, parathensis are always optional.
 
 ```raku
 
-let (x, y) = (5, nil)
+let (u, y) = (5, nil)
 
-with(x) { say _ }
+# 5, 5
+with u { say _, x }
 
-with(y)   { say "never here" }
-orwith(y) {:m say m }
-else      { say "never here" }
+# 5
+with   y { say "never here" }
+orwith u {:m say m }
+else     { say "never here" }
 ```
 
 6. `for`
 
 ```ruby
-ar = qw(one two three four five)
+ar = <one two three four five>
+
+for "a", qr/regex/, [2, 4] { .say }
 
 # output: 3 3 5 4 4
 for ar -> i { i.len.say }
@@ -385,6 +390,62 @@ for ar -> i, j { say "(#i, #j)" }
 # (3, 3) (5, 4) (4, none)
 for ar -> i, j = "none" { say "(#i, #j)" }
 ```
+
+7. `gather`-`take`
+
+statement/block prefix which returns a sequence of values comming from calls to take in
+the dynamic scope of code passed as argument to gather.
+
+```raku
+fun factors(n) {
+  let k = 1
+  gather {
+    while k ** 2 < n {
+        if n % k {
+            take k
+            take n.div(k)
+        }
+        k++
+    }
+    take k if k ** 2 == n
+  }
+}
+
+factors(36).say
+```
+
+8. `given`-`when`
+
+
+```raku
+given 34 {
+  when Num { say "Num" }
+  when 42  { say "42" }
+  default  { say "Default" }
+}
+```
+
+10. `loop`
+
+just like the C-for loop
+
+general form: `loop initialization; condition; step { ... }`
+
+```raku
+let k
+
+loop k = 0; k <= 20; k++ { }
+```
+
+12. `while`, `until`
+
+13. `repeat` `while`/`until`
+
+14. `LABELS`
+
+15. `once`
+
+16. `next`, `break`, `redo`
 
 # Functions
 
