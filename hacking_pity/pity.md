@@ -31,12 +31,12 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - `~`: (b) binary complement
 - `…` or `...`: (b) untight operator
 - `^`: (p) `^5` return a list of element i.e `0` to `5`
-- `⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`: (p) super-script power operators
+- `√`: (p) sqaure root operator
+- `⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`: (b) super-script power operators
 
 ## Named unary operators
 
 - `defined`: (b) check if a varible is `nil` and return true otherwise
-- `chop`: (b)
 - `chomp`: (b)
 - `chop`: (b)
 - `sleep`: (b)
@@ -96,7 +96,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - left        terms and list operators (leftward)
 - right       grouping operator `( )`
 - left        method call operator `.`
-- nonassoc    `++`, `--` and unary prefix `…` / `...`
+- nonassoc    `++`, `--`, `√` and unary prefix `…` / `...`
 - right       `**`, `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`
 - right       `!`, `~`, `\` and unary `+` and `-`
 - left        `=~`, `!~`
@@ -118,9 +118,6 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - right       `?:`
 - right       `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`
 - list        `,`, `=>`
-- right       `not`
-- left        `and`
-- left        `or` and `xor
 
 # Delimiter
 
@@ -147,10 +144,10 @@ operators (substitution, transliteration and pattern matching).
 ### Examples
 
 ```raku
-a = <one two three>
+a = |one two three|
 
 # [ "Three", "TWo", "One" ], Lennon Stella :-)
-b = [a].map{.capitalize}.reverse
+b = a.map{.capitalize}.reverse
 
 # [ "0ne", "tw0", "three" ]
 a =~ s<o>«0»
@@ -158,8 +155,8 @@ a =~ s<o>«0»
 
 ## Single character delimiter
 
-We also have a restricted set of delimiter characters for quoted words(`qw`), double
-quoted strings(`qq`), single quoted strings(`q`) and regex operators, Just like in Perl.
+We also have a restricted set of delimiter characters for double quoted strings(`qq`), single
+quoted strings(`q`) and regex operators, Just like in Perl.
 
 `/`, `|`, `%`
 
@@ -180,7 +177,7 @@ b.say
 
 # Variables
 
-`Pity` has four types of variables: package, lexical and temporal and state variables.
+`Pity` has four types of variables: package, lexical, temporal and persistent variables.
 
 Package variable can be accessed from other packages using their full qualified name and lexically
 scoped variables cannot be accessed from outside the package in which it was declared.
@@ -191,7 +188,8 @@ refers to the variable in the specified package. Any changes made to temporal va
 local to the scope from where it was declare and thus the referenced variables remains untouched.
 You cannot temporarize/localize lexically scoped variables.
 
-Declare package variables with the keyword `global`, lexically scoped variables with `let` and temporal variable with `temp`.
+Declare package variables with the keyword `global`, lexically scoped variables with
+`let` and temporal variable with `temp`.
 
 ```raku
 package One::Two {
@@ -224,7 +222,6 @@ package One::Two::Three {
 
 Persistent variables are lexically scoped variables which retains their values between
 function and block(during recursion or jumps with a loop control) calls.
-
 We declare persistent lexically scoped variables with `state`, just like in Perl.
 
 ```raku
@@ -236,6 +233,16 @@ fun increment(n) {
 
 # 9
 increment(0, 9).say
+```
+constant variables are lexically scoped by default unless you precise they're global with the global
+keyword.
+
+```raku
+# lexically scoped constant
+const z = 4
+
+# a constant global
+const global (x, y) = (2, 10)
 ```
 
 ## Special package variables
@@ -254,22 +261,30 @@ We expand the content of special variables using the sigil `$`.
 say "Running #$0 on #$OS"
 ```
 - `OS`: OS version on which `pity` was build
-- `_` : Topic variable, mostly in blocks
+- `.`: current line in a file
+- `,`: output field separator
+- `/`: input record separator
 - `Pity`: Pity version
 - `"`: Separator character during interpolation
 - `$`: Pid of the current pity program
 - `0`: Program name
+- `!`: retrieve errors from syscalls
+- `_` : Topic variable, used mostly in blocks
 
 ### Type II special variable
 
 We donot expand type 2 special variables with `$`
 
+- `ENV`: a `Hash` which contains your current environment variables
+- `PATH`: an `Array` which contains the absolute path to directories where pity searches for modules
+- `INC`: 
+- `SIG`: 
 - `ARGV`: array containing command line arguments
 - `ARGC`: represents the argument count, it is an object of type `Int`
 - `DATA`: represents a file handle to manipulate data under `__DATA__`, just like in perl
-- `__FUNC__`: for recursion, represents the current functiona, should only be used inside a function
-- `__BLOCK__`: for recursion, represents the current block, should only be used inside a block
-- `__FILE__`: a string object, represents the name of current script in executing
+- `__FUNC__`: for recursion, call the current function
+- `__BLOCK__`: for recursion, call the current block
+- `__FILE__`: a string object, represents the name of current script in execution
 
 ## Constants
 
@@ -298,6 +313,7 @@ each types here.
 - Regex
 - Range
 - Date
+- Sys
 
 # Flow control
 
@@ -335,13 +351,13 @@ do { 3 }.say
 do { false } or die "failed"
 ```
 
-3. `bg` blocks
+3. `bg` Blocks
 
 run a block asyncronously
 
 ```javascript
 bg {
-    sleep 4
+    4.sleep
     say "done"
 }
 
@@ -349,7 +365,7 @@ bg {
 let a = fun { sleep 4; say "done" }
 
 # run function in "a" asyncronously
-bg a
+bg a.call
 ```
 
 4. `if`
@@ -382,7 +398,6 @@ Conditional `with` statement, parathensis are always optional.
 the returned value of the expression.
 
 ```raku
-
 let (u, y) = (5, nil)
 
 # 5, 5
@@ -550,9 +565,9 @@ TWO: {
 
 16. `once`
 
-`once` gives you the possibility to execute a statement only once regardless of the
-number of iterations. One great advantage it offers is avoid the burdens of using
-the if construct to avoid the execution of a statement.
+`once` gives you the possibility to execute a statement within a loop only once regardless
+of the number of iterations. One great advantage it offers is avoid the burdens of using a
+conditional construct to avoid the execution of a statement.
 
 ```raku
 for {one => 1, two => 1, three => 3}.each_kv -> k, v {
@@ -563,12 +578,62 @@ for {one => 1, two => 1, three => 3}.each_kv -> k, v {
 
 17. `try`-`catch`-`finally`
 
+`try`-`catch` for handling exceptions.
 
 18. topic variable `_`
 
-# Functions
+We've been using topic variables since the begining of this section without known what they are, a topic
+variable is just an argument passed to an executing block, you can declare a topic variable to avoid the
+default one(`_`), you can declare more than one topic variable to fetch the desired number of elements
+for calls.
+
+NOTE: topic variables should only be named at the begining of the block of concern.
 
 ```raku
+let a = [2, 5, 34]
+
+# declaring a topic variable x
+print a.map! { :x
+    once say "first call"
+    next if x == 3
+    √x
+}
+
+# 2,2 4,none
+[2, 2, 4].each { :x,y = (,none)
+    say "#x,#y"
+}
+```
+
+# Functions
+
+Pity has support for multiple dispatching, type checks and named paramters.
+Mixing named arguments with unnamed ones brings alot of confusion in your code
+so either you use named paramters with all argument or you don't use them at all
+
+```raku
+fun callme(code, n) { code.call(_) for ^n }
+callme({ .say }, 5)
+
+multi fun intro(name, age) {
+    say "Hello, my name is #name, I'm #{age}yo"
+}
+
+multi fun intro(name) {
+    say "Hello, my name is #name!"
+}
+
+intro("kueppo", "20")
+intro("sarah")
+intro(age => 5, name => liza)
+
+# no candidates for this and thus fails at compile time
+intro(age)
+
+# type are supported
+fun mul(Str str, Int k) Str {
+    
+}
 ```
 
 # Classes
@@ -577,6 +642,8 @@ for {one => 1, two => 1, three => 3}.each_kv -> k, v {
 ```
 
 # Regular expressions
+
+Pity support the incredible Perl regular expressions and it couldn't go to heaven if it didn't.
 
 ```raku
 ```
