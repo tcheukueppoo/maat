@@ -3,12 +3,12 @@
 `Pity` is a multi-paradigm programming(functional and object oriented)language
 inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
-- Functional programing
-- Object Oriented programming
+- Functional Programing
+- Object Oriented Programming
 - Promises and Concurrency
 - Traits
-- Multiple dispatching
-- Type checks
+- Multiple Dispatching
+- Type Checks
 - Closures
 - Lazy Evaluation
 - Pattern Matching using PCRE
@@ -18,7 +18,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 ## Lonely operator
 
-`…`, `...`: to specify unimplemented code
+- `…`, `...`: to specify unimplemented code
 
 **p**: postfix, **i**: infix, **b**: prefix
 
@@ -171,7 +171,7 @@ say q%interpolation won't work%
 say qq/interpolation works, array: #a/
 
 # [ "0ne", "Tw0" ]
-b = a.grep{:x x =~ m|o| }.map{ s|o|0| }.map{ .ucfirst }
+b = a.grep(-> x { x =~ m|o| }).map{ s|o|0| }.map{ .ucfirst }
 b.say
 ```
 
@@ -227,8 +227,7 @@ We declare persistent lexically scoped variables with `state`, just like in Perl
 ```raku
 fun increment(n) {
     state k = n
-    __FUNC__(nil) if ++k != 9
-    return k
+    __FUNC__(nil), return k if ++k != 9
 }
 
 # 9
@@ -277,8 +276,8 @@ We donot expand type 2 special variables with `$`
 
 - `ENV`: a `Hash` which contains your current environment variables
 - `PATH`: an `Array` which contains the absolute path to directories where pity searches for modules
-- `INC`: 
-- `SIG`: 
+- `INC`: a `Hash`, each key correspond to an imported module and have a value which correspond its location in the filesystem
+- `SIG`: for traping signals, each signal is represented as a key and maps to a `Fun` which is to be executed whenever the signal is trapped
 - `ARGV`: array containing command line arguments
 - `ARGC`: represents the argument count, it is an object of type `Int`
 - `DATA`: represents a file handle to manipulate data under `__DATA__`, just like in perl
@@ -481,6 +480,8 @@ x = [2, 5]
 given x {
     say "variable x has two elements" if x.len == 2
 }
+
+print .map -> rx { rx ** 2 } given x
 ```
 
 10. `loop`
@@ -490,7 +491,7 @@ Just like the C-for loop
 general form: `loop initializer; condition; step { ... }`
 
 ```raku
-loop let k = 0; k <= 20; k++ { k.say }
+loop let k = 0; k ≤ 20; k² { k.say }
 
 # you can skip some parts
 loop let k = 0;;k++ {
@@ -531,14 +532,15 @@ repeat {
     say "forever"
 } until false;
 ```
+
 14. loop control statments: `next`, `break`, and `redo`
 
 general form: `next [LABEL|LEVEL]`, if you donot specify the label then it
 performs the action for the current block.
 
-`next`: just like `C`'s `continue` loop control statement
-`break`: just like `C`'s `break` loop control statement
-`redo`: rerun the block without testing the condition
+- `next`: just like `C`'s `continue` loop control statement
+- `break`: just like `C`'s `break` loop control statement
+- `redo`: rerun the block without testing the condition
 
 15. `labels`
 
@@ -570,7 +572,7 @@ of the number of iterations. One great advantage it offers is avoid the burdens 
 conditional construct to avoid the execution of a statement.
 
 ```raku
-for {one => 1, two => 1, three => 3}.each_kv -> k, v {
+for { one => 1, two => 1, three => 3 }.each_kv -> k, v {
     once say "I got one" if v == 1
     printfln "%s => %d", k, v
 }
@@ -593,23 +595,21 @@ NOTE: topic variables should only be named at the begining of the block of conce
 let a = [2, 5, 34]
 
 # declaring a topic variable x
-print a.map! { :x
+print a.map -> x {
     once say "first call"
     next if x == 3
     √x
 }
 
 # 2,2 4,none
-[2, 2, 4].each { :x,y = (,none)
-    say "#x,#y"
-}
+[2, 2, 4].each -> x, y = "none" { say "#x,#y" }
 ```
 
 # Functions
 
-Pity has support for multiple dispatching, type checks and named paramters.
-Mixing named arguments with unnamed ones brings alot of confusion in your code
-so either you use named paramters with all argument or you don't use them at all
+Pity has support for multiple dispatching, type checks and named arguments.
+Mixing named arguments with unnamed ones brings a lot of confusion in your code
+and so either you name all your arguments or you don't name anything at all.
 
 ```raku
 fun callme(code, n) { code.call(_) for ^n }
@@ -630,15 +630,21 @@ intro(age => 5, name => liza)
 # no candidates for this and thus fails at compile time
 intro(age)
 
-# type are supported
-fun mul(Str str, Int k) Str {
-    
-}
+fun mul(Str str, Int k) { say str * k }
+fun mul(Str str) { say str * 2 }
+
+mul("one")
+mul("two")
 ```
 
 # Classes
 
 ```raku
+class {
+    method get() {
+        
+    }
+}
 ```
 
 # Regular expressions
