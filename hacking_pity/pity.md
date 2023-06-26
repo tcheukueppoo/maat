@@ -297,6 +297,7 @@ each types here.
 
 - Bool
 - Pity
+- Any
 - Num
 - Rat
 - Str
@@ -313,6 +314,9 @@ each types here.
 - Range
 - Date
 - Sys
+- Supply
+- Promise
+- Laziness
 
 # Flow control
 
