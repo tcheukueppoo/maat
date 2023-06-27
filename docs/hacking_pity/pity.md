@@ -171,7 +171,7 @@ say q%interpolation won't work%
 say qq/interpolation works, array: #a/
 
 # [ "0ne", "Tw0" ]
-b = a.grep(-> x { x =~ m|o| }).map{ s|o|0| }.map{ .ucfirst }
+b = a.grep({[x] x =~ m|o| }).map{ s|o|0| }.map{ .ucfirst }
 b.say
 ```
 
@@ -415,23 +415,27 @@ else     { say "never here" }
 6. `for`
 
 ```ruby
-for "a", qr/regex/, [2, 4] { .say }
+foreach "a", qr/regex/, [2, 4] { .say }
 
 # output: 3 3 5 4 4
-for ar -> i { i.len.say }
+foreach i in ar { i.len.say }
 
 ar = <one two three four five>
 # "ar" is now [3, 3, 5, 4, 4]
-for ar -> j is rw {
+foreach j in ar {
     j = j.len
 }
 
 # (3, 3) (5, 4) (4, nil)
-for ar -> i, j { say "(#i, #j)" }
+for i, j in ar {
+    say "(#i, #j)"
+}
 
 # set a custom value when we are running out of elements
 # (3, 3) (5, 4) (4, none)
-for ar -> i, j = "none" { say "(#i, #j)" }
+for i, j = "none" in ar {
+    say "(#i, #j)"
+}
 
 .say for ar
 ```
@@ -485,7 +489,7 @@ given x {
     say "variable x has two elements" if x.len == 2
 }
 
-print .map -> rx { rx ** 2 } given x
+print .map {[rx] rx ** 2 } given x
 ```
 
 10. `loop`
@@ -576,7 +580,9 @@ of the number of iterations. One great advantage it offers is avoid the burdens 
 conditional construct to avoid the execution of a statement.
 
 ```raku
-for { one => 1, two => 1, three => 3 }.each_kv -> k, v {
+let h = { one => 1, two => 1, three => 3 }
+for h.each_kv {
+    [k,v]
     once say "I got one" if v == 1
     printfln "%s => %d", k, v
 }
@@ -599,14 +605,17 @@ NOTE: topic variables should only be named at the begining of the block of conce
 let a = [2, 5, 34]
 
 # declaring a topic variable x
-print a.map -> x {
+print a.map {[x]
     once say "first call"
     next if x == 3
     √x
 }
 
 # 2,2 4,none
-[2, 2, 4].each -> x, y = "none" { say "#x,#y" }
+[2, 2, 4].each {
+    [x, y = "none"]
+    say "#x,#y"
+}
 ```
 
 # Functions
