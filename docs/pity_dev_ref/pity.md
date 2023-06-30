@@ -163,7 +163,7 @@ quoted strings(`q`) and regex operators, Just like in Perl.
 ### Examples
 
 ```raku
-let a = qw|ONE TWO THREE|
+var a = qw|ONE TWO THREE|
 a.each{.lc}
 
 say q%interpolation won't work%
@@ -171,7 +171,7 @@ say q%interpolation won't work%
 say qq/interpolation works, array: #a/
 
 # [ "0ne", "Tw0" ]
-b = a.grep({[x] x =~ m|o| }).map{ s|o|0| }.map{ .ucfirst }
+b = a.grep({(x) x =~ m|o| }).map{ s|o|0| }.map{ .ucfirst }
 b.say
 ```
 
@@ -195,10 +195,10 @@ Declare package variables with the keyword `global`, lexically scoped variables 
 package One::Two {
     global x = <one two three>
 
-    let a = {one => 1}
+    var a = {one => 1}
     {
         # a: {one => 1, two => 2}
-        let a += {two => 2}
+        var a += {two => 2}
 
         # could still use "One::Two::x" at declaration
         temp x = {}
@@ -344,7 +344,7 @@ say 2; say 3
 2. `do` Block
 
 ```raku
-let v = do { 2 }
+var v = do { 2 }
 # "2"
 say v
 
@@ -365,10 +365,15 @@ bg {
 }
 
 # declare a function and assign it to "a"
-let a = fun { sleep 4; say "done" }
+var a = fun { sleep 4; say "done" }
 
-# run function in "a" asyncronously
-bg a.call
+# run function in "a" asyncronously and return a promise
+var p = bg a.call
+
+say "do stuffs"
+
+# await promise p
+fg p
 ```
 
 4. `if`
@@ -401,7 +406,7 @@ Conditional `with` statement, parathensis are always optional.
 the returned value of the expression.
 
 ```raku
-let (u, y) = (5, nil)
+var (u, y) = (5, nil)
 
 # 5, 5
 with u { say _, u }
@@ -422,18 +427,18 @@ foreach i in ar { i.len.say }
 
 ar = <one two three four five>
 # "ar" is now [3, 3, 5, 4, 4]
-foreach j in ar {
+for ar -> j {
     j = j.len
 }
 
 # (3, 3) (5, 4) (4, nil)
-for i, j in ar {
+for ar {(i,j)
     say "(#i, #j)"
 }
 
 # set a custom value when we are running out of elements
 # (3, 3) (5, 4) (4, none)
-for i, j = "none" in ar {
+for ar -> i, j = "none" {
     say "(#i, #j)"
 }
 
@@ -447,7 +452,7 @@ calls to `take` in the dynamic scope of block/function passed as argument to `ga
 
 ```raku
 fun factors(n) {
-  let k = 1
+  var k = 1
 
   gather {
     while k ** 2 < n {
@@ -469,7 +474,7 @@ factors(36).say
 We implement the switch-case using `given`-`when`, this construct tests the topic variable
 initialized to the argument passed to `given` against the following cases using the smartmatch
 operator(`~~`). We execute the block of the first matching case and instantly exit the `given` block.
-We can continue to the next case by using the `proceed` instruction within the block of a case.
+We can continue on to the next case by using the `proceed` instruction within the block of a case.
 
 ```raku
 # output: Num, 42
@@ -489,7 +494,7 @@ given x {
     say "variable x has two elements" if x.len == 2
 }
 
-print .map {[rx] rx ** 2 } given x
+print .map {(rx) rx ** 2 } given x
 ```
 
 10. `loop`
@@ -499,10 +504,10 @@ Just like the C-for loop
 general form: `loop initializer; condition; step { ... }`
 
 ```raku
-loop let k = 0; k ≤ 20; k² { k.say }
+loop var k = 0; k ≤ 20; k² { k.say }
 
 # you can skip some parts
-loop let k = 0;;k++ {
+loop var k = 0;;k++ {
     k.say
     break if k == 10
 }
@@ -580,12 +585,18 @@ of the number of iterations. One great advantage it offers is avoid the burdens 
 conditional construct to avoid the execution of a statement.
 
 ```raku
-let h = { one => 1, two => 1, three => 3 }
-for h.each_kv {
-    [k,v]
-    once say "I got one" if v == 1
+var h = { one => 1, two => 1, three => 3 }
+for h.each_kv {(k,v)
+    once say 'only once!' if v == 1
     printfln "%s => %d", k, v
 }
+
+# for syntatic suger
+for h.each_kv -> k, v {
+    once say 'only once!' if v == 1
+    printfln "%s => %d", k, v
+}
+
 ```
 
 17. `try`-`catch`-`finally`
@@ -602,27 +613,27 @@ for calls.
 NOTE: topic variables should only be named at the begining of the block of concern.
 
 ```raku
-let a = [2, 5, 34]
+var a = [2, 5, 34]
 
 # declaring a topic variable x
-print a.map {[x]
-    once say "first call"
+print a.map {(x)
+    once x++
     next if x == 3
     √x
 }
 
 # 2,2 4,none
 [2, 2, 4].each {
-    [x, y = "none"]
+    (x, y = "none")
     say "#x,#y"
 }
 ```
 
 # Functions
 
-Pity has support for multiple dispatching, type checks and named arguments.
-Mixing named arguments with unnamed ones brings a lot of confusion in your code
-and so either you name all your arguments or you don't name anything at all.
+Pity has support for multiple dispatching, type checks and named arguments. Mixing named arguments
+with unnamed ones brings a lot of confusion in your code and hence either you name all your arguments
+or you don't name anything at all.
 
 ```raku
 fun callme(code, n) { code.call(_) for ^n }
@@ -662,7 +673,7 @@ class {
 
 # Regular expressions
 
-Pity support the incredible Perl regular expressions and it couldn't go to heaven if it didn't.
+
 
 ```raku
 ```
