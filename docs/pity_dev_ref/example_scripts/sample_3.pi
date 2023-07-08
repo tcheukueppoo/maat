@@ -1,9 +1,5 @@
 #!/usr/bin/env ruby
 
-export_var   qw(var_one var_two)
-export_class qw(class_one class_two)
-export_func  qw(func_one func_two func_three)
-
 # x is a global variable which can be accessed from other namespaces
 # ex: if we were in the namespace ONE::TWO then access 'a' with ONE::TWO::W
 # it is mandatory for globals to be uppercased

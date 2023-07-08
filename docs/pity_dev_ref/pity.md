@@ -171,7 +171,7 @@ say q%interpolation won't work%
 say qq/interpolation works, array: #a/
 
 # [ "0ne", "Tw0" ]
-b = a.grep({(x) x =~ m|o| }).map{ s|o|0| }.map{ .ucfirst }
+b = a.grep({(x) x =~ m|o| }).map({ s|o|0|r }).map(.ucfirst)
 b.say
 ```
 
@@ -222,11 +222,11 @@ package One::Two::Three {
 
 Persistent variables are lexically scoped variables which retains their values between
 function and block(during recursion or jumps with a loop control) calls.
-We declare persistent lexically scoped variables with `state`, just like in Perl.
+We declare persistent lexically scoped variables with the `static` keyword.
 
 ```raku
-fun increment(n) {
-    state k = n
+fn increment(n) {
+    static k = n
     __FUNC__(nil), return k if ++k != 9
 }
 
@@ -349,7 +349,7 @@ var v = do { 2 }
 say v
 
 # "3"
-do { 3 }.say
+(do { 3 }).say
 
 do { false } or die "failed"
 ```
@@ -365,7 +365,7 @@ bg {
 }
 
 # declare a function and assign it to "a"
-var a = fun { sleep 4; say "done" }
+var a = fn { sleep 4; say "done" }
 
 # run function in "a" asyncronously and return a promise
 var p = bg a.call
@@ -412,18 +412,18 @@ var (u, y) = (5, nil)
 with u { say _, u }
 
 # 5
-with   y { say "never here" }
-orwith u {:m say m }
-else     { say "never here" }
+with   y      { say "never here" }
+orwith u -> m { say m }
+else          { say "never here" }
 ```
 
 6. `for`
 
 ```ruby
-foreach "a", qr/regex/, [2, 4] { .say }
+for "a", qr/regex/, [2, 4] { .say }
 
 # output: 3 3 5 4 4
-foreach i in ar { i.len.say }
+for ar -> i { i.len.say }
 
 ar = <one two three four five>
 # "ar" is now [3, 3, 5, 4, 4]
@@ -482,6 +482,14 @@ given 34 {
   when Num { say "Num"; proceed }
   when 42  { say "42" }
   default  { say "Default" }
+}
+
+# use '|' for alternation
+var name = kueppo
+given name {
+    /^k/ | /o$/ { say "matches" }
+    /^m/        { say "starts with 'm'" }
+    default     { say "default" }
 }
 ```
 
@@ -586,7 +594,8 @@ conditional construct to avoid the execution of a statement.
 
 ```raku
 var h = { one => 1, two => 1, three => 3 }
-for h.each_kv {(k,v)
+for h.each_kv {
+    (k,v)
     once say 'only once!' if v == 1
     printfln "%s => %d", k, v
 }
@@ -596,7 +605,6 @@ for h.each_kv -> k, v {
     once say 'only once!' if v == 1
     printfln "%s => %d", k, v
 }
-
 ```
 
 17. `try`-`catch`-`finally`
@@ -636,14 +644,14 @@ with unnamed ones brings a lot of confusion in your code and hence either you na
 or you don't name anything at all.
 
 ```raku
-fun callme(code, n) { code.call(_) for ^n }
+fn callme(code, n) { code.call(_) for ^n }
 callme({ .say }, 5)
 
-multi fun intro(name, age) {
+mul fn intro(name, age) {
     say "Hello, my name is #name, I'm #{age}yo"
 }
 
-multi fun intro(name) {
+mul fn intro(name) {
     say "Hello, my name is #name!"
 }
 
@@ -654,28 +662,43 @@ intro(age => 5, name => liza)
 # no candidates for this and thus fails at compile time
 intro(age)
 
-fun mul(Str str, Int k) { say str * k }
-fun mul(Str str) { say str * 2 }
+fn mul(Str str, Int k) { say str * k }
+fn mul(Str str) { say str * 2 }
 
 mul("one")
 mul("two")
 ```
 
-# Classes
+# Classes & Roles
 
 ```raku
-class {
-    method get() {
-        
+role D { ... }
+role E { ... }
+
+class B { ... }
+class C { ... }
+
+-- "isa" for inheritance and "does" for roles
+class A isa B, C does D, E {
+    has x is ro -- readonly attribute, say A.x
+    has y is rw -- read-write attribute, A.y = 2; say A.y
+    has z -- simple attribute with no generated accessors
+
+    method xyz() {
+        -- self.x, self.y, etc.
+        ...
     }
+    multi method amethod() {}
+    multi method amethod() {}
 }
 ```
 
 # Regular expressions
 
-
+Pity uses perl compatible regular expressions(PCRE), see Regex for more details.
 
 ```raku
+var 
 ```
 
 # Promises and Concurrency
@@ -692,5 +715,7 @@ class {
 
 ```raku
 ```
+
+# Phasers
 
 # Conclusion

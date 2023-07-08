@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 fun factors(n) {
-  let k = 1
+  var k = 1
   gather {
     while k ** 2 < n {
         if n % k {
@@ -16,10 +16,10 @@ fun factors(n) {
 
 factors(36).say
 
-let primes = ^10_000.grep{ .is_prime }
+var primes = ^10_000.grep{ .is_prime }
 
 fun weird(elems, direction = "foward") {
-  let directions = {
+  var directions = {
     forward  => fun { take for elems },
     backward => fun { take for elems.reverse },
     random   => fun { take for elems.pick(*) },
@@ -28,7 +28,7 @@ fun weird(elems, direction = "foward") {
   return gather directions{direction}
 }
 
-let list = <1 2 3 4>
+var list = <1 2 3 4>
 for list { say "#a, #b" }
 
 with ^10.pick{:x ++x.say }
