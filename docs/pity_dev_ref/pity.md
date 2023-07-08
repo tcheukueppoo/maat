@@ -149,7 +149,7 @@ a = |one two three|
 # [ "Three", "TWo", "One" ], Lennon Stella :-)
 b = a.map{.capitalize}.reverse
 
-# [ "0ne", "tw0", "three" ]
+-- [ "0ne", "tw0", "three" ]
 a =~ s<o>«0»
 ```
 
@@ -170,7 +170,7 @@ say q%interpolation won't work%
 
 say qq/interpolation works, array: #a/
 
-# [ "0ne", "Tw0" ]
+-- [ "0ne", "Tw0" ]
 b = a.grep({(x) x =~ m|o| }).map({ s|o|0|r }).map(.ucfirst)
 b.say
 ```
@@ -230,17 +230,17 @@ fn increment(n) {
     __FUNC__(nil), return k if ++k != 9
 }
 
-# 9
+-- 9
 increment(0, 9).say
 ```
 constant variables are lexically scoped by default unless you precise they're global with the global
 keyword.
 
 ```raku
-# lexically scoped constant
+-- lexically scoped constant
 const z = 4
 
-# a constant global
+-- a constant global
 const global (x, y) = (2, 10)
 ```
 
@@ -345,10 +345,10 @@ say 2; say 3
 
 ```raku
 var v = do { 2 }
-# "2"
+-- "2"
 say v
 
-# "3"
+-- "3"
 (do { 3 }).say
 
 do { false } or die "failed"
@@ -364,15 +364,15 @@ bg {
     say "done"
 }
 
-# declare a function and assign it to "a"
+-- declare a function and assign it to "a"
 var a = fn { sleep 4; say "done" }
 
-# run function in "a" asyncronously and return a promise
+-- run function in "a" asyncronously and return a promise
 var p = bg a.call
 
 say "do stuffs"
 
-# await promise p
+-- await promise p
 fg p
 ```
 
@@ -408,10 +408,10 @@ the returned value of the expression.
 ```raku
 var (u, y) = (5, nil)
 
-# 5, 5
+-- 5, 5
 with u { say _, u }
 
-# 5
+-- 5
 with   y      { say "never here" }
 orwith u -> m { say m }
 else          { say "never here" }
@@ -422,22 +422,22 @@ else          { say "never here" }
 ```ruby
 for "a", qr/regex/, [2, 4] { .say }
 
-# output: 3 3 5 4 4
+-- output: 3 3 5 4 4
 for ar -> i { i.len.say }
 
 ar = <one two three four five>
-# "ar" is now [3, 3, 5, 4, 4]
+-- "ar" is now [3, 3, 5, 4, 4]
 for ar -> j {
     j = j.len
 }
 
-# (3, 3) (5, 4) (4, nil)
+-- (3, 3) (5, 4) (4, nil)
 for ar {(i,j)
     say "(#i, #j)"
 }
 
-# set a custom value when we are running out of elements
-# (3, 3) (5, 4) (4, none)
+-- set a custom value when we are running out of elements
+-- (3, 3) (5, 4) (4, none)
 for ar -> i, j = "none" {
     say "(#i, #j)"
 }
@@ -477,14 +477,14 @@ operator(`~~`). We execute the block of the first matching case and instantly ex
 We can continue on to the next case by using the `proceed` instruction within the block of a case.
 
 ```raku
-# output: Num, 42
+-- output: Num, 42
 given 34 {
   when Num { say "Num"; proceed }
   when 42  { say "42" }
   default  { say "Default" }
 }
 
-# use '|' for alternation
+-- use '|' for alternation
 var name = kueppo
 given name {
     /^k/ | /o$/ { say "matches" }
@@ -514,7 +514,7 @@ general form: `loop initializer; condition; step { ... }`
 ```raku
 loop var k = 0; k ≤ 20; k² { k.say }
 
-# you can skip some parts
+-- you can skip some parts
 loop var k = 0;;k++ {
     k.say
     break if k == 10
@@ -568,13 +568,13 @@ performs the action for the current block.
 labels permits you to jump between labeled blocks using a loop control statement
 
 ```raku
-# an infinite loop with prints "one"
+-- an infinite loop with prints "one"
 ONE: {
     say "one"
     redo ONE
 }
 
-# print "two" to the stdout and repeatly print "three"
+-- print "two" to the stdout and repeatly print "three"
 TWO: {
     say "two"
     THREE: {
@@ -600,7 +600,7 @@ for h.each_kv {
     printfln "%s => %d", k, v
 }
 
-# for syntatic suger
+-- for syntatic suger
 for h.each_kv -> k, v {
     once say 'only once!' if v == 1
     printfln "%s => %d", k, v
@@ -623,14 +623,14 @@ NOTE: topic variables should only be named at the begining of the block of conce
 ```raku
 var a = [2, 5, 34]
 
-# declaring a topic variable x
+-- declaring a topic variable x
 print a.map {(x)
     once x++
     next if x == 3
     √x
 }
 
-# 2,2 4,none
+-- 2,2 4,none
 [2, 2, 4].each {
     (x, y = "none")
     say "#x,#y"
@@ -659,7 +659,7 @@ intro("kueppo", "20")
 intro("sarah")
 intro(age => 5, name => liza)
 
-# no candidates for this and thus fails at compile time
+-- no candidates for this and thus fails at compile time
 intro(age)
 
 fn mul(Str str, Int k) { say str * k }
@@ -671,7 +671,7 @@ mul("two")
 
 # Classes & Roles
 
-```raku
+```lua
 role D { ... }
 role E { ... }
 
@@ -682,7 +682,7 @@ class C { ... }
 class A isa B, C does D, E {
     has x is ro -- readonly attribute, say A.x
     has y is rw -- read-write attribute, A.y = 2; say A.y
-    has z -- simple attribute with no generated accessors
+    has z       -- simple attribute with no generated accessors
 
     method xyz() {
         -- self.x, self.y, etc.
