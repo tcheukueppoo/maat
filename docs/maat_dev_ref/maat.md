@@ -228,7 +228,7 @@ We declare persistent lexically scoped variables with the `state` keyword.
 ```raku
 fun increment(n) {
     state k = n
-    __FUNC__(nil), return k if ++k != 9
+    __FUN__(nil), return k if ++k != 9
 }
 
 -- 9
@@ -282,7 +282,7 @@ We donot expand type 2 special variables with `$`
 - `ARGV`: array containing command line arguments
 - `ARGC`: represents the argument count, it is an object of type `Int`
 - `DATA`: represents a file handle to manipulate data under `__DATA__`, just like in perl
-- `__FUNC__`: for recursion, call the current function
+- `__FUN__`: for recursion, call the current function
 - `__BLOCK__`: for recursion, call the current block
 - `__FILE__`: a string object, represents the name of current script in execution
 
@@ -467,7 +467,8 @@ factors(36).say
 
 8. `keys`
 
-`keys` is a looping construct which iterates over hash keys and 
+`keys` is a looping construct which iterates over hash keys to perform certain operations if any of them smart-matches
+any of the cases.
 
 ```
 var h = { banana => 2, orange => 1, melon => 2 }
@@ -483,7 +484,7 @@ s.say
 
 8. `given`-`match`
 
-We implement the switch-case using `given`-`case`, When a object is specified this construct tests the topic
+We implement the switch-case using `given`-`match` construct, When an object is specified this construct tests the topic
 variable initialized to the argument passed to `given` against the following cases using the smartmatch operator(`~~`).
 We execute the block of the first matching case and instantly exit the `given` block. We can continue on to the
 next case by using the `proceed` instruction within the block of a case.
@@ -661,7 +662,7 @@ print a.map {(x)
 with unnamed ones brings a lot of confusion in your code and hence either you name all your arguments
 or you don't name anything at all.
 
-```raku
+```
 fun callme(c, n) { c.call(_) for ^n }
 callme({ .say }, 5)
 
@@ -680,16 +681,26 @@ intro(age = 5, name = liza)
 -- no candidates for this and thus fails at compile time
 intro(age = 10)
 
-fun mul(Str str, Int k) { say str * k }
-fun mul(Str str) { say str * 2 }
+-- You can also specify the return type
+fun mul(Str str, Int k) -> Str { str * k }
 
-mul("one")
-mul("two")
+fun mul(Str str) { str * 2 }
+
+mul("one").say; mul("two", 5).say
+```
+
+Function as well as methods do have support for the `cached` trait, note that return type has
+to appears after trait.
+
+```
+fun fib(n) :cached -> Num {
+    n < 2 ? n : __FUN__(n - 1) + __FUN__(n - 2)
+}
 ```
 
 # Classes & Roles
 
-```lua
+```
 role D { ... }
 role E { ... }
 
@@ -698,16 +709,19 @@ class C { ... }
 
 -- "isa" for inheritance and "does" for roles
 class A :isa(B, C) :does(D, E) {
-    has x is ro -- readonly attribute, say A.x
-    has y is rw -- read-write attribute, A.y = 2; say A.y
-    has z       -- simple attribute with no auto-generated accessors
+    has x :ro     -- readonly attribute, ro: say A.x; not possible: A.x = "some value"
+    has y :rw = 0 -- read-write attribute with default value '0', write: A.y = 2; read: say A.y
+    has Num z     -- attribute of type 'Num', maat has a type check system
 
     meth xyz() {
         -- self.x, self.y, etc.
         ...
     }
+
     mul meth amethod() {}
-    mul meth amethod() {}
+
+    -- a method which returns an object of type 'Num'
+    mul meth amethod() -> Num {}
 }
 ```
 
