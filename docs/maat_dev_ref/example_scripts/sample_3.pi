@@ -47,11 +47,11 @@ LABEL: {
 
 ## Hash
 # declare a hash and store it in a lexically scope variable
-var bhash = {one => 2, two => 1} # or
+var bhash = { one = 2, two = 1 } # or
 var ahash = Hash.new(
-                     2   => two,
-                     3   => "this three",
-                     one => 1,
+                     2   = two,
+                     3   = "this three",
+                     one = 1,
                     ) # can replace '->' with ','
 
 # declaring a code/block
@@ -99,9 +99,9 @@ array[0..1] = qw(i j)
 
 ## Complex data structures
 var wtf = {
-   one   => [ { two => 3, three => 4 }, [qw(a b c d)] ],
-   two   => do { ... },
-   three => True ? [ { one => 1, two => 2 } ] : do { ... },
+   one   = [ { two = 3, three = 4 }, [qw(a b c d)] ],
+   two   = do { ... },
+   three = True ? [ { one = 1, two = 2 } ] : do { ... },
 }
 
 var b = [wtf, True]
@@ -136,6 +136,11 @@ for k -> a is rw {
 for k { .uc.say }
 
 
-var b = {one => 1, two => 2, three => 4}
+var b = {
+   one   = 1,
+   two   = 2,
+   three = 4,
+}
+
 for b -> k, v { (a + ':' + b).say }
 

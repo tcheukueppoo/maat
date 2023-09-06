@@ -20,9 +20,9 @@ var primes = ^10_000.grep{ .is_prime }
 
 fun weird(elems, direction = "foward") {
   var directions = {
-    forward  => fun { take for elems },
-    backward => fun { take for elems.reverse },
-    random   => fun { take for elems.pick(*) },
+    forward  = fun { take for elems },
+    backward = fun { take for elems.reverse },
+    random   = fun { take for elems.pick(*) },
   }
 
   return gather directions{direction}

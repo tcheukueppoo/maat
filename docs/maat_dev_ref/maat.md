@@ -1,11 +1,11 @@
-# Pity
+# Maat 
 
-`Pity` is a multi-paradigm programming(functional and object oriented)language
+`Maat` is a multi-paradigm programming(functional and object oriented)language
 inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 - Functional Programing
 - Object Oriented Programming
-- Promises and Concurrency
+- Work and Concurrency
 - Traits
 - Multiple Dispatching
 - Type Checks
@@ -38,29 +38,30 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 - `defined`: (b) check if a varible is `nil` and return true otherwise
 - `chomp`: (b)
-- `chop`: (b)
-- `sleep`: (b)
-- ``:
+- `chop`: (b) strip 
+- `sleep`: (b) call sleep() syscall
+- `return`: (b) return from a function
+- `exit`: exit program with given exit code
 
 ## Named list operators
 
 - `say`: (b) print to the standard output with a trailing new line
-- `die`: (b) program dies instantly
-- `warn`: (b) warn on stderr
 - `print`: (b) print without a new line
 - `printf`: (b) print formatted string
-- `printfln`: (b) formatted string + a trailing new line and return to stdout/stderr
+- `printfln`: (b) formatted string + a trailing new line and return to a file descriptor
 - `sprintf`: (b) sprintf, return formatted string
 - `sprintfln`: (b) sprintf + a trailing new line
 - `min`: (b) yield min from a list
 - `max`: (b) yield max from a list
-- `minmax`: (b) yield min and max, return it in a list
+- `minmax`: (b) yield min and max, return them in a list
+- `die`: (b) program dies with a message on `STDERR`
+- `warn`: (b) warn with a message on `STDERR`
 
 ## Named binary operators
 
 - `isa`: (i) checks if the left object `isa`(of the same class or kind of inherited) the right object
 
-## Binary operators for pity objects
+## Binary operators for maat objects
 
 - `,`, `=>`: (i, b) comma operator, and key-value separator infix operator
 
@@ -144,10 +145,10 @@ operators (substitution, transliteration and pattern matching).
 ### Examples
 
 ```raku
-a = |one two three|
+var a = w|one two three|
 
-# [ "Three", "TWo", "One" ], Lennon Stella :-)
-b = a.map{.capitalize}.reverse
+-- [ "Three", "Two", "One" ]
+var b = a.map{.capitalize}.reverse
 
 -- [ "0ne", "tw0", "three" ]
 a =~ s<o>«0»
@@ -155,29 +156,29 @@ a =~ s<o>«0»
 
 ## Single character delimiter
 
-We also have a restricted set of delimiter characters for double quoted strings(`qq`), single
-quoted strings(`q`) and regex operators, Just like in Perl.
+We also have a restricted set of delimiter characters for double quoted strings(`q`), single
+quoted strings(`Q`) and regex operators, Just like in Perl.
 
-`/`, `|`, `%`
+`/`, `|`, `%`, `"`, and `'`
 
 ### Examples
 
 ```raku
-var a = qw|ONE TWO THREE|
-a.each{.lc}
+var a = w|ONE TWO THREE|
+a.each{.lc.say}
 
-say q%interpolation won't work%
+say q"interpolation won't work"
 
-say qq/interpolation works, array: #a/
+say Q<interpolation works, array: #a>
 
 -- [ "0ne", "Tw0" ]
-b = a.grep({(x) x =~ m|o| }).map({ s|o|0|r }).map(.ucfirst)
+b = a.grep({(x) x =~ m|o| }).map(s|o|0|r).map(.ucfirst)
 b.say
 ```
 
 # Variables
 
-`Pity` has four types of variables: package, lexical, temporal and persistent variables.
+`Maat` has four types of variables: package, lexical, temporal and persistent variables.
 
 Package variable can be accessed from other packages using their full qualified name and lexically
 scoped variables cannot be accessed from outside the package in which it was declared.
@@ -186,47 +187,47 @@ Temporal variables are declared within a scope and refers to previously declared
 variables from the current package if its name at declaration isn't fully qualified otherwise
 refers to the variable in the specified package. Any changes made to temporal variables remains
 local to the scope from where it was declare and thus the referenced variables remains untouched.
-You cannot temporarize/localize lexically scoped variables.
+You cannot localize lexically scoped variables.
 
 Declare package variables with the keyword `global`, lexically scoped variables with
-`let` and temporal variable with `temp`.
+`var` and temporal variable with `tmp`.
 
 ```raku
 package One::Two {
-    global x = <one two three>
+    global x = w<one two three>
 
-    var a = {one => 1}
+    var a = { one => 1 }
     {
-        # a: {one => 1, two => 2}
-        var a += {two => 2}
+        -- a: { one => 1, two => 2 }
+        var a += { two => 2 }
 
-        # could still use "One::Two::x" at declaration
-        temp x = {}
-        # empty hash
+        -- could still use "One::Two::x" at declaration
+        tmp x = {}
+        -- empty hash
         say One::Two::x
     }
 
-    # a: {one => 1}
+    -- a: {one => 1}
     a.say
-    # x: ["one", "two", "three"], unchanged!
+    -- x: ["one", "two", "three"], unchanged!
     x.say
 }
 
 package One::Two::Three {
-    # refers to the package variable "x" declared in the namespace "One::Two"
+    -- refers to the package variable "x" declared in the namespace "One::Two"
     say One::Two::Three::x
-    # returns nil, "a" in "One::Two" is lexically scoped
+    -- returns nil, "a" in "One::Two" is lexically scoped
     say One::Two::Three::a
 }
 ```
 
 Persistent variables are lexically scoped variables which retains their values between
 function and block(during recursion or jumps with a loop control) calls.
-We declare persistent lexically scoped variables with the `static` keyword.
+We declare persistent lexically scoped variables with the `state` keyword.
 
 ```raku
-fn increment(n) {
-    static k = n
+fun increment(n) {
+    state k = n
     __FUNC__(nil), return k if ++k != 9
 }
 
@@ -263,9 +264,9 @@ say "Running #$0 on #$OS"
 - `.`: current line in a file
 - `,`: output field separator
 - `/`: input record separator
-- `Pity`: Pity version
+- `Maat`: Maat version
 - `"`: Separator character during interpolation
-- `$`: Pid of the current pity program
+- `$`: Pid of the current maat program
 - `0`: Program name
 - `!`: retrieve errors from syscalls
 - `_` : Topic variable, used mostly in blocks
@@ -275,7 +276,7 @@ say "Running #$0 on #$OS"
 We donot expand type 2 special variables with `$`
 
 - `ENV`: a `Hash` which contains your current environment variables
-- `PATH`: an `Array` which contains the absolute path to directories where pity searches for modules
+- `PATH`: an `Array` which contains the absolute path to directories where maat searches for modules
 - `INC`: a `Hash`, each key correspond to an imported module and have a value which correspond its location in the filesystem
 - `SIG`: for traping signals, each signal is represented as a key and maps to a `Fun` which is to be executed whenever the signal is trapped
 - `ARGV`: array containing command line arguments
@@ -292,12 +293,12 @@ We donot expand type 2 special variables with `$`
 
 # Objects
 
-Pity has 16 builtin objects, types are objects and objects are types, check details on
+ Maat has 16 builtin objects, types are objects and objects are types, check details on
 each types here.
 
-- Bool
-- Pity
+- Maat 
 - Any
+- Bool
 - Num
 - Rat
 - Str
@@ -336,7 +337,7 @@ say 2; say 3
     say "one"
     { say "two" }
 
-    # recall the current block
+    -- recall the current block
     __BLOCK__
 }
 ```
@@ -354,26 +355,26 @@ say v
 do { false } or die "failed"
 ```
 
-3. `bg` Blocks
+3. `awork` Blocks
 
 run a block asyncronously
 
-```javascript
-bg {
+```bash
+awork {
     4.sleep
     say "done"
 }
 
 -- declare a function and assign it to "a"
-var a = fn { sleep 4; say "done" }
+var a = fun { sleep 4; say "done" }
 
 -- run function in "a" asyncronously and return a promise
-var p = bg a.call
+var w = awork a.call()
 
 say "do stuffs"
 
--- await promise p
-fg p
+-- await work 'w'
+abide p
 ```
 
 4. `if`
@@ -420,7 +421,7 @@ else          { say "never here" }
 6. `for`
 
 ```ruby
-for "a", qr/regex/, [2, 4] { .say }
+for "a", r/regex/, [2, 4] { .say }
 
 -- output: 3 3 5 4 4
 for ar -> i { i.len.say }
@@ -429,11 +430,6 @@ ar = <one two three four five>
 -- "ar" is now [3, 3, 5, 4, 4]
 for ar -> j {
     j = j.len
-}
-
--- (3, 3) (5, 4) (4, nil)
-for ar {(i,j)
-    say "(#i, #j)"
 }
 
 -- set a custom value when we are running out of elements
@@ -469,35 +465,53 @@ fun factors(n) {
 factors(36).say
 ```
 
-8. `given`-`when`
+8. `keys`
 
-We implement the switch-case using `given`-`when`, this construct tests the topic variable
-initialized to the argument passed to `given` against the following cases using the smartmatch
-operator(`~~`). We execute the block of the first matching case and instantly exit the `given` block.
-We can continue on to the next case by using the `proceed` instruction within the block of a case.
+`keys` is a looping construct which iterates over hash keys and 
+
+```
+var h = { banana => 2, orange => 1, melon => 2 }
+
+var s = keys h {
+    match r/^b/ | r/ge$/ { _ = .chop; __ += 2 }
+    default { __ *= 2 }
+}
+
+-- { banan => 5, orang => 3, melon => 4 }
+s.say
+```
+
+8. `given`-`match`
+
+We implement the switch-case using `given`-`case`, When a object is specified this construct tests the topic
+variable initialized to the argument passed to `given` against the following cases using the smartmatch operator(`~~`).
+We execute the block of the first matching case and instantly exit the `given` block. We can continue on to the
+next case by using the `proceed` instruction within the block of a case.
 
 ```raku
 -- output: Num, 42
 given 34 {
-  when Num { say "Num"; proceed }
-  when 42  { say "42" }
-  default  { say "Default" }
+  match Num { say "Num"; proceed }
+  match 42  { say "42" }
+  default   { say "Default" }
 }
 
 -- use '|' for alternation
-var name = kueppo
+var name = "kueppo"
 given name {
-    /^k/ | /o$/ { say "matches" }
-    /^m/        { say "starts with 'm'" }
-    default     { say "default" }
+    match /^k/ | /o$/ { say "matches" }
+    match /^m/        { say "starts with 'm'" }
+    default           { say "default" }
 }
 ```
+
+Note that smartmatch operator is the default operator used when 
 
 You can also use `given` as a standalone statement to specify the variable of concern in
 the execution of a block.
 
 ```raku
-x = [2, 5]
+var x = [2, 5]
 given x {
     say "variable x has two elements" if x.len == 2
 }
@@ -528,7 +542,8 @@ loop { say "looping forever" }
 The basic `while` and `until` loop.
 
 ```raku
-k = 6
+var k = 6
+
 while k > 1 {
     k.say
     k--
@@ -539,17 +554,17 @@ until k == 0 {
 }
 ```
 
-13. `repeat`-`while`/`until`
+13. `do`-`while`/`until`
 
 ```raku
-k = Set.new(2, 4, 5)
-b = [2, 7, 3]
+var k = Set.new(2, 4, 5)
+var b = [2, 7, 3]
 
-repeat {
+do {
     k.add(b.pop)
 } while [2, 7] ∉ k
 
-repeat {
+do {
     say "forever"
 } until false;
 ```
@@ -593,7 +608,10 @@ of the number of iterations. One great advantage it offers is avoid the burdens 
 conditional construct to avoid the execution of a statement.
 
 ```raku
-var h = { one => 1, two => 1, three => 3 }
+var h = h{one 1 two 2 three 3}
+
+for h.each_kv { say "#_ => #__" }
+
 for h.each_kv {
     (k,v)
     once say 'only once!' if v == 1
@@ -611,7 +629,7 @@ for h.each_kv -> k, v {
 
 `try`-`catch` for handling exceptions.
 
-18. topic variable `_`
+18. topic variables `_` and `__`
 
 We've been using topic variables since the begining of this section without known what they are, a topic
 variable is just an argument passed to an executing block, you can declare a topic variable to avoid the
@@ -639,31 +657,31 @@ print a.map {(x)
 
 # Functions
 
-Pity has support for multiple dispatching, type checks and named arguments. Mixing named arguments
+ Maat has support for multiple dispatching, type checks and named arguments. Mixing named arguments
 with unnamed ones brings a lot of confusion in your code and hence either you name all your arguments
 or you don't name anything at all.
 
 ```raku
-fn callme(code, n) { code.call(_) for ^n }
+fun callme(c, n) { c.call(_) for ^n }
 callme({ .say }, 5)
 
-mul fn intro(name, age) {
+mul fun intro(name, age) {
     say "Hello, my name is #name, I'm #{age}yo"
 }
 
-mul fn intro(name) {
+mul fun intro(name) {
     say "Hello, my name is #name!"
 }
 
 intro("kueppo", "20")
 intro("sarah")
-intro(age => 5, name => liza)
+intro(age = 5, name = liza)
 
 -- no candidates for this and thus fails at compile time
-intro(age)
+intro(age = 10)
 
-fn mul(Str str, Int k) { say str * k }
-fn mul(Str str) { say str * 2 }
+fun mul(Str str, Int k) { say str * k }
+fun mul(Str str) { say str * 2 }
 
 mul("one")
 mul("two")
@@ -679,29 +697,29 @@ class B { ... }
 class C { ... }
 
 -- "isa" for inheritance and "does" for roles
-class A isa B, C does D, E {
+class A :isa(B, C) :does(D, E) {
     has x is ro -- readonly attribute, say A.x
     has y is rw -- read-write attribute, A.y = 2; say A.y
-    has z       -- simple attribute with no generated accessors
+    has z       -- simple attribute with no auto-generated accessors
 
-    method xyz() {
+    meth xyz() {
         -- self.x, self.y, etc.
         ...
     }
-    multi method amethod() {}
-    multi method amethod() {}
+    mul meth amethod() {}
+    mul meth amethod() {}
 }
 ```
 
 # Regular expressions
 
-Pity uses perl compatible regular expressions(PCRE), see Regex for more details.
+Maat uses perl compatible regular expressions(PCRE), see Regex for more details.
 
 ```raku
 var 
 ```
 
-# Promises and Concurrency
+# Work and Concurrency
 
 ```raku
 ```
