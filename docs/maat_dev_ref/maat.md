@@ -24,6 +24,8 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 ## Basic unary operators
 
+- `&`: (b) address retrieval operator
+- `*`: (b) dereference operator
 - `++`: (p,b) inc
 - `--`: (p,b) dec
 - `-`: (b) negative
@@ -62,6 +64,8 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - `isa`: (i) checks if the left object `isa`(of the same class or kind of inherited) the right object
 
 ## Binary operators for maat objects
+
+- `.`, `.^`: method/attribute call operators for objects and metaobjects/metaclasses respectively
 
 - `,`, `=>`: (i, b) comma operator, and key-value separator infix operator
 
@@ -124,8 +128,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 ## Pair delimiters
 
-The pair delimiters below are used in declararing enums, arrays, hashes and on the regex
-operators (substitution, transliteration and pattern matching).
+The pair delimiters below are used in declararing enums, arrays, hashes and on the regex operators (substitution, transliteration and pattern matching).
 
 ```
 ( )       [ ]       { }       < >
@@ -144,7 +147,7 @@ operators (substitution, transliteration and pattern matching).
 
 ### Examples
 
-```raku
+```
 var a = w|one two three|
 
 -- [ "Three", "Two", "One" ]
@@ -163,7 +166,7 @@ quoted strings(`Q`) and regex operators, Just like in Perl.
 
 ### Examples
 
-```raku
+```
 var a = w|ONE TWO THREE|
 a.each{.lc.say}
 
@@ -192,7 +195,7 @@ You cannot localize lexically scoped variables.
 Declare package variables with the keyword `global`, lexically scoped variables with
 `var` and temporal variable with `tmp`.
 
-```raku
+```
 package One::Two {
     global x = w<one two three>
 
@@ -216,28 +219,28 @@ package One::Two {
 package One::Two::Three {
     -- refers to the package variable "x" declared in the namespace "One::Two"
     say One::Two::Three::x
-    -- returns nil, "a" in "One::Two" is lexically scoped
+
+    -- compiler tells there is no such package variable in namespace "One::Two::Three"
     say One::Two::Three::a
 }
 ```
 
-Persistent variables are lexically scoped variables which retains their values between
-function and block(during recursion or jumps with a loop control) calls.
-We declare persistent lexically scoped variables with the `state` keyword.
+In regard to functions, static variables are lexically scoped variables which retains their values between
+function and block(during recursion or jumps with a loop control) calls. We declare static lexically
+scoped variables with the `state` keyword.
 
-```raku
+```
 fun increment(n) {
     state k = n
-    __FUN__(nil), return k if ++k != 9
+    _FUN_(nil), return k if ++k != 9
 }
 
 -- 9
 increment(0, 9).say
 ```
-constant variables are lexically scoped by default unless you precise they're global with the global
-keyword.
+constant variables are lexically scoped by default unless you precise they're global with the global keyword.
 
-```raku
+```
 -- lexically scoped constant
 const z = 4
 
@@ -247,44 +250,45 @@ const global (x, y) = (2, 10)
 
 ## Special package variables
 
-Special variables are package variables, some are writetable and can change the
-behavoir of your programs while others are readonly and contain useful information
-to make decisions important decisions.
+Special variables are package variables, some are writetable and can change the behavoir of your programs
+while others are readonly and contain useful information to make important decisions.
 
 ### Type I special variables
 
-We expand the content of special variables using the sigil `$`.
+We expand the content of special variables using the sigil `$`. some of these variables are writable(`w`)
+while others are read-only(`r`).
 
 #### Example
 
-```raku
+```
 say "Running #$0 on #$OS"
 ```
-- `OS`: OS version on which `pity` was build
-- `.`: current line in a file
-- `,`: output field separator
-- `/`: input record separator
-- `Maat`: Maat version
-- `"`: Separator character during interpolation
-- `$`: Pid of the current maat program
-- `0`: Program name
-- `!`: retrieve errors from syscalls
-- `_` : Topic variable, used mostly in blocks
+- `Maat`: (r) Maat version
+- `OS`: (r) OS version on which `pity` was build
+- `.`: (r) current line in a file
+- `,`: (w) output field separator
+- `/`: (w) input record separator
+- `"`: (w) Separator character during interpolation
+- `$`: (r) Pid of the current maat program
+- `0`: (r) Program name
+- `!`: (r) retrieve errors from syscalls
 
 ### Type II special variable
 
-We donot expand type 2 special variables with `$`
+We donot expand type 2 special variables with `$`,  they are just like simple variable we use in our Maat programs
 
-- `ENV`: a `Hash` which contains your current environment variables
+- `_` : (w) Topic variable, used mostly in blocks
+- `__` : (w) Topic variable, used mostly in blocks
+- `ENV`: a `Map` which contains your current environment variables
 - `PATH`: an `Array` which contains the absolute path to directories where maat searches for modules
-- `INC`: a `Hash`, each key correspond to an imported module and have a value which correspond its location in the filesystem
-- `SIG`: for traping signals, each signal is represented as a key and maps to a `Fun` which is to be executed whenever the signal is trapped
+- `INC`: a `Map`, each key correspond to an imported module and have a value which correspond its location in the filesystem
+- `SIG`: for traping signals, map a signal name to a `Fun` object to be called when given signal is trapped
 - `ARGV`: array containing command line arguments
 - `ARGC`: represents the argument count, it is an object of type `Int`
-- `DATA`: represents a file handle to manipulate data under `__DATA__`, just like in perl
-- `__FUN__`: for recursion, call the current function
-- `__BLOCK__`: for recursion, call the current block
-- `__FILE__`: a string object, represents the name of current script in execution
+- `DATA`: represents a file handle to manipulate data under `_DATA_`, just like in perl
+- `_FUN_`: for recursion, call the current function
+- `_BLOCK_`: for recursion, call the current block
+- `_FILE_`: a string object, represents the name of current script in execution
 
 ## Constants
 
@@ -303,7 +307,7 @@ each types here.
 - Rat
 - Str
 - Array
-- Hash
+- Map
 - Set
 - Bag
 - Fun
@@ -316,19 +320,19 @@ each types here.
 - Date
 - Sys
 - Supply
-- Promise
-- Laziness
+- Work
+- Lazy
 
 # Flow control
 
-Here is an overview of the `pity` syntax.
+Here is an overview of the `maat` syntax.
 
 We separate statements with a generic newline or a semicolon in case we have more
 than one statement on a single line.
 
 1. Blocks
 
-```raku
+```
 say 1
 say 2; say 3
 { say 1 }; { say 4 }
@@ -338,13 +342,13 @@ say 2; say 3
     { say "two" }
 
     -- recall the current block
-    __BLOCK__
+    _BLOCK_
 }
 ```
 
 2. `do` Block
 
-```raku
+```
 var v = do { 2 }
 -- "2"
 say v
@@ -359,7 +363,7 @@ do { false } or die "failed"
 
 run a block asyncronously
 
-```bash
+```
 awork {
     4.sleep
     say "done"
@@ -383,7 +387,7 @@ Conditional `if` statement, note that paranthesis are optional.
 
 `if ... { ... } [elsif ... { ... } ...] [else { ... }]`
 
-```raku
+```
 if true { say "it is true" }
 
 if 0 {
@@ -406,7 +410,7 @@ Conditional `with` statement, parathensis are always optional.
 `with` tests for definedness (that's `!nil`) whereas `if` tests for `truth` in
 the returned value of the expression.
 
-```raku
+```
 var (u, y) = (5, nil)
 
 -- 5, 5
@@ -420,7 +424,7 @@ else          { say "never here" }
 
 6. `for`
 
-```ruby
+```
 for "a", r/regex/, [2, 4] { .say }
 
 -- output: 3 3 5 4 4
@@ -446,7 +450,7 @@ for ar -> i, j = "none" {
 `gather` is statement/block prefix which returns a sequence of values comming from
 calls to `take` in the dynamic scope of block/function passed as argument to `gather`.
 
-```raku
+```
 fun factors(n) {
   var k = 1
 
@@ -489,7 +493,7 @@ variable initialized to the argument passed to `given` against the following cas
 We execute the block of the first matching case and instantly exit the `given` block. We can continue on to the
 next case by using the `proceed` instruction within the block of a case.
 
-```raku
+```
 -- output: Num, 42
 given 34 {
   match Num { say "Num"; proceed }
@@ -511,7 +515,7 @@ Note that smartmatch operator is the default operator used when
 You can also use `given` as a standalone statement to specify the variable of concern in
 the execution of a block.
 
-```raku
+```
 var x = [2, 5]
 given x {
     say "variable x has two elements" if x.len == 2
@@ -526,7 +530,7 @@ Just like the C-for loop
 
 general form: `loop initializer; condition; step { ... }`
 
-```raku
+```
 loop var k = 0; k ≤ 20; k² { k.say }
 
 -- you can skip some parts
@@ -542,7 +546,7 @@ loop { say "looping forever" }
 
 The basic `while` and `until` loop.
 
-```raku
+```
 var k = 6
 
 while k > 1 {
@@ -557,7 +561,7 @@ until k == 0 {
 
 13. `do`-`while`/`until`
 
-```raku
+```
 var k = Set.new(2, 4, 5)
 var b = [2, 7, 3]
 
@@ -583,7 +587,7 @@ performs the action for the current block.
 
 labels permits you to jump between labeled blocks using a loop control statement
 
-```raku
+```
 -- an infinite loop with prints "one"
 ONE: {
     say "one"
@@ -595,7 +599,7 @@ TWO: {
     say "two"
     THREE: {
         say "three"
-        __BLOCK__
+        _BLOCK_
     }
     # dead code to be wiped by the compiler
     say "never gonna be executed"
@@ -608,7 +612,7 @@ TWO: {
 of the number of iterations. One great advantage it offers is avoid the burdens of using a
 conditional construct to avoid the execution of a statement.
 
-```raku
+```
 var h = h{one 1 two 2 three 3}
 
 for h.each_kv { say "#_ => #__" }
@@ -639,7 +643,7 @@ for calls.
 
 NOTE: topic variables should only be named at the begining of the block of concern.
 
-```raku
+```
 var a = [2, 5, 34]
 
 -- declaring a topic variable x
@@ -689,12 +693,12 @@ fun mul(Str str) { str * 2 }
 mul("one").say; mul("two", 5).say
 ```
 
-Function as well as methods do have support for the `cached` trait, note that return type has
+Function as well as methods do have support for the `save` trait, note that return type has
 to appears after trait.
 
 ```
-fun fib(n) :cached -> Num {
-    n < 2 ? n : __FUN__(n - 1) + __FUN__(n - 2)
+fun fib(n) :save -> Num {
+    n < 2 ? n : _FUN_(n - 1) + _FUN_(n - 2)
 }
 ```
 
@@ -708,10 +712,12 @@ class B { ... }
 class C { ... }
 
 -- "isa" for inheritance and "does" for roles
-class A :isa(B, C) :does(D, E) {
-    has x :ro     -- readonly attribute, ro: say A.x; not possible: A.x = "some value"
+class A :is(B, C) :does(D, E) {
+    has x :ro     -- read-only attribute, ro: say A.x; not possible: A.x = "some value"
     has y :rw = 0 -- read-write attribute with default value '0', write: A.y = 2; read: say A.y
     has Num z     -- attribute of type 'Num', maat has a type check system
+
+    state count = 0 -- static variable which is accessible to all objects via class 'A': A.count
 
     meth xyz() {
         -- self.x, self.y, etc.
@@ -722,8 +728,30 @@ class A :isa(B, C) :does(D, E) {
 
     -- a method which returns an object of type 'Num'
     mul meth amethod() -> Num {}
+
+    -- defining a method 'priv' as private, oi means only-in
+    meth priv() :oi {}
 }
 ```
+
+List of traits supported by class attributes
+
+- `rw`: Attribute is read-write
+- `ro`: Attribute is read-only
+- `built`: Make attribute private but can only also be written from outside the object only via object instanciation
+
+We also have the `oi` trait which makes a method private
+
+To every object is associated a metaobject which permits object introspection, given an object `obj`, you can
+introspect this method via its metaobject by using the `.^` method call operator.
+
+```
+-- consider 'obj' an object, we have the following
+obj.^who  -- 
+obj.^name -- name of the class from which the object was instantiated
+obj.^
+```
+
 
 # Regular expressions
 
