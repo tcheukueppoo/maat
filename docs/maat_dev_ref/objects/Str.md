@@ -1,4 +1,4 @@
-## String
+# String
 
 Let `s` be a variable whose content is a object of type `String`, `s` of type
 `String` supports the following public methods:

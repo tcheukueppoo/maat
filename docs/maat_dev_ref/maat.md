@@ -5,7 +5,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 - Functional Programing
 - Object Oriented Programming
-- Work and Concurrency
+- Work and Maroutines
 - Traits
 - Multiple Dispatching
 - Type Checks
@@ -32,7 +32,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - `+`: (b) absolute
 - `~`: (b) binary complement
 - `…` or `...`: (b) untight operator
-- `^`: (p) `^5` return a list of element i.e `0` to `5`
+- `^`: (p) `^5` return an array of element i.e `0` to `5`
 - `√`: (p) sqaure root operator
 - `⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`: (b) super-script power operators
 
@@ -151,7 +151,7 @@ The pair delimiters below are used in declararing enums, arrays, hashes and on t
 var a = w|one two three|
 
 -- [ "Three", "Two", "One" ]
-var b = a.map{.capitalize}.reverse
+var b = a.map(.cap).reverse
 
 -- [ "0ne", "tw0", "three" ]
 a =~ s<o>«0»
