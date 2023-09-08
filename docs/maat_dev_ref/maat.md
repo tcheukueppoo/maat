@@ -24,8 +24,6 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 ## Basic unary operators
 
-- `&`: (b) address retrieval operator
-- `*`: (b) dereference operator
 - `++`: (p,b) inc
 - `--`: (p,b) dec
 - `-`: (b) negative
