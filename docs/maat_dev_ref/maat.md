@@ -307,7 +307,9 @@ each types here.
 - Array
 - Map
 - Set
+- MSet
 - Bag
+- MBag
 - Fun
 - File
 - Dir
@@ -320,6 +322,7 @@ each types here.
 - Supply
 - Work
 - Lazy
+- Term
 
 # Flow control
 

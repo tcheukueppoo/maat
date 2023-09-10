@@ -1,83 +1,89 @@
 # String
 
-Let `s` be a variable whose content is a object of type `String`, `s` of type
-`String` supports the following public methods:
+Let `s` be a variable whose content is an object of type `Str`, `s` supports following public methods:
 
-- `s.len`: return string length
-- `s.gt(s1)`: return true if `s` gt `s1` else false, see opts above
-- `s.ge(s1)`: return true if `s` ge `s1` else false
-- `s.lt(s1)`: return true if `s` lt `s1` else false
-- `s.le(s1)`: return true if `s` le `s1` else false
-- `s.eq(s1)`: return true if `s` eq `s1` else false
-- `s.ne(s1)`: return true if `s` ne `s1` else false
-- `s.div(num)`: divide string `s` by `num`
+- `s.len`: Return string length
+- `s.gt(s1)`: Return `True` if `s` gt `s1` else `False`, see opts below
+- `s.ge(s1)`: Return `True` if `s` ge `s1` else `False`
+- `s.lt(s1)`: Return `True` if `s` lt `s1` else `False`
+- `s.le(s1)`: Return `True` if `s` le `s1` else `False`
+- `s.eq(s1)`: Return `True` if `s` eq `s1` else `False`
+- `s.ne(s1)`: Return `True` if `s` ne `s1` else `False`
+- `s.div(Num n)`: Divide string `s` by `n`
 
-> Well, this is new let so me give an example
-> `"ILovePity".div(3)` yields `["ILo", "veP", "ity"]`.
-> In case `num` is greater than `s.len` then return
-> an array containing `s` as the single element.
-> also, `"Pity".div(3)` yields `["Pit", "y"]`.
+Well, this is new so let me give an example:
 
-- `s.match(/regex/flags)`: return a matched object, see `Match` object below
-- `s.gmatch(/regex/flags)`: global match, return an array of `Match` objects
-- `s.sub()`:
-- `s.gsub()`:
-- `s.esub()`:
-- `s.tr()`: transliteration `s`
+`"ILoveMaat".div(3) -- returns a(ILo veM aat)`
 
-- `s.uc`: uppercase `s`
-- `s.ucfirst`: uppercase the first character of `s`
-- `s.lc`: lowercase `s`
-- `s.lcfirst`: lowercase the first character of `s`
-- `s.fc`: foldcase `s`
-- `s.split(delim)`: split `s` based on delimiter (`delim`: string or regex) which is a regex
-- `s.cmp(s1)`: cmp `s` with `s1`: `s` eq `s1` yield 0, `s` lt `s1` yields -1, `s` gt `s1` yield 1
-- `s.mul(num)`: multiply `s` by `num`, just  like the `x` operator
-- `s.append(s1)`, `s.concat(s1)`: append `s1` to `s`
-- `s.prepend(s1)`: prepend `s1` to `s`
-- `s.first(num)`: return the first `num` characters of `s`
-- `s.last(num)`: return the last `num` characters of `s`
-- `s.char(pos)`: return character at position `pos`, NB: zero indexed.
-- `s.wordcase`: word case `s`, example `"i love afRica".wordcase` yield `"I Love Africa"`
-- `s.capitalize(X)`: capitalize `s`
-- `s.chop()`: (From Perl) remove the last character of `s` and return it
-- `s.pop()`: remove the last character from `s` and return the rest
-- `s.chomp()`: (From Perl) remove trailing new lines
-- `s.bin()`: coerce `s` into a number and return it in base 2
-- `s.oct()`: coerce `s` into a number and return it in base 8
-- `s.hex()`: ..... `s` into ... and in base 16
-- `s.crypt()`: crypt s, crypt from the C standard library
-- `s.decode_base64()`: base64 decode `s`
-- `s.encode_base65()`: base64 encode `s`
-- `s.md5()`: 
-- `s.sha()`:
-- `s.clear()`: set `s` to an empty string
+In case `n` is greater than `s.len` then return an array containing `s` as the single element.
+also, `"Maat".div(3)` returns `["Maa", "t"]`.
+
+- `s.match(/regex/flags)`: Return a matched object, see `Match` object below
+- `s.gmatch(/regex/flags)`: Global match, return an array of `Match` objects
+- `s.sub`:
+- `s.gsub`:
+- `s.esub`:
+- `s.tr`: Transliteration `s`
+
+- `s.clone`: Return a new object which is a clone of `s`
+- `s.uc`: Uppercase `s`
+- `s.ucfirst`: Uppercase the first character of `s`
+- `s.lc`: Lowercase `s`
+- `s.lcfirst`: Lowercase the first character of `s`
+- `s.fc`: Foldcase `s`
+- `s.split(delim)`: Split `s` based on delimiter (`delim`: string or regex) which is a regex
+- `s.cmp(s1)`: Cmp `s` with `s1`: `s` eq `s1` return 0, `s` lt `s1` returns -1, `s` gt `s1` yield 1
+- `s.mul(Num n)`: Multiply `s` by `n`, just  like the `x` operator
+- `s.append(s1)`, `s.concat(s1)`: Append `s1` to `s`
+- `s.prepend(s1)`: Prepend `s1` to `s` and return the result in a new object
+- `s.first(Num n)`: Return the first `n` characters of `s`
+- `s.last(Num n)`: Return the last `n` characters of `s`
+- `s.char(pos)`: Return character at position `pos`, NB: zero indexed.
+- `s.wordcase`: Word case `s`, example `"i love BurkinA faSo".wordcase` return `"I Love Burkina Faso"`
+- `s.capitalize(X)`: Capitalize `s`
+- `s.chop -> Str`: Remove the last character of `s` and return it
+- `s.pop`: Remove the last character from `s` and return the rest
+- `s.chomp`: Remove trailing new lines
+- `s.bin`: Coerce `s` into a number and return it in base 2
+- `s.oct`: Coerce `s` into a number and return it in base 8
+- `s.hex`: ..... `s` into ... and in base 16
+- `s.crypt`: Crypt s, crypt from the C standard library
+- `s.decode_base64`: Return base64 decoded `s`
+- `s.encode_base65`: Return base64 encoded `s`
+- `s.md5`: Return a md5 hashed `s`
+- `s.sha1`: Return a sha1 hashed `s`
+- `s.sha256`: Return a sha256 hashed `s`
+- `s.sha512`: Return a sha512 hashed `s`
+- `s.clear`: Set `s` to an empty string
 - `s.substr(offset, len)`: NB: inclusive
-- `s.join([s1, s2, ...])`: join strings in argument to `s`
-- `s.slice(start, end)`: negative numbers mean relative to the end of s, since s.char(-1) is s.char(s.len - 1); NB: inclusive
-- `s.insert(string, pos, [len])`: insert at pos if len is 0 else replace `len` chars with `s1` starting from `pos`
+- `s.join(Any s0 [, Any s1, Any s2, ...]) -> Str`: Join strings in argument to `s` and return the results
+- `s.slice(Num start, Num end) -> Str`: Negative numbers mean relative to the end of s, since s.char(-1) is s.char(s.len - 1); NB: inclusive
+- `s.insert(Str s1, Num pos [, Num len ]) -> Str`: Insert at pos if len is 0 else replace `len` chars with `s1` starting from `pos`
 - `s.index`:
 - `s.rindex`:
 - `s.ord`:
-- `s.reverse`:
-- `s.print`: print without new line
-- `s.printf`: printf ...
-- `s.sprintf`: sprintf ...
-- `s.say`: print with new line
-- `s.printlnf`: printf with new line
-- `s.sprintflnf`: sprintf with new line
+- `s.rev`: Return reversed `s`
+- `s.say`: Print `s` to the standard output with a trailing new line
+- `s.print`: Print `s` to the standard output without a trailing new line
+- `s.dump`: Same as above
 
-- `s.is_empty`: return bool, check if string is empty
-- `s.is_lowercase`: ...
-- `s.is_uppercase`: ...
-- `s.is_ascii`: ...
-- `s.is_space`: ...
-- `s.is_word`: ...
-- `s.is_punct`: ...
-- `s.is_alpha`: ...
-- `s.is_alphanum`: ...
-- `s.is_digit`: ...
-- `s.is_xdigit`: ...
-- `s.is_control`: ...
-- `s.is_printable`: ...
-- `s.is.graph`: ...
+- `s.print`: Print without new line
+- `s.printf`: Printf ...
+- `s.sprintf`: Sprintf ...
+- `s.printlnf`: Printf with new line
+- `s.sprintflnf`: Sprintf with new line
+
+- `s.is_empty -> Bool`: Return bool, check if string is empty
+- `s.is_lc -> Bool`: ...
+- `s.is_uc -> Bool`: ...
+- `s.is_ascii -> Bool`: ...
+- `s.is_space -> Bool`: ...
+- `s.is_word -> Bool`: ...
+- `s.is_punct -> Bool`: ...
+- `s.is_alpha -> Bool`: ...
+- `s.is_alphanum -> Bool`: ...
+- `s.is_digit -> Bool`: ...
+- `s.is_xdigit -> Bool`: ...
+- `s.is_control -> Bool`: ...
+- `s.is_printable -> Bool`: ...
+- `s.is.graph -> Bool`: ...
