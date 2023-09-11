@@ -37,8 +37,6 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 ## Named unary operators
 
 - `defined`: (b) check if a varible is `nil` and return true otherwise
-- `chomp`: (b)
-- `chop`: (b) strip 
 - `sleep`: (b) call sleep() syscall
 - `return`: (b) return from a function
 - `exit`: exit program with given exit code
@@ -51,9 +49,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - `printfln`: (b) formatted string + a trailing new line and return to a file descriptor
 - `sprintf`: (b) sprintf, return formatted string
 - `sprintfln`: (b) sprintf + a trailing new line
-- `min`: (b) yield min from a list
-- `max`: (b) yield max from a list
-- `minmax`: (b) yield min and max, return them in a list
+- `join`: (b) 
 - `die`: (b) program dies with a message on `STDERR`
 - `warn`: (b) warn with a message on `STDERR`
 
@@ -93,6 +89,8 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - `∘`: mathematic function composition, take two subroutines as operand
 
 - `?:`: tenary operator
+
+- `minmax`: 
 
 ## List of all operators from highest precedence to lowest
 
@@ -365,7 +363,7 @@ do { false } or die "failed"
 run a block asyncronously
 
 ```
-awork {
+work {
     4.sleep
     say "done"
 }
@@ -386,7 +384,7 @@ abide p
 
 Conditional `if` statement, note that paranthesis are optional.
 
-`if ... { ... } [elsif ... { ... } ...] [else { ... }]`
+`if ... { ... } [elsif ... { ... }] [else { ... }]`
 
 ```
 if true { say "it is true" }
@@ -425,22 +423,36 @@ else          { say "never here" }
 
 6. `for`
 
+`for` iterator either iterate over a comma-separated value or an Array object
+
+
+Iterating over an Array object
+
 ```
+-- three iterations
 for "a", r/regex/, [2, 4] { .say }
 
--- output: 3 3 5 4 4
-for ar -> i { i.len.say }
+var ar = a<one two three four five>
 
-ar = <one two three four five>
+-- only one iteration
+-- output: ["one", "two", "three", "four", "five"]
+for ar, { .say }
+
+-- ar.len + 1 iterations
+for ar…, 2 { .say }
+
+-- output: 3 3 5 4 4
+for ar -> i { say i.len }
+
 -- "ar" is now [3, 3, 5, 4, 4]
 for ar -> j {
     j = j.len
 }
 
--- set a custom value when we are running out of elements
--- (3, 3) (5, 4) (4, none)
+-- set a custom default value when we are running out of elements
+-- output: (3, 3) (5, 4) (4, none)
 for ar -> i, j = "none" {
-    say "(#i, #j)"
+    print "(#i, #j) "
 }
 
 .say for ar
@@ -616,16 +628,7 @@ conditional construct to avoid the execution of a statement.
 ```
 var h = h{one 1 two 2 three 3}
 
-for h.each_kv { say "#_ => #__" }
-
-for h.each_kv {
-    (k,v)
-    once say 'only once!' if v == 1
-    printfln "%s => %d", k, v
-}
-
--- for syntatic suger
-for h.each_kv -> k, v {
+h.each_kv {(k,v)
     once say 'only once!' if v == 1
     printfln "%s => %d", k, v
 }
