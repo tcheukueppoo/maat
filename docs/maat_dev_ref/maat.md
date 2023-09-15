@@ -24,13 +24,13 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 ## Basic unary operators
 
-- `++`: (p,b) inc
-- `--`: (p,b) dec
-- `-`: (b) negative
-- `+`: (b) absolute
+- `++`: (p,b) incrementation operator
+- `--`: (p,b) decrementation operator
+- `-`: (b) negate the operand
+- `+`: (b) 
 - `~`: (b) binary complement
-- `…` or `...`: (b) untight operator
-- `^`: (p) `^5` return an array of element i.e `0` to `5`
+- `…` or `...`: (b) Array destruction operator in the context of list assingment and and 
+- `^`: (p) `^5` return an array of element i.e from `0` to `5`
 - `√`: (p) sqaure root operator
 - `⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`: (b) super-script power operators
 
@@ -56,41 +56,25 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 ## Named binary operators
 
 - `isa`: (i) checks if the left object `isa`(of the same class or kind of inherited) the right object
+- `minmax`: (i) return in an Array the min and the max of the right and left operand respectively
 
 ## Binary operators for maat objects
 
 - `.`, `.^`: method/attribute call operators for objects and metaobjects/metaclasses respectively
-
 - `,`, `=>`: (i, b) comma operator, and key-value separator infix operator
-
 - `!`: (p) negation operator ex: `!true == false`
-
 - `=`, `:=`: (i) assignment and binding operator
-
 - `//`: (i) `a // b`, return `a` it is set otherwise `b`
-
 - `==` / `⩵  `, `!=` / ` ≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: (i) basic operators between objects
-
 - `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: (i) add, sub, div, div, mul, remainder and range operator
-
 - `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: (i) `left operand(a variable)` `=` `left operand value` `op` `right operand`
-
 - `<<`, `>>`, `^`, `&`, `&=`, `|=`: (i) bitwise shift on left and right, logical `or` and `and`
-
 - `&&`, `||`, `&&=`, `||=`: (i) logical "and" and "or" operator
-
 - `≅  ` /  `=~`, `~~`: (i) regex operator and smart match operator
-
-- `∉ `,  `∈  `, `∊`,  `∍ `, `∋ `,  `∌ `, `⊂  `, ` ⊄ ` , `⊆ `, `⊈  `, ` ⊃  `, `⊅ `
-  ` ⊇  `, ` ⊉  `, `≡ `, `≢  `, `⊖`, `∩ `, `⊍ `, `∪ `,  `⊖`, `⊎ `, `∖`: (i) set operators.
-
+- `∉ `,  `∈  `, `∊`,  `∍ `, `∋ `,  `∌ `, `⊂  `, ` ⊄ ` , `⊆ `, `⊈  `, ` ⊃  `, `⊅ `, ` ⊇  `, ` ⊉  `, `≡ `, `≢  `, `⊖`, `∩ `, `⊍ `, `∪ `,  `⊖`, `⊎ `, `∖`: (i) set operators.
 - `<=>` : `op1 <=> op2` says if `op1 < op2` yield `-1`, `op1 == op2` yield `0`, `op1 > op2` yield `1`
-
 - `∘`: mathematic function composition, take two subroutines as operand
-
 - `?:`: tenary operator
-
-- `minmax`: 
 
 ## List of all operators from highest precedence to lowest
 
@@ -124,7 +108,7 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 
 ## Pair delimiters
 
-The pair delimiters below are used in declararing enums, arrays, hashes and on the regex operators (substitution, transliteration and pattern matching).
+Pair delimiters below are used to declare enums, arrays, hashes and regexs
 
 ```
 ( )       [ ]       { }       < >
@@ -144,49 +128,49 @@ The pair delimiters below are used in declararing enums, arrays, hashes and on t
 ### Examples
 
 ```
-var a = w|one two three|
+var x = a|one two three|
 
 -- [ "Three", "Two", "One" ]
-var b = a.map(.cap).reverse
+var b = x.map(.cap).rev
 
 -- [ "0ne", "tw0", "three" ]
-a =~ s<o>«0»
+x =~ s<o>«0»
 ```
 
 ## Single character delimiter
 
-We also have a restricted set of delimiter characters for double quoted strings(`q`), single
-quoted strings(`Q`) and regex operators, Just like in Perl.
+We also have a restricted set of delimiter characters for double quoted strings(`q`), single quoted strings(`Q`)
+and regex operators.
 
-`/`, `|`, `%`, `"`, and `'`
+```
+/ | % "  '
+```
 
 ### Examples
 
 ```
-var a = w|ONE TWO THREE|
-a.each{.lc.say}
+var a = a|ONE TWO THREE|
+a.each { .lc.say }
 
 say q"interpolation won't work"
 
 say Q<interpolation works, array: #a>
 
 -- [ "0ne", "Tw0" ]
-b = a.grep({(x) x =~ m|o| }).map(s|o|0|r).map(.ucfirst)
-b.say
+a.grep({(x) x =~ m|o| }).map(s|o|0|r).map(.ucfirst).say
 ```
 
 # Variables
 
 `Maat` has four types of variables: package, lexical, temporal and persistent variables.
 
-Package variable can be accessed from other packages using their full qualified name and lexically
-scoped variables cannot be accessed from outside the package in which it was declared.
+Package variable can be accessed from other packages using their full qualified name and lexically scoped variables
+cannot be accessed from outside the package in which it was declared.
 
-Temporal variables are declared within a scope and refers to previously declared package
-variables from the current package if its name at declaration isn't fully qualified otherwise
-refers to the variable in the specified package. Any changes made to temporal variables remains
-local to the scope from where it was declare and thus the referenced variables remains untouched.
-You cannot localize lexically scoped variables.
+Temporal variables are declared within a scope and refers to previously declared package variables from the current
+package if its name at declaration isn't fully qualified otherwise refers to the variable in the specified package.
+Any changes made to temporal variables remains local to the scope from where it was declare and thus the referenced
+variables remains untouched. You cannot localize lexically scoped variables.
 
 Declare package variables with the keyword `global`, lexically scoped variables with
 `var` and temporal variable with `tmp`.
@@ -222,8 +206,8 @@ package One::Two::Three {
 ```
 
 In regard to functions, static variables are lexically scoped variables which retains their values between
-function and block(during recursion or jumps with a loop control) calls. We declare static lexically
-scoped variables with the `state` keyword.
+function and block(during recursion or jumps with a loop control) calls. We declare static lexically scoped
+variables with the `state` keyword.
 
 ```
 fun increment(n) {
@@ -293,7 +277,7 @@ We donot expand type 2 special variables with `$`,  they are just like simple va
 
 # Objects
 
- Maat has 16 builtin objects, types are objects and objects are types, check details on
+Maat has 25 builtin objects, types are objects and objects are types, check details on
 each types here.
 
 - Maat 
@@ -322,12 +306,10 @@ each types here.
 - Lazy
 - Term
 
-# Flow control
+# Blocks and Flow Controls
 
-Here is an overview of the `maat` syntax.
-
-We separate statements with a generic newline or a semicolon in case we have more
-than one statement on a single line.
+We separate statements with a generic newline or a semicolon in case we have more than one statement
+on a single line.
 
 1. Blocks
 
@@ -345,11 +327,14 @@ say 2; say 3
 }
 ```
 
-2. `do` Block
+2. `do` block
+
+`do { CODE }`
 
 ```
 var v = do { 2 }
--- "2"
+
+-- output: "2"
 say v
 
 -- "3"
@@ -358,9 +343,11 @@ say v
 do { false } or die "failed"
 ```
 
-3. `awork` Blocks
+3. `work` block
 
-run a block asyncronously
+`work { CODE }`
+
+Run a block asyncronously
 
 ```
 work {
@@ -368,23 +355,31 @@ work {
     say "done"
 }
 
--- declare a function and assign it to "a"
-var a = fun { sleep 4; say "done" }
+var i = work { Inf.sleep }
 
--- run function in "a" asyncronously and return a promise
-var w = awork a.call()
+-- declare an anonymous function
+var a = { sleep 4; say "done" }
+
+-- run function in "a" asyncronously and return a work object which represents it
+var w = work a.call()
 
 say "do stuffs"
 
--- await work 'w'
-abide p
+-- abide work 'w' for maximum 4 seconds
+abide w
+
+-- abide work 'i' forever
+abide i
 ```
 
 4. `if`
 
-Conditional `if` statement, note that paranthesis are optional.
+`if EXPR [ -> VAR ] { CODE } [ elsif EXPR -> [ VAR ] { CODE } ] [ else { CODE } ]`
 
-`if ... { ... } [elsif ... { ... }] [else { ... }]`
+Conditional `if` construct, note that paranthesis are optional.
+
+You must explicitly defined a topic variable as the `if` construct does not change the value of
+the default topic variable `_`.
 
 ```
 if true { say "it is true" }
@@ -400,111 +395,146 @@ else {
 }
 
 say 1 if true
+
+var x = Num.rand(120)
+if x % 2 -> r {
+    say "remainder is #{r}"
+}
 ```
 
 5. `with`
 
-Conditional `with` statement, parathensis are always optional.
+`with EXPR [ -> VAR ] { CODE } [ orwith EXPR [ -> VAR ] { CODE } ] [ else { CODE } ]`
 
-`with` tests for definedness (that's `!nil`) whereas `if` tests for `truth` in
-the returned value of the expression.
+Conditional `with` statement, parathensis are optional as always.
+
+`with` tests for definedness (that's `!nil`) whereas `if` tests for `truth` in the returned
+value of the expression.
+
+Just like the `if` construct, the `with` does not set the default topic variable `_` but you can explicitly
+define a topic variable if the return value of the evaluated expression EXPR is of interest to you.
 
 ```
-var (u, y) = (5, nil)
+var (u, y) = 5, nil
 
--- 5, 5
-with u { say _, u }
+with u { say "defined" }
 
--- 5
-with   y      { say "never here" }
-orwith u -> m { say m }
-else          { say "never here" }
+-- output: 5
+with   y          { say "never here" }
+orwith u / 2 -> m { say m, u }
+else              { say "and never here too" }
+```
+
+Explicit topicalization avoids you from doing the following
+
+```
+var x = (y + 1) / 2
+with x { ... }
+```
+
+But simple do
+
+```
+with (y + 1) / 2 -> x { ... }
 ```
 
 6. `for`
 
-`for` iterator either iterate over a comma-separated value or an Array object
+`for LIST          [ -> VAR [ , ... ] ] { CODE }`
+`for ARRAY         [ -> VAR [ , ... ] ] { CODE }`
+`for LAZY_ITERATOR [ -> VAR [ , ... ] ] { CODE }`
+
+`for` iterator over the following iterable objects
+
+- List: Comma separated list of values
+- Array: Array objects are iterable
+- Lazy itero: 
 
 
-Iterating over an Array object
+Here is an example of iterations over a list of values
 
 ```
--- three iterations
+-- list: three iterations
 for "a", r/regex/, [2, 4] { .say }
 
 var ar = a<one two three four five>
 
--- only one iteration
--- output: ["one", "two", "three", "four", "five"]
+-- trailing comma to indicate it is a list and thus only one iteration
 for ar, { .say }
 
--- ar.len + 1 iterations
-for ar…, 2 { .say }
+-- we have a.len + 1 iterations
+-- list: using the array destruction operator which breaks 'ar' into a list
+-- set a custom default value when we are out of elements
+for ar…, 2 -> m, n = 'default' { (n + '-' + m).say }
+```
 
+Iterating over Array objects
+
+```
 -- output: 3 3 5 4 4
 for ar -> i { say i.len }
 
--- "ar" is now [3, 3, 5, 4, 4]
+-- 'ar' is now a[3 3 5 4 4] as 'j' binds the corresponding indexed element
 for ar -> j {
     j = j.len
 }
 
--- set a custom default value when we are running out of elements
 -- output: (3, 3) (5, 4) (4, none)
 for ar -> i, j = "none" {
     print "(#i, #j) "
 }
 
 .say for ar
+
+```
+
+```
 ```
 
 7. `gather`-`take`
 
-`gather` is statement/block prefix which returns a sequence of values comming from
-calls to `take` in the dynamic scope of block/function passed as argument to `gather`.
+`gather` is statement/block prefix which returns a sequence of values comming from calls to `take` in
+the dynamic scope of block/function passed as argument to `gather`.
 
 ```
-fun factors(n) {
+fun factors(Num n) -> Lazy {
   var k = 1
 
-  gather {
+  lazy gather {
     while k ** 2 < n {
-        if n % k {
-            take k
-            take n.div(k)
-        }
+        take k, n.div(k) if n % k 
         k++
     }
     take k if k ** 2 == n
   }
 }
 
-factors(36).say
+factors(36).each { .say }
 ```
 
 8. `keys`
 
-`keys` is a looping construct which iterates over hash keys to perform certain operations if any of them smart-matches
-any of the cases.
+`keys` is a looping construct which iterates over hash keys to perform certain operations if any of them
+smart-matches any of the cases.
 
 ```
-var h = { banana => 2, orange => 1, melon => 2 }
+var fruits = h[banana 2 orange 1 melon 2]
 
-var s = keys h {
-    match r/^b/ | r/ge$/ { _ = .chop; __ += 2 }
-    default { __ *= 2 }
+keys fruits -> k, v {
+    match /^b/ | /ge$/ { _ = .rev; v += 2 }
+    default { v *= 2 }
 }
 
--- { banan => 5, orang => 3, melon => 4 }
-s.say
+-- output: { banan => 5, orang => 3, melon => 4 }
+fruits.say
 ```
 
 8. `given`-`match`
 
-We implement the switch-case using `given`-`match` construct, When an object is specified this construct tests the topic
-variable initialized to the argument passed to `given` against the following cases using the smartmatch operator(`~~`).
-We execute the block of the first matching case and instantly exit the `given` block. We can continue on to the
-next case by using the `proceed` instruction within the block of a case.
+We implement the switch-case using `given`-`match` construct, When an object is specified this construct tests
+the topic variable initialized to the argument passed to `given` against the following cases using the smartmatch
+operator(`~~`). We execute the block of the first matching case and instantly exit the `given` block. We can
+continue on to the next case by using the `proceed` instruction within the block of a case.
 
 ```
 -- output: Num, 42
@@ -525,8 +555,8 @@ given name {
 
 Note that smartmatch operator is the default operator used when 
 
-You can also use `given` as a standalone statement to specify the variable of concern in
-the execution of a block.
+You can also use `given` as a standalone statement to specify the variable of concern in the execution
+of a block.
 
 ```
 var x = [2, 5]
@@ -579,7 +609,7 @@ var k = Set.new(2, 4, 5)
 var b = [2, 7, 3]
 
 do {
-    k.add(b.pop)
+    k.push(b.pop)
 } while [2, 7] ∉ k
 
 do {
@@ -657,11 +687,8 @@ print a.map {(x)
     √x
 }
 
--- 2,2 4,none
-[2, 2, 4].each {
-    (x, y = "none")
-    say "#x,#y"
-}
+-- output: 2,2 4,nan
+[2, 2, 4].each {(x, y = "nan") say "#x,#y" }
 ```
 
 # Functions
@@ -690,15 +717,23 @@ intro(age = 5, name = liza)
 intro(age = 10)
 
 -- You can also specify the return type
-fun mul(Str str, Int k) -> Str { str * k }
+fun mul(Str s, Int k) -> Str { s * k }
 
-fun mul(Str str) { str * 2 }
+fun mul(Str s) { s * 2 }
 
-mul("one").say; mul("two", 5).say
+mul("one").say
+mul("two", 5).say
+
+-- using the array accumulator operator for variadic arguments
+fun tellme(Str name, Array counts…) {
+    printfln "You have %d %s", counts.sum, name
+}
+
+tellme("pineaples", 2, 4, 10)
 ```
 
 Function as well as methods do have support for the `save` trait, note that return type has
-to appears after trait.
+to appear after any trait
 
 ```
 fun fib(n) :save -> Num {
@@ -715,7 +750,7 @@ role E { ... }
 class B { ... }
 class C { ... }
 
--- "isa" for inheritance and "does" for roles
+-- "is" for inheritance and "does" for roles
 class A :is(B, C) :does(D, E) {
     has x :ro     -- read-only attribute, ro: say A.x; not possible: A.x = "some value"
     has y :rw = 0 -- read-write attribute with default value '0', write: A.y = 2; read: say A.y
@@ -750,25 +785,27 @@ To every object is associated a metaobject which permits object introspection, g
 introspect this method via its metaobject by using the `.^` method call operator.
 
 ```
--- consider 'obj' an object, we have the following
+-- consider 'obj' a variable containing an object, We have the following metamethods
 obj.^who  -- 
 obj.^name -- name of the class from which the object was instantiated
-obj.^
+obj.^methods
 ```
 
+# Regular Expressions
 
-# Regular expressions
+Maat uses Perl compatible regular expressions(PCRE), see Regex object for more details.
 
-Maat uses perl compatible regular expressions(PCRE), see Regex for more details.
-
-```raku
-var 
+```
 ```
 
-# Work and Concurrency
+# Work
 
-```raku
 ```
+```
+
+# Moutines
+
+# Coroutines
 
 # Supply/React
 

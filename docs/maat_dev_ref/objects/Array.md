@@ -30,8 +30,8 @@ var c = Array.new(2, 3, "four", a<5 6>)
 Let `a` be a variable containing an object of type `Array`, `a` supports the following methods:
 
 - `a.len -> Num`: Return the number of elements in `a`
-- `a.of -> ` Tell us `of` what type are the elements of `a`
-- `a.clone`: Clone object in `a` into a new fresh one and return it
+- `a.of -> Str`: Tell us `of` what type are the elements of `a`
+- `a.clone -> Array`: Clone object in `a` into a new fresh one and return it
 - `a.min -> Any`: Return the minimum element in `a` based on numeric comparison
 - `a.minstr -> Any`: Return the minimum element in `a` based on stringwise comparison
 - `a.max -> Any`: Return the maximum element in `a` based on numeric comparison
@@ -66,9 +66,9 @@ Let `a` be a variable containing an object of type `Array`, `a` supports the fol
 - `a.grep(Fun f | Expr) -> Array`: Returns elements in `a` for which their evaluations by `f` or `Expr` return a true value
 - `a.each(Fun f | Expr) -> Array`:
 - `a.each_kv(Fun f | Expr) -> Array`:
-- `a.each_ikv(Fun f | Expr)`:
+- `a.each_ikv(Fun f | Expr) -> Array`:
 - `a.cmp(Array b) -> Num`: 
 - `a.print -> Bool`:
-- `a.say`:
-- `a.dump`:
+- `a.say -> Bool`:
+- `a.dump -> Bool`:
 
