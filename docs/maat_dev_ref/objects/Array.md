@@ -22,10 +22,8 @@ var c = Array.new(2, 3, "four", a<5 6>)
 - Maat is dynamically and at the same time statically type and thus type errors aren't raised unless necessary
 - `->` Specifies the return type
 - `|` Stands for alternation, so for example `-> Num | Array` means to return either a `Num` or an `Array`
-- `[]` Simply means the rest of the arguments are optional
-- `EXP`: represents an expression, see maat's BNF for what is an expression
-
-### Note
+- `[]` Surrounding an argument simply means the argument is optional
+- `Expr`: represents an expression, see maat's BNF to know what is an expression
 
 Let `a` be a variable containing an object of type `Array`, `a` supports the following methods:
 

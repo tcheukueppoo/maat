@@ -177,7 +177,7 @@ Declare package variables with the keyword `global`, lexically scoped variables 
 
 ```
 package One::Two {
-    global x = w<one two three>
+    global x = a<one two three>
 
     var a = { one => 1 }
     {
@@ -190,9 +190,9 @@ package One::Two {
         say One::Two::x
     }
 
-    -- a: {one => 1}
+    -- output: h{one 1}
     a.say
-    -- x: ["one", "two", "three"], unchanged!
+    -- output: a<one two three>
     x.say
 }
 
@@ -205,7 +205,7 @@ package One::Two::Three {
 }
 ```
 
-In regard to functions, static variables are lexically scoped variables which retains their values between
+In regards to functions, static variables are lexically scoped variables which retains their values between
 function and block(during recursion or jumps with a loop control) calls. We declare static lexically scoped
 variables with the `state` keyword.
 
@@ -221,7 +221,7 @@ increment(0, 9).say
 constant variables are lexically scoped by default unless you precise they're global with the global keyword.
 
 ```
--- lexically scoped constant
+-- lexically scoped declaration of a constant
 const z = 4
 
 -- a constant global
@@ -286,6 +286,7 @@ each types here.
 - Num
 - Rat
 - Str
+- Range
 - Array
 - Map
 - Set
