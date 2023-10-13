@@ -16,8 +16,11 @@
 #ifndef mconf_h
 #define mconf_h
 
+#define <limits.h>
+#define <stddef.h>
+
 /*
- * ==Version definition
+ * $$Version definition
  * e.g: 0.2.8 → 0.2.9 → 0.3.0 → 0.3.1 ...   10.2.0
  *      28    < 29    < 30    < 31    ... < 120
  */
@@ -34,7 +37,7 @@
 #define MT_VERSION_NUM (100 * MT_MAJOR_VERSION + 10 * MT_MINOR_VERSION + MT_PATCH_VERSION)
 
 /*
- * ==Configuring dir separator and default paths for Maat and C/C++ std libs
+ * $$Configuring dir separator and default paths for Maat and C/C++ std libs
  */
 
 #define MT_VDIR MT_MAJOR_VERSION "." MT_MINOR_VERSION "." MT_PATCH_VERSION
@@ -46,8 +49,7 @@
 
 /* '!' in Windows expands to the directory of the current process' executable file. */
 #if !defined(MT_CLIB_DEFAULT_PATH)
-#define MT_CLIB_DEFAULT_PATH \
-   "!\\..\\lib\\maat\\" MT_VDIR "\\",
+#define MT_CLIB_DEFAULT_PATH "!\\..\\lib\\maat\\" MT_VDIR "\\",
 #endif
 
 #if !defined(MT_MTLIB_DEFAULT_PATH)
@@ -74,9 +76,9 @@
 #endif
 
 /*
- * ==Macros used to enable some platform specific features.
- * MT_IN_LINUX, MT_IN_MACOSX and MT_IN_IOS are defined during
- * the build process in the make file.
+ * $$Macros used to enable some platform specific features. Either
+ * MT_IN_LINUX, MT_IN_MACOSX or MT_IN_IOS is defined in the Makefile
+ * during the build process.
  *
  * (Linux, SunOS, Solaris, IRIX, FreeBSD, NetBSD, AIX 4.2,
  * HPUX 11, and other linux flavors)
@@ -88,22 +90,28 @@
  * functions from Windows.
  */
 
-                                               /* Not in */
-#if !defined(MT_USE_C89) && defined(_WIN32) && !defined(_WIN32_WCE)
-
+/*
+ * Seems like embedded Windows does not support goodies of regular
+ * Windows, who would want to build Maat on a Windows phone afterall?
+ */
+#if defined(_WIN32) && !defined(_WIN32_WCE)
+#define MT_USE_WINDOWS
+#define MT_USE_DL_DLL
 #endif
 
-#if defined(MT_IN_LINUX)
+#if defined(MT_IN_LINUX) || defined(MT_IN_LINUX) || defined(MT_IN_IOS)
 #define MT_USE_POSIX
 #define MT_USE_DLOPEN
 #endif
 
-#if defined(MT_IN_MACOSX)
-#define MT_USE_POSIX
-#define MT_USE_DLOPEN
+/* $$Some macro utility functions */
+
+/* Get local radix character (decimal point) */
+#if !defined(mt_getradixchar)
+#define mt_getradixchar() (localeconv()->decimal_point[0])
 #endif
 
-#if defined(MT_IN_IOS)
-#define MT_USE_POSIX
-#define MT_USE_DLOPEN
-#endif
+/* $$Marking to be exported and imported entities */
+
+
+/* $$Configuration for adaptive Number type */
