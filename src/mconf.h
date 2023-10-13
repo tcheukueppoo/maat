@@ -19,59 +19,66 @@
 #define <limits.h>
 #define <stddef.h>
 
-/*
- * $$Version definition
- * e.g: 0.2.8 → 0.2.9 → 0.3.0 → 0.3.1 ...   10.2.0
- *      28    < 29    < 30    < 31    ... < 120
- */
+/* $$Version and authors */
 
 /* Maat version components */
-#define MT_MAJOR_VERSION 0
-#define MT_MINOR_VERSION 0
-#define MT_PATCH_VERSION 0
+#define MT_MAJOR_VERSION  1
+#define MT_MINOR_VERSION  0
+#define MT_PATCH_VERSION  0
 
 /* String form of the version */
-#define MT_VERSION_STR "0.0.0"
+#define MT_VERSION  MT_MAJOR_VERSION "." MT_MINOR_VERSION
+#define MT_PATCH    MT_VERSION "." MT_PATCH_VERSION
 
-/* Numeric form of the version */
-#define MT_VERSION_NUM (100 * MT_MAJOR_VERSION + 10 * MT_MINOR_VERSION + MT_PATCH_VERSION)
+/* Some patches after releasing Maat version $MT_VERSION$ */
+#define MT_PATCH_NUM  ((10 * MT_MAJOR_VERSION + MT_MINOR_VERSION) * 100 + MT_PATCH_VERSION)
+
+#define MT_COPYRIGHT  "Maat " MT_PATCH  " Copyright (C) 2023 Maat.cm, PanLab.africa"
+#define MT_AUTHORS    "Kueppo Tcheukam J. W."
+
+#define MAAT  maat MT_VERSION
 
 /*
- * $$Configuring dir separator and default paths for Maat and C/C++ std libs
+ * $$Configuring dir separator and default paths for Maat and external libs
  */
-
-#define MT_VDIR MT_MAJOR_VERSION "." MT_MINOR_VERSION "." MT_PATCH_VERSION
 
 /* on windows ? */
 #if defined(_WIN32)
 
-#define MT_DIRSEP "\\"
-
-/* '!' in Windows expands to the directory of the current process' executable file. */
+/*
+ * '!' in Windows expands to the directory of the current process' executable file.
+ * In Makefile, if $(DESTDIR) expands to 'C:\\Program Files' && $(PREFIX) to 'Maat'
+ * then '!' would probably expand to 'C:\\Program Files\Maat\'. We make sure multiple
+ * versions of Maat can co-exist within expanded '!'.
+ */
 #if !defined(MT_CLIB_DEFAULT_PATH)
-#define MT_CLIB_DEFAULT_PATH "!\\..\\lib\\maat\\" MT_VDIR "\\",
+#define MT_CLIB_DEFAULT_PATH  "!\\" MT_VERSION "\\lib\\",
 #endif
 
 #if !defined(MT_MTLIB_DEFAULT_PATH)
 #define MT_MTLIB_DEFAULT_PATH \
-   "!\\..\\share\\maat\\" MT_VDIR "\\", \
-   "!\\maat\\",
+   "!\\" MT_VERSION "\\share\\", \
+   "!\\" MT_VERSION "\\maat\\",
 #endif
+
+/* For use elsewhere */
+#define MT_DIRSEP "\\"
 
 #else
 
-#define MT_DIRSEP      "/"
 #define MT_LOCAL_ROOT  "/usr/local/"
 
 #if !defined(MT_CLIB_DEFAULT_PATH)
-#define MT_CLIB_DEFAULT_PATH MT_LOCAL_ROOT "lib/maat/" MT_VDIR "/",
+#define MT_CLIB_DEFAULT_PATH MT_LOCAL_ROOT "lib/maat/" MT_VERSION "/",
 #endif
 
 #if !defined(MT_MTLIB_DEFAULT_PATH)
 #define MT_MTLIB_DEFAULT_PATH \
-   MT_LOCAL_ROOT "share/maat/" MT_VDIR "/", \
-   "/usr/share/maat/" MT_VDIR "/",
+   MT_LOCAL_ROOT "share/maat/" MT_VERSION "/", \
+   "/usr/share/maat/" MT_VERSION "/",
 #endif
+
+#define MT_DIRSEP "/"
 
 #endif
 
@@ -104,7 +111,7 @@
 #define MT_USE_DLOPEN
 #endif
 
-/* $$Some macro utility functions */
+/* $$Some macros which acts as utility functions */
 
 /* Get local radix character (decimal point) */
 #if !defined(mt_getradixchar)
