@@ -6,12 +6,13 @@
 
 ```
 -- Yep, we have multiple ways of declaring an Array object
-var a = a<liza madjou monthe>
+var x = [qw(one two three four)]
+var a = qa<liza madjou monthe>
 var b = ["kueppo", "cyrus", "christ"]
-var c = Array.new(2, 3, "four", a<5 6>)
+var c = Array.new(2, 3, "four", qa<5 6>)
 
-.say for a.lmap(.split) -- a{l i z a m a d j o u m o n t h e}
-.say for a.map(.split)  -- a{l i z a}, a{m a d j o u}, a{m o n t h e}
+.say for a.lmap(.split) -- qa{l i z a m a d j o u m o n t h e}
+.say for a.map(.split)  -- qa{l i z a}, qa{m a d j o u}, qa{m o n t h e}
 ```
 
 ## Methods

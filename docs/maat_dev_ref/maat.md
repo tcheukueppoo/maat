@@ -128,7 +128,7 @@ Pair delimiters below are used to declare enums, arrays, hashes and regexs
 ### Examples
 
 ```
-var x = a|one two three|
+var x = qa|one two three|
 
 -- [ "Three", "Two", "One" ]
 var b = x.map(.cap).rev
@@ -149,7 +149,7 @@ and regex operators.
 ### Examples
 
 ```
-var a = a|ONE TWO THREE|
+var a = qa|ONE TWO THREE|
 a.each { .lc.say }
 
 say q"interpolation won't work"
@@ -303,6 +303,7 @@ each types here.
 - Date
 - Sys
 - Supply
+- Ma
 - Work
 - Lazy
 - Term
@@ -356,7 +357,7 @@ work {
     say "done"
 }
 
-var i = work { Inf.sleep }
+var i = work { INF.sleep }
 
 -- declare an anonymous function
 var a = { sleep 4; say "done" }
@@ -540,9 +541,9 @@ continue on to the next case by using the `proceed` instruction within the block
 ```
 -- output: Num, 42
 given 34 {
-  match Num { say "Num"; proceed }
-  match 42  { say "42" }
-  default   { say "Default" }
+    match Num { say "Num"; proceed }
+    match 42  { say "42" }
+    default   { say "Default" }
 }
 
 -- use '|' for alternation
@@ -657,7 +658,7 @@ of the number of iterations. One great advantage it offers is avoid the burdens 
 conditional construct to avoid the execution of a statement.
 
 ```
-var h = h{one 1 two 2 three 3}
+var h = qm{one 1 two 2 three 3}
 
 h.each_kv {(k,v)
     once say 'only once!' if v == 1
@@ -804,18 +805,16 @@ Maat uses Perl compatible regular expressions(PCRE), see Regex object for more d
 ```
 ```
 
-# Moutines
-
-# Coroutines
+# Maatines
 
 # Supply/React
 
-```raku
+```
 ```
 
 # Packages
 
-```raku
+```
 ```
 
 # Phasers

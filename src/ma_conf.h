@@ -40,50 +40,6 @@
 #define MAAT  maat MA_VERSION
 
 /*
- * $$Configuring dir separator and default paths for Maat and external libs
- */
-
-/* on windows ? */
-#if defined(_WIN32)
-
-/*
- * '!' in Windows expands to the directory of the current process' executable file.
- * In Makefile, if $(DESTDIR) expands to 'C:\\Program Files' && $(PREFIX) to 'Maat'
- * then '!' would probably expand to 'C:\\Program Files\Maat\'. We make sure multiple
- * versions of Maat can co-exist within expanded '!'.
- */
-#if !defined(MA_CLIB_DEFAULT_PATH)
-#define MA_CLIB_DEFAULT_PATH  "!\\" MA_VERSION "\\lib\\",
-#endif
-
-#if !defined(MA_MTLIB_DEFAULT_PATH)
-#define MA_MTLIB_DEFAULT_PATH \
-   "!\\" MA_VERSION "\\share\\", \
-   "!\\" MA_VERSION "\\maat\\",
-#endif
-
-/* For use elsewhere */
-#define MA_DIRSEP "\\"
-
-#else
-
-#define MA_LOCAL_ROOT  "/usr/local/"
-
-#if !defined(MA_CLIB_DEFAULT_PATH)
-#define MA_CLIB_DEFAULT_PATH MA_LOCAL_ROOT "lib/maat/" MA_VERSION "/",
-#endif
-
-#if !defined(MA_MTLIB_DEFAULT_PATH)
-#define MA_MTLIB_DEFAULT_PATH \
-   MA_LOCAL_ROOT "share/maat/" MA_VERSION "/", \
-   "/usr/share/maat/" MA_VERSION "/",
-#endif
-
-#define MA_DIRSEP "/"
-
-#endif
-
-/*
  * $$Macros used to enable some platform specific features. Either
  * MA_IN_LINUX, MA_IN_MACOSX or MA_IN_IOS is defined in the Makefile
  * during the build process.
@@ -112,17 +68,66 @@
 #define MA_USE_DLOPEN
 #endif
 
+/*
+ * $$Configuring dir separator and default paths for Maat and external libs
+ */
+
+/* On windows? */
+#if defined(_WIN32)
+
+/*
+ * '!' in Windows expands to the directory of the current process' executable file.
+ * After Maat installation on Windows OS, '!' would probably expand to the path
+ * 'X:\\Program Files\Maat\'. These definitions make sure multiple versions of Maat
+ * can co-exist within 'X:\\Program Files\Maat\'
+ */
+#if !defined(MA_CLIB_DEFAULT_PATH)
+#define MA_CLIB_DEFAULT_PATH  "!\\" MA_VERSION "\\lib\\",
+#endif
+
+#if !defined(MA_MTLIB_DEFAULT_PATH)
+#define MA_MTLIB_DEFAULT_PATH \
+   "!\\" MA_VERSION "\\share\\", \
+   "!\\" MA_VERSION "\\maat\\",
+#endif
+
+#define MA_DIRSEP "\\"
+
+#else
+
+#define MA_LOCAL_ROOT  "/usr/local/"
+
+#if !defined(MA_CLIB_DEFAULT_PATH)
+#define MA_CLIB_DEFAULT_PATH MA_LOCAL_ROOT "lib/maat/" MA_VERSION "/",
+#endif
+
+#if !defined(MA_MTLIB_DEFAULT_PATH)
+#define MA_MTLIB_DEFAULT_PATH \
+   MA_LOCAL_ROOT "share/maat/" MA_VERSION "/", \
+   "/usr/share/maat/" MA_VERSION "/",
+#endif
+
+#define MA_DIRSEP "/"
+
+#endif
+
 /* $$Some macros which acts as utility functions */
 
 /* Get local radix character (decimal point) */
 #if !defined(mt_getradixchar)
-#define mt_getradixchar() (localeconv()->decimal_point[0])
+#define ma_getradixchar() (localeconv()->decimal_point[0])
 #endif
 
-/* $$Define attributes to mark entities as exported/imported */
+/* $$Define attributes to mark symbols during their declarations/definitions */
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__CYGWIN__)
 
+/*
+ * dllexport attribute causes the compiler to provide a global pointer to a
+ * pointer in a DLL, so that it can be referenced with the dllimport attribute
+ * (API consumer). Entities marked with MA_API are exported to the dynamic
+ * symbol table and can be accessed from the outside world as an api.
+ */
 #if #define(DEFINE)
 #define MA_API __declspec(dllexport)
 #else
@@ -135,6 +140,21 @@
 
 #endif
 
-/* $$Configuration for adaptive Number type */
+/*
+ * The attribute with visibility type "internal" is an optimization for certain
+ * versions of ELF objects where entities are marked local to shared object in
+ * which they are defined and cannot be called from another module and thus reduces
+ * the number of symbols in the dynamic symbol table.
+ *
+ * Without this attribute, check how the number of global symbols gets huge
+ * with `nm libmaat.so | grep ' T ' | wc -l`.
+ */
+#if defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 302) && defined(__ELF__)
+#define MA_FUNC __attribute__((visibility("internal"))) extern
+#elif
+#define MA_FUNC extern
+#endif
+
+/* $$ */
 
 #endif
