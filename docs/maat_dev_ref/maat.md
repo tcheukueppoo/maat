@@ -303,6 +303,7 @@ each types here.
 - Date
 - Sys
 - Supply
+- Chan
 - Ma
 - Work
 - Lazy
@@ -795,17 +796,51 @@ obj.^methods
 
 # Regular Expressions
 
-Maat uses Perl compatible regular expressions(PCRE), see Regex object for more details.
+Maat uses Perl compatible regular expressions(PCRE2).
+
+See the Regex object for more details.
 
 ```
 ```
 
 # Work
 
+Maat has two concurrent programming model which are the asynchronous and thread-like model. The thread-like
+model is what we call `Maatines` and the async model is what we call `Work`. The `Work` functionality is
+implemented with the help of `Maatines`, so yeah… it is just an abstract layer `Maatines`.
+
+A Work encapsulate a computation which is internally a Maatine. a Work has three possible state which are the
+`Do`, `Done` and `Failed` state.
+
+1. In the `Do` state, the computation haven't yet completed.
+2. In the `Done` state, the computation is `Done` and has its result saved for retrieval.
+3. In the `Failed` state, acception was thrown during the computation and hence the work `Failed`.
+
+```
+var w = Work.new   -- new Work object
+say w.status       -- Output: Do
+w.done("I'm done")
+say w.status       -- Output: Done
+say w.result       -- Output: I'm done
+
+```
+
 ```
 ```
 
+
+```
+var w = Work.does {
+    
+}
+```
+
 # Maatines
+
+Maatines are lightweight threads managed the Maat runtime, they are extremely easy and less costly to create
+and destroy. Internally, Maat has a high performant scheduler which schedules the executions of Maatines
+accross low level operating system threads.
+
 
 # Supply/React
 
@@ -819,4 +854,8 @@ Maat uses Perl compatible regular expressions(PCRE), see Regex object for more d
 
 # Phasers
 
+```
+```
+
 # Conclusion
+
