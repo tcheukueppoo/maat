@@ -30,7 +30,7 @@
 #define MA_VERSION  MA_MAJOR_VERSION "." MA_MINOR_VERSION
 
 /* Some patches after releasing Maat version $MA_VERSION$ */
-#define MA_PATCH    MA_VERSION "." MA_PATCH_VERSION
+#define MA_PATCH      MA_VERSION "." MA_PATCH_VERSION
 #define MA_PATCH_NUM  ((10 * MA_MAJOR_VERSION + MA_MINOR_VERSION) * 100 + MA_PATCH_VERSION)
 
 #define MA_COPYRIGHT  "Maat " MA_PATCH  " Copyright (C) 2023 Maat.cm, PanLab.africa"
@@ -91,14 +91,14 @@
    "!\\" MA_VERSION "\\maat\\",
 #endif
 
-#define MA_DIRSEP "\\"
+#define MA_DIRSEP  "\\"
 
 #else
 
 #define MA_LOCAL_ROOT  "/usr/local/"
 
 #if !defined(MA_CLIB_DEFAULT_PATH)
-#define MA_CLIB_DEFAULT_PATH MA_LOCAL_ROOT "lib/maat/" MA_VERSION "/",
+#define MA_CLIB_DEFAULT_PATH  MA_LOCAL_ROOT "lib/maat/" MA_VERSION "/",
 #endif
 
 #if !defined(MA_MTLIB_DEFAULT_PATH)
@@ -107,7 +107,7 @@
    "/usr/share/maat/" MA_VERSION "/",
 #endif
 
-#define MA_DIRSEP "/"
+#define MA_DIRSEP  "/"
 
 #endif
 
@@ -115,7 +115,24 @@
 
 /* Get local radix character (decimal point) */
 #if !defined(mt_getradixchar)
-#define ma_getradixchar() (localeconv()->decimal_point[0])
+#define ma_getradixchar()  (localeconv()->decimal_point[0])
+#endif
+
+/*
+ *  __builtin_expect() is an optimizing inline function which gives a hint
+ *  to the compiler about the expected outcome of the conditional statement.
+ *  Define MA_NOBUILTIN via "-D" at build time to avoid this feature.
+ */
+#if !defined(ma_likely)
+
+#if defined(__GNUC__) && !defined(MA_NOBUILTIN)
+#define ma_likely(x)    (__builtin_expect(((x) != 0), 1))
+#define ma_unlikely(x)  (__builtin_expect(((x) != 0), 0))
+#else
+#define ma_likely(x)    (x)
+#define ma_unlikely(x)  (x)
+#endif
+
 #endif
 
 /* $$Define attributes to mark symbols during their declarations/definitions */
@@ -123,38 +140,54 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 
 /*
- * dllexport attribute causes the compiler to provide a global pointer to a
- * pointer in a DLL, so that it can be referenced with the dllimport attribute
- * (API consumer). Entities marked with MA_API are exported to the dynamic
- * symbol table and can be accessed from the outside world as an api.
+ * Specified when DEFining entities, MA_API defines dllexport attribute which
+ * causes the compiler to provide a global pointer to a pointer in a DLL, so
+ * that it can be referenced at declaration with the dllimport attribute.
+ * Entities marked with MA_API are exported to the dynamic symbol table and
+ * can be accessed from the outside world as an api.
  */
-#if #define(DEFINE)
-#define MA_API __declspec(dllexport)
+#if #define(DEF)
+#define MA_API  __declspec(dllexport)
 #else
-#define MA_API __declspec(dllimport)
+#define MA_API  __declspec(dllimport)
 #endif
 
 #else
 
-#define MA_API /* extern by default */
+#define MA_API  /* extern by default */
 
 #endif
 
 /*
  * The attribute with visibility type "internal" is an optimization for certain
  * versions of ELF objects where entities are marked local to shared object in
- * which they are defined and cannot be called from another module and thus reduces
+ * which they are defined and cannot be called from another module, thus reduces
  * the number of symbols in the dynamic symbol table.
  *
- * Without this attribute, check how the number of global symbols gets huge
- * with `nm libmaat.so | grep ' T ' | wc -l`.
+ * Without this attribute, check with `nm libmaat.so | grep ' T ' | wc -l` to see
+ * how the number of dynamic symbols increased.
  */
+
 #if defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 302) && defined(__ELF__)
-#define MA_FUNC __attribute__((visibility("internal"))) extern
+#define MA_IFUNC  __attribute__ ((visibility("internal")))
 #elif
-#define MA_FUNC extern
+#define MA_IFUNC  /* extern by default */
 #endif
 
-/* $$ */
+/* $$Configs for inline functions */
+
+#if defined(__GNUC__)
+#define ma_inline  __inline__
+#else
+#define ma_inline  inline
+#endif
+
+#define ma_sinline  static ma_inline
+
+/* $$NAN_TAGGING to optimize value representation */
+
+#if !defined(MA_NAN_TAGGING)
+#define MA_NAN_TAGGING
+#endif
 
 #endif
