@@ -131,7 +131,7 @@ Pair delimiters below are used to declare enums, arrays, hashes and regexs
 var x = qa|one two three|
 
 -- [ "Three", "Two", "One" ]
-var b = x.map(.cap).rev
+var b = x.map(:.cap).rev
 
 -- [ "0ne", "tw0", "three" ]
 x =~ s<o>«0»
@@ -150,14 +150,14 @@ and regex operators.
 
 ```
 var a = qa|ONE TWO THREE|
-a.each { .lc.say }
+a.each: .lc.say
 
 say q"interpolation won't work"
 
 say Q<interpolation works, array: #a>
 
 -- [ "0ne", "Tw0" ]
-a.grep({(x) x =~ m|o| }).map(s|o|0|r).map(.ucfirst).say
+a.grep({(x) x =~ m|o| }).map(:s|o|0|r).map(:.ucfirst).say
 ```
 
 # Variables
@@ -210,9 +210,9 @@ function and block(during recursion or jumps with a loop control) calls. We decl
 variables with the `state` keyword.
 
 ```
-fn increment(n) {
+func increment(n) {
     state k = n
-    _FUN_(nil), return k if ++k != 9
+    _FUNC_(nil), return k if ++k != 9
 }
 
 -- 9
@@ -266,7 +266,7 @@ We donot expand type 2 special variables with `$`,  they are just like simple va
 - `ARGV`: array containing command line arguments
 - `ARGC`: represents the argument count, it is an object of type `Int`
 - `DATA`: represents a file handle to manipulate data under `_DATA_`, just like in perl
-- `_FUN_`: for recursion, call the current function
+- `_FN_`: for recursion, call the current function
 - `_BLOCK_`: for recursion, call the current block
 - `_FILE_`: a string object, represents the name of current script in execution
 
@@ -359,12 +359,6 @@ work {
 }
 
 var i = work { INF.sleep }
-
--- declare an anonymous function
-var a = { sleep 4; say "done" }
-
--- run function in "a" asyncronously and return a work object which represents it
-var w = work a.call()
 
 say "do stuffs"
 
@@ -500,7 +494,7 @@ for ar -> i, j = "none" {
 the dynamic scope of block/function passed as argument to `gather`.
 
 ```
-fn factors(n) {
+func factors(n) {
   var k = 1
 
   lazy gather {
@@ -701,14 +695,14 @@ with unnamed ones brings a lot of confusion in your code and hence either you na
 or you don't name anything at all.
 
 ```
-fun callme(c, n) { c.call(_) for ^n }
+func callme(c, n) { c.call(_) for ^n }
 callme({ .say }, 5)
 
-mul fun intro(name, age) {
+mul func intro(name, age) {
     say "Hello, my name is #name, I'm #{age}yo"
 }
 
-mul fun intro(name) {
+mul func intro(name) {
     say "Hello, my name is #name!"
 }
 
@@ -720,15 +714,15 @@ intro(age = 5, name = liza)
 intro(age = 10)
 
 -- You can also specify the return type
-fun mul(Str s, Int k) -> Str { s * k }
+func mul(s, k) { s * k }
 
-fun mul(Str s) { s * 2 }
+func mul(s) { s * 2 }
 
 mul("one").say
 mul("two", 5).say
 
 -- using the array accumulator operator for variadic arguments
-fun tellme(Str name, Array counts…) {
+func tellme(Str name, Array counts…) {
     printfln "You have %d %s", counts.sum, name
 }
 
@@ -739,8 +733,8 @@ Function as well as methods do have support for the `save` trait, note that retu
 to appear after any trait
 
 ```
-fun fib(n) :save -> Num {
-    n < 2 ? n : _FUN_(n - 1) + _FUN_(n - 2)
+func fib(n) :save -> Num {
+    n < 2 ? n : _FUNC_(n - 1) + _FUNC_(n - 2)
 }
 ```
 
@@ -843,8 +837,15 @@ Work.failed.status.say -- Output: Failed
 
 We can chain Works just like you do with Promises in Javascript
 
-ATTENTION: The chaining mechanism is completely different from the one you do
-with javascript!
+ATTENTION! The chaining mechanism of Works in Maat is completely different from that of Promises in javascript.
+
+So this is the story: you first start by creating a work with say `Work.does({ ... })`, this returns a work
+object on which you can do either but on only the following:
+
+1. Call the `.catch` method to handle any exception on the created Work, it returns back the same object for further chaining
+2. Call the `.then` method returns a new Work to be scheduled for execution if the invoker is `Done` with no expections.
+
+If the exception of the newly Work created by `.then` is not handled, it inherits it the exception handler of the top level Work.
 
 ```
 var w = Work.does({ sleep 4; 10 })
@@ -856,33 +857,40 @@ var w = Work.does({ sleep 4; 10 })
 say abide w -- Output: 10
 ```
 
-You can set a work to sleep for a given amount of time using the static `for` method, yes! sleeping
-is kind of a work, even in real life :).
+To abide a work say `w` with function `abide` is to call the method `.result` on it.
+
+You can set a work to do work by sleeping for a given amount of time using the static `.for` method, yes! sleeping is a
+kind of work, even in real life :).
 
 ```
 Work.for(5)
-    .then({ say "Previous worker slept for 5 seconds" })
+    .then({ say "Previous work was to sleep 5 seconds" })
 ```
 
-The above is kinda similar to this one and both can be used to build timers.
+The above is kinda similar to this one and both of them can be used to build timers.
 
 ```
-Work.does({5.sleep})
-    .then({ ... })
+Work.does(:5.sleep)
+    .then(:…)
 ```
 
-```
+You can also set a work to do work by waiting til a specified period of time using the `.til` static method
 
 ```
+Work.til(Date.now + 10)
+    .then(:say "Previous work is done at #{_}")
+```
 
-Check the documentation on the object Work for more information regarding async programming in Maat.
+You can also use the block version of work
+
+
+Check the documentation on the object `Work` for more information regarding async programming in Maat.
 
 # Maatines
 
 Maatines are lightweight threads managed by the Maat runtime, they are extremely easy and less costly to create
 and destroy. Internally, Maat has a high performant scheduler which schedules the executions of Maatines accross
 Operating systems threads.
-
 
 
 # Supply/React
