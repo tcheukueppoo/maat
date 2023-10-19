@@ -210,7 +210,7 @@ function and block(during recursion or jumps with a loop control) calls. We decl
 variables with the `state` keyword.
 
 ```
-fun increment(n) {
+fn increment(n) {
     state k = n
     _FUN_(nil), return k if ++k != 9
 }
@@ -500,7 +500,7 @@ for ar -> i, j = "none" {
 the dynamic scope of block/function passed as argument to `gather`.
 
 ```
-fun factors(Num n) -> Lazy {
+fn factors(n) {
   var k = 1
 
   lazy gather {
@@ -757,9 +757,14 @@ class C { ... }
 class A :is(B, C) :does(D, E) {
     has x :ro     -- read-only attribute, ro: say A.x; not possible: A.x = "some value"
     has y :rw = 0 -- read-write attribute with default value '0', write: A.y = 2; read: say A.y
-    has Num z     -- attribute of type 'Num', maat has a type check system
+    has z         -- 
 
     state count = 0 -- static variable which is accessible to all objects via class 'A': A.count
+
+    -- static method (A.m()), self isn't valid here
+    state meth m() {
+        ...
+    }
 
     meth xyz() {
         -- self.x, self.y, etc.
@@ -768,8 +773,8 @@ class A :is(B, C) :does(D, E) {
 
     mul meth amethod() {}
 
-    -- a method which returns an object of type 'Num'
-    mul meth amethod() -> Num {}
+    -- takes a parameter x
+    mul meth amethod(x) {}
 
     -- defining a method 'priv' as private, oi means only-in
     meth priv() :oi {}
@@ -806,15 +811,19 @@ See the Regex object for more details.
 # Work
 
 Maat has two concurrent programming model which are the asynchronous and thread-like model. The thread-like
-model is what we call `Maatines` and the async model is what we call `Work`. The `Work` functionality is
-implemented with the help of `Maatines`, so yeah… it is just an abstract layer `Maatines`.
+model is what we call **Maatines** and the async model is what we call **Works**. Async functionality is
+implemented with the help of **Maatines**, so yeah… it is just an abstract layer over it. A Work encapsulate
+a computation called a Work which runs internally, is represented as new or resurrected Maatine.
 
-A Work encapsulate a computation which is internally a Maatine. a Work has three possible state which are the
-`Do`, `Done` and `Failed` state.
+A Work has three possible state which are the `Do`, `Done` and `Fail` state.
 
-1. In the `Do` state, the computation haven't yet completed.
-2. In the `Done` state, the computation is `Done` and has its result saved for retrieval.
-3. In the `Failed` state, acception was thrown during the computation and hence the work `Failed`.
+1. In the `Do` state, Work is either not started or on progress.
+2. In the `Done` state, Work is `Done` and has its result saved for latter retrieval.
+3. In the `Fail` state, an exception was thrown when the Work was doing its work and hence `Fail`ed.
+
+The below code creates a new Work which is initially in the `Do` state, completes its work with the
+`done` method and from there checks its updated status and result with the `status` and `done` methods
+respectively.
 
 ```
 var w = Work.new   -- new Work object
@@ -822,24 +831,58 @@ say w.status       -- Output: Do
 w.done("I'm done")
 say w.status       -- Output: Done
 say w.result       -- Output: I'm done
+```
+
+You can return a Work that is already done with the static `done` method and you can also
+return a work that has already failed with the `failed` method.
+
+```
+Work.done.status.say   -- Output: Done
+Work.failed.status.say -- Output: Failed
+```
+
+We can chain Works just like you do with Promises in Javascript
+
+ATTENTION: The chaining mechanism is completely different from the one you do
+with javascript!
+
+```
+var w = Work.does({ sleep 4; 10 })
+            .catch({(e) say "Catched: #{e}" })
+            .then({ say "My handler is the one above"; _ + 2 })
+            .then({(r) say "Mine is below"; r - 2 })
+            .catch({(e) warn "Couldn't sub 2 from 12? ans: #{e}" })
+
+say abide w -- Output: 10
+```
+
+You can set a work to sleep for a given amount of time using the static `for` method, yes! sleeping
+is kind of a work, even in real life :).
+
+```
+Work.for(5)
+    .then({ say "Previous worker slept for 5 seconds" })
+```
+
+The above is kinda similar to this one and both can be used to build timers.
+
+```
+Work.does({5.sleep})
+    .then({ ... })
+```
 
 ```
 
 ```
-```
 
-
-```
-var w = Work.does {
-    
-}
-```
+Check the documentation on the object Work for more information regarding async programming in Maat.
 
 # Maatines
 
-Maatines are lightweight threads managed the Maat runtime, they are extremely easy and less costly to create
-and destroy. Internally, Maat has a high performant scheduler which schedules the executions of Maatines
-accross low level operating system threads.
+Maatines are lightweight threads managed by the Maat runtime, they are extremely easy and less costly to create
+and destroy. Internally, Maat has a high performant scheduler which schedules the executions of Maatines accross
+Operating systems threads.
+
 
 
 # Supply/React
