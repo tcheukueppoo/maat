@@ -104,6 +104,19 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 - right       `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`
 - list        `,`, `=>`
 
+# Comments
+
+Single line comments with `#` and multi lines comments with `---`
+
+```
+# single line comment
+---
+Multi
+line
+comment
+---
+```
+
 # Delimiter
 
 ## Pair delimiters
@@ -111,52 +124,49 @@ inspired from the lovely `Perl`, `Raku` and `Lua` programming languages.
 Pair delimiters below are used to declare enums, arrays, hashes and regexs
 
 ```
-( )       [ ]       { }       < >
+⦗ ⦘       ⧼ ⧽      〈 〉      ❨ ❩
+❲ ❳       ❴ ❵       ⟅ ⟆       ⟦ ⟧
 « »       » «       ‹ ›       › ‹
-„ ”       “ ”       ‘ ’       ‚ ’
 〈 〉    〈 〉     《 》     「 」
+„ ”       “ ”       ‘ ’       ‚ ’
 『 』     【 】     〔 〕    〖 〗
 〘 〙     〚 〛     ⌈ ⌉       ⌊ ⌋
 ❪ ❫       ❬ ❭       ❮ ❯       ❰ ❱
-❲ ❳       ❴ ❵       ⟅ ⟆       ⟦ ⟧
 ⟨ ⟩       ⟪ ⟫       ⟬ ⟭       ⟮ ⟯
 ⦃ ⦄       ⦅ ⦆       ⦋ ⦌       ⦍ ⦎
-⦗ ⦘       ⧼ ⧽      〈 〉      ❨ ❩
+( )       [ ]       { }       < >
 ⦏ ⦐       ⦑ ⦒
 ```
 
 ### Examples
 
-```
+```js
 var x = qa|one two three|
 
--- [ "Three", "Two", "One" ]
+# [ "Three", "Two", "One" ]
 var b = x.map(:.cap).rev
 
--- [ "0ne", "tw0", "three" ]
+# [ "0ne", "tw0", "three" ]
 x =~ s<o>«0»
 ```
 
 ## Single character delimiter
 
-We also have a restricted set of delimiter characters for double quoted strings(`q`), single quoted strings(`Q`)
-and regex operators.
+We also have a restricted set of delimiters for double quoted strings(`q`), single quoted strings(`qq`) and regex operators and values
 
-```
-/ | % "  '
-```
+`/ | % "  '`
 
 ### Examples
 
-```
+```js
 var a = qa|ONE TWO THREE|
 a.each: .lc.say
 
 say q"interpolation won't work"
 
-say Q<interpolation works, array: #a>
+say qq<interpolation works, array: #a>
 
--- [ "0ne", "Tw0" ]
+# [ "0ne", "Tw0" ]
 a.grep({(x) x =~ m|o| }).map(:s|o|0|r).map(:.ucfirst).say
 ```
 
@@ -164,84 +174,80 @@ a.grep({(x) x =~ m|o| }).map(:s|o|0|r).map(:.ucfirst).say
 
 `Maat` has four types of variables: package, lexical, temporal and persistent variables.
 
-Package variable can be accessed from other packages using their full qualified name and lexically scoped variables
-cannot be accessed from outside the package in which it was declared.
+Package variable can be accessed from other packages using their full qualified name and lexically scoped variables cannot be accessed from outside the package in
+which it was declared.
 
-Temporal variables are declared within a scope and refers to previously declared package variables from the current
-package if its name at declaration isn't fully qualified otherwise refers to the variable in the specified package.
-Any changes made to temporal variables remains local to the scope from where it was declare and thus the referenced
-variables remains untouched. You cannot localize lexically scoped variables.
+Temporal variables are declared within a scope and refers to previously declared package variables from the current package if its name at declaration isn't fully
+qualified otherwise refers to the variable in the specified package. Any changes made to temporal variables remains local to the scope from where it was declare
+and thus the referenced variables remains untouched. You cannot localize lexically scoped variables.
 
-Declare package variables with the keyword `global`, lexically scoped variables with
-`var` and temporal variable with `tmp`.
+Declare package variables with the keyword `global`, lexically scoped variables with `var` and temporal variable with `temp`.
 
-```
+```js
 package One::Two {
-    global x = a<one two three>
+    glob x = a<one two three>
 
     var a = { one => 1 }
     {
-        -- a: { one => 1, two => 2 }
-        var a += { two => 2 }
+        # a: { one => 1, two => 2 }
+        var a += qm{two 2}
 
-        -- could still use "One::Two::x" at declaration
-        tmp x = {}
-        -- empty hash
+        # could still use "One::Two::x" at declaration
+        temp x = {}
+        # empty hash
         say One::Two::x
     }
 
-    -- output: h{one 1}
+    # Output: qm{one 1}
     a.say
-    -- output: a<one two three>
+    # Output: qa<one two three>
     x.say
 }
 
 package One::Two::Three {
-    -- refers to the package variable "x" declared in the namespace "One::Two"
+    # refers to the package variable "x" declared in the namespace "One::Two"
     say One::Two::Three::x
 
-    -- compiler tells there is no such package variable in namespace "One::Two::Three"
+    # tells there is no such package variable in namespace "One::Two::Three"
     say One::Two::Three::a
 }
 ```
 
-In regards to functions, static variables are lexically scoped variables which retains their values between
-function and block(during recursion or jumps with a loop control) calls. We declare static lexically scoped
-variables with the `state` keyword.
+Static variables defined in a function or block are lexically scoped variables which retains their values between function calls and block jumps. We declare static
+lexically scoped variables with the `state` keyword.
 
-```
+```js
 func increment(n) {
     state k = n
     _FUNC_(nil), return k if ++k != 9
 }
 
--- 9
+# 9
 increment(0, 9).say
 ```
 constant variables are lexically scoped by default unless you precise they're global with the global keyword.
 
-```
--- lexically scoped declaration of a constant
+```js
+# lexically scoped declaration of a constant
 const z = 4
 
--- a constant global
-const global (x, y) = (2, 10)
+# a constant global
+const glob (x, y) = (2, 10)
 ```
 
 ## Special package variables
 
-Special variables are package variables, some are writetable and can change the behavoir of your programs
-while others are readonly and contain useful information to make important decisions.
+Special variables are package variables, some are writetable and can change the behavoir of your programs while others are readonly and contain useful information to make
+important decisions.
 
 ### Type I special variables
 
-We expand the content of special variables using the sigil `$`. some of these variables are writable(`w`)
-while others are read-only(`r`).
+We expand the content of special variables using the sigil `$`. some of these variables are writable(`w`) while others are read-only(`r`).
 
 #### Example
 
-```
-say "Running #$0 on #$OS"
+```js
+say "Running #{$0} on #$OS"
 ```
 - `Maat`: (r) Maat version
 - `OS`: (r) OS version on which `pity` was build
@@ -249,7 +255,7 @@ say "Running #$0 on #$OS"
 - `,`: (w) output field separator
 - `/`: (w) input record separator
 - `"`: (w) Separator character during interpolation
-- `$`: (r) Pid of the current maat program
+- `$`: (r) Pid of the current maat process
 - `0`: (r) Program name
 - `!`: (r) retrieve errors from syscalls
 
@@ -259,26 +265,30 @@ We donot expand type 2 special variables with `$`,  they are just like simple va
 
 - `_` : (w) Topic variable, used mostly in blocks
 - `__` : (w) Topic variable, used mostly in blocks
-- `ENV`: a `Map` which contains your current environment variables
-- `PATH`: an `Array` which contains the absolute path to directories where maat searches for modules
+- `ENV`: a `Hash` object which contains your current environment variables
+- `PATH`: an `Array` object which contains the absolute path to directories where maat searches for modules
 - `INC`: a `Map`, each key correspond to an imported module and have a value which correspond its location in the filesystem
 - `SIG`: for traping signals, map a signal name to a `Fun` object to be called when given signal is trapped
 - `ARGV`: array containing command line arguments
 - `ARGC`: represents the argument count, it is an object of type `Int`
 - `DATA`: represents a file handle to manipulate data under `_DATA_`, just like in perl
-- `_FN_`: for recursion, call the current function
+
+### Special tokens
+
+- `_FUNC_`: for recursion, call the current function
 - `_BLOCK_`: for recursion, call the current block
 - `_FILE_`: a string object, represents the name of current script in execution
 
 ## Constants
 
-- `π`: Pi, 3.14....
-- `e`: Euler's number
+- `π`: Pi
+- `ℇ`: Euler constant
+- `ℎ`: Planck constant
+- `ℏ`: Planck constant over 2 pi
 
 # Objects
 
-Maat has 25 builtin objects, types are objects and objects are types, check details on
-each types here.
+Maat has ... builtin objects, types are objects and objects are types, check details on each types here.
 
 - Maat 
 - Any
@@ -294,25 +304,26 @@ each types here.
 - Bag
 - MBag
 - Fun
-- File
-- Dir
-- Pipe
-- Socket
 - Regex
 - Range
 - Date
 - Sys
-- Supply
 - Chan
 - Ma
 - Work
 - Lazy
 - Term
+- File
+- Dir
+- Pipe
+- Socket
+- Socket::Work
+- Proc
+- Proc::Work
 
 # Blocks and Flow Controls
 
-We separate statements with a generic newline or a semicolon in case we have more than one statement
-on a single line.
+We separate statements with a generic newline or a semicolon in case we have more than one statement on a single line.
 
 1. Blocks
 
@@ -325,7 +336,7 @@ say 2; say 3
     say "one"
     { say "two" }
 
-    -- recall the current block
+    # recall the current block
     _BLOCK_
 }
 ```
@@ -337,48 +348,43 @@ say 2; say 3
 ```
 var v = do { 2 }
 
--- output: "2"
+# Output: 2
 say v
 
--- "3"
+# Output: 3
 (do { 3 }).say
 
-do { false } or die "failed"
+do { false } || die "failed"
 ```
 
-3. `work` block
+3. `ma`
 
-`work { CODE }`
-
-Run a block asyncronously
+`ma` is a function call and `for` statement prefix, it is responsible for running code concurrently using maatines. When prefixed to function calls, it runs the function
+in a new lightweight thread known as a Maatine.
 
 ```
-work {
-    4.sleep
-    say "done"
+func just_sleep(n) { n.sleep }
+
+for 10..20 -> time {
+    ma just_sleep(time)
 }
+```
 
-var i = work { INF.sleep }
+When used in a `for` loop, it runs block of each iteration in a lightweight thread
 
-say "do stuffs"
-
--- abide work 'w' for maximum 4 seconds
-abide w
-
--- abide work 'i' forever
-abide i
+```
+ma for ^10 { .sleep }
 ```
 
 4. `if`
 
-`if EXPR [ -> VAR ] { CODE } [ elsif EXPR -> [ VAR ] { CODE } ] [ else { CODE } ]`
+`if EXPR [ -> VAR ] { CODE } [ elsif EXPR [ -> VAR ] { CODE } ]... [ else { CODE } ]`
 
-Conditional `if` construct, note that paranthesis are optional.
+Conditional construct `if`, note that paranthesis are optional.
 
-You must explicitly defined a topic variable as the `if` construct does not change the value of
-the default topic variable `_`.
+You must explicitly defined a topic variable as the `if` construct does not change the value of the default topic variable `_`.
 
-```
+```js
 if true { say "it is true" }
 
 if 0 {
@@ -401,22 +407,19 @@ if x % 2 -> r {
 
 5. `with`
 
-`with EXPR [ -> VAR ] { CODE } [ orwith EXPR [ -> VAR ] { CODE } ] [ else { CODE } ]`
+`with EXPR [ -> VAR ] { CODE } [ orwith EXPR [ -> VAR ] { CODE } ]... [ else { CODE } ]`
 
 Conditional `with` statement, parathensis are optional as always.
 
-`with` tests for definedness (that's `!nil`) whereas `if` tests for `truth` in the returned
-value of the expression.
+`with` tests for definedness (that's `!nil`) whereas `if` tests for `truth` in the returned value of the expression. Just like the `if` construct, the `with` does
+not set the default topic variable `_` but you can explicitly define a topic variable if the return value of the evaluated expression `EXPR` is of interest to you.
 
-Just like the `if` construct, the `with` does not set the default topic variable `_` but you can explicitly
-define a topic variable if the return value of the evaluated expression EXPR is of interest to you.
-
-```
+```js
 var (u, y) = 5, nil
 
 with u { say "defined" }
 
--- output: 5
+# output: 5
 with   y          { say "never here" }
 orwith u / 2 -> m { say m, u }
 else              { say "and never here too" }
@@ -424,22 +427,24 @@ else              { say "and never here too" }
 
 Explicit topicalization avoids you from doing the following
 
-```
+```js
 var x = (y + 1) / 2
 with x { ... }
 ```
 
 But simple do
 
-```
+```js
 with (y + 1) / 2 -> x { ... }
 ```
 
 6. `for`
 
-`for LIST          [ -> VAR [ , ... ] ] { CODE }`
-`for ARRAY         [ -> VAR [ , ... ] ] { CODE }`
-`for LAZY_ITERATOR [ -> VAR [ , ... ] ] { CODE }`
+```
+for LIST          [ -> VAR [ , ... ] ] { CODE }
+for ARRAY         [ -> VAR [ , ... ] ] { CODE }
+for LAZY_ITERATOR [ -> VAR [ , ... ] ] { CODE }
+```
 
 `for` iterator over the following iterable objects
 
@@ -451,32 +456,32 @@ with (y + 1) / 2 -> x { ... }
 Here is an example of iterations over a list of values
 
 ```
--- list: three iterations
+# list: three iterations
 for "a", r/regex/, [2, 4] { .say }
 
 var ar = a<one two three four five>
 
--- trailing comma to indicate it is a list and thus only one iteration
+# trailing comma to indicate it is a list and thus only one iteration
 for ar, { .say }
 
--- we have a.len + 1 iterations
--- list: using the array destruction operator which breaks 'ar' into a list
--- set a custom default value when we are out of elements
+# we have a.len + 1 iterations
+# list: using the array destruction operator which breaks 'ar' into a list
+# set a custom default value when we are out of elements
 for ar…, 2 -> m, n = 'default' { (n + '-' + m).say }
 ```
 
 Iterating over Array objects
 
 ```
--- output: 3 3 5 4 4
+# output: 3 3 5 4 4
 for ar -> i { say i.len }
 
--- 'ar' is now a[3 3 5 4 4] as 'j' binds the corresponding indexed element
+# 'ar' is now a[3 3 5 4 4] as 'j' binds the corresponding indexed element
 for ar -> j {
     j = j.len
 }
 
--- output: (3, 3) (5, 4) (4, none)
+# output: (3, 3) (5, 4) (4, none)
 for ar -> i, j = "none" {
     print "(#i, #j) "
 }
@@ -511,37 +516,34 @@ factors(36).each { .say }
 
 8. `keys`
 
-`keys` is a looping construct which iterates over hash keys to perform certain operations if any of them
-smart-matches any of the cases.
+`keys` is a looping construct which iterates over hash keys to perform certain operations if any of them smart-matches any of the cases.
 
 ```
-var fruits = h[banana 2 orange 1 melon 2]
+var fruits = qm[banana 2 orange 1 melon 2]
 
 keys fruits -> k, v {
     match /^b/ | /ge$/ { _ = .rev; v += 2 }
     default { v *= 2 }
 }
 
--- output: { banan => 5, orang => 3, melon => 4 }
-fruits.say
+fruits.say # Output: { banan => 5, orang => 3, melon => 4 }
 ```
 
 8. `given`-`match`
 
-We implement the switch-case using `given`-`match` construct, When an object is specified this construct tests
-the topic variable initialized to the argument passed to `given` against the following cases using the smartmatch
-operator(`~~`). We execute the block of the first matching case and instantly exit the `given` block. We can
-continue on to the next case by using the `proceed` instruction within the block of a case.
+We implement the casing using `given`-`match` construct, When an object isn't specified this construct tests the topic variable initialized to the argument passed
+to `given` against the following cases using the smartmatch operator(`~~`). We execute the block of the first matching case and instantly exit the `given` block.
+It is possible to proceed 
 
 ```
--- output: Num, 42
+# output: Num, 42
 given 34 {
     match Num { say "Num"; proceed }
     match 42  { say "42" }
     default   { say "Default" }
 }
 
--- use '|' for alternation
+# use '|' for alternation
 var name = "kueppo"
 given name {
     match /^k/ | /o$/ { say "matches" }
@@ -550,15 +552,14 @@ given name {
 }
 ```
 
-Note that smartmatch operator is the default operator used when 
+Note that smartmatch operator is the default operator used by `match`, you can explicity use one.
 
-You can also use `given` as a standalone statement to specify the variable of concern in the execution
-of a block.
+You can also use `given` as a standalone statement to specify the variable of concern in the execution of a block.
 
 ```
 var x = [2, 5]
 given x {
-    say "variable x has two elements" if x.len == 2
+    say "variable x has two elements" if .len == 2
 }
 
 print .map {(rx) rx ** 2 } given x
@@ -573,7 +574,7 @@ general form: `loop initializer; condition; step { ... }`
 ```
 loop var k = 0; k ≤ 20; k² { k.say }
 
--- you can skip some parts
+# you can skip some parts
 loop var k = 0;;k++ {
     k.say
     break if k == 10
@@ -628,13 +629,13 @@ performs the action for the current block.
 labels permits you to jump between labeled blocks using a loop control statement
 
 ```
--- an infinite loop with prints "one"
+# an infinite loop with prints "one"
 ONE: {
     say "one"
     redo ONE
 }
 
--- print "two" to the stdout and repeatly print "three"
+# print "two" to the stdout and repeatly print "three"
 TWO: {
     say "two"
     THREE: {
@@ -677,15 +678,15 @@ NOTE: topic variables should only be named at the begining of the block of conce
 ```
 var a = [2, 5, 34]
 
--- declaring a topic variable x
+# declaring a topic variable x
 print a.map {(x)
     once x++
     next if x == 3
     √x
 }
 
--- output: 2,2 4,nan
-[2, 2, 4].each {(x, y = "nan") say "#x,#y" }
+# output: (2,2) (4,nan)
+[2, 2, 4].each {(x, y = "nan") say "(#x,#y)" }
 ```
 
 # Functions
@@ -708,32 +709,30 @@ mul func intro(name) {
 
 intro("kueppo", "20")
 intro("sarah")
-intro(age = 5, name = liza)
+intro(age => 5, name => liza)
 
--- no candidates for this and thus fails at compile time
-intro(age = 10)
+# no candidates for this and thus fails at compile time
+intro(age => 10)
 
--- You can also specify the return type
 func mul(s, k) { s * k }
+func mul(s)    { s * 2 }
 
-func mul(s) { s * 2 }
+mul("one").say    # Output: oneone
+mul("two", 5).say # Output: twotwotwotwo
 
-mul("one").say
-mul("two", 5).say
-
--- using the array accumulator operator for variadic arguments
-func tellme(Str name, Array counts…) {
-    printfln "You have %d %s", counts.sum, name
+# using the array accumulator operator for variadic arguments
+func tellme(name, counts…) {
+    printfln "You have %d %ss", counts.sum, name
 }
 
-tellme("pineaples", 2, 4, 10)
+tellme("pineaple", 2, 4, 10)
 ```
 
 Function as well as methods do have support for the `save` trait, note that return type has
 to appear after any trait
 
 ```
-func fib(n) :save -> Num {
+func fib(n) :save {
     n < 2 ? n : _FUNC_(n - 1) + _FUNC_(n - 2)
 }
 ```
@@ -747,30 +746,30 @@ role E { ... }
 class B { ... }
 class C { ... }
 
--- "is" for inheritance and "does" for roles
+# "is" for inheritance and "does" for roles
 class A :is(B, C) :does(D, E) {
-    has x :ro     -- read-only attribute, ro: say A.x; not possible: A.x = "some value"
-    has y :rw = 0 -- read-write attribute with default value '0', write: A.y = 2; read: say A.y
-    has z         -- 
+    has x :ro     # read-only attribute, ro: say A.x; not possible: A.x = "some value"
+    has y :rw = 0 # read-write attribute with default value '0', write: A.y = 2; read: say A.y
+    has z         # 
 
-    state count = 0 -- static variable which is accessible to all objects via class 'A': A.count
+    state count = 0 # static variable which is accessible to all objects via class 'A': A.count
 
-    -- static method (A.m()), self isn't valid here
+    # static method (A.m()), self isn't valid here
     state meth m() {
         ...
     }
 
     meth xyz() {
-        -- self.x, self.y, etc.
+        # self.x, self.y, etc.
         ...
     }
 
     mul meth amethod() {}
 
-    -- takes a parameter x
+    # takes a parameter x
     mul meth amethod(x) {}
 
-    -- defining a method 'priv' as private, oi means only-in
+    # defining a method 'priv' as private, oi means only-in
     meth priv() :oi {}
 }
 ```
@@ -783,14 +782,14 @@ List of traits supported by class attributes
 
 We also have the `oi` trait which makes a method private
 
-To every object is associated a metaobject which permits object introspection, given an object `obj`, you can
-introspect this method via its metaobject by using the `.^` method call operator.
+To every object is associated a metaobject which permits object introspection, given an object `obj`, you can introspect this method via its metaobject
+by using the `.^` method call operator.
 
 ```
--- consider 'obj' a variable containing an object, We have the following metamethods
-obj.^who  -- 
-obj.^name -- name of the class from which the object was instantiated
-obj.^methods
+# consider 'obj' a variable containing an object, We have the following metamethods
+obj.^who      # 
+obj.^name     # name of the class from which the object was instantiated
+obj.^methods  #
 ```
 
 # Regular Expressions
@@ -804,48 +803,45 @@ See the Regex object for more details.
 
 # Work
 
-Maat has two concurrent programming model which are the asynchronous and thread-like model. The thread-like
-model is what we call **Maatines** and the async model is what we call **Works**. Async functionality is
-implemented with the help of **Maatines**, so yeah… it is just an abstract layer over it. A Work encapsulate
-a computation called a Work which runs internally, is represented as new or resurrected Maatine.
+Maat has two concurrent programming model which are the asynchronous and thread-like model. The thread-like model is what we call **Maatines** and
+the async model is what we call **Works**. Async functionality is implemented with the help of **Maatines**, so yeah… it is just an abstract layer over it.
+A Work encapsulate a computation called a Work which runs internally, is represented as new or resurrected Maatine.
 
 A Work has three possible state which are the `Do`, `Done` and `Fail` state.
 
 1. In the `Do` state, Work is either not started or on progress.
 2. In the `Done` state, Work is `Done` and has its result saved for latter retrieval.
-3. In the `Fail` state, an exception was thrown when the Work was doing its work and hence `Fail`ed.
+3. In the `Failed` state, an exception was thrown when the Work was doing its work and hence `Fail`ed.
 
-The below code creates a new Work which is initially in the `Do` state, completes its work with the
-`done` method and from there checks its updated status and result with the `status` and `done` methods
-respectively.
+The below code creates a new Work which is initially in the `Do` state, completes its work with the `done` method and from there checks its updated status
+and result with the `status` and `done` methods respectively.
 
 ```
-var w = Work.new   -- new Work object
-say w.status       -- Output: Do
+var w = Work.new   # new Work object
+say w.status       # Output: Do
 w.done("I'm done")
-say w.status       -- Output: Done
-say w.result       -- Output: I'm done
+say w.status       # Output: Done
+say w.result       # Output: I'm done
 ```
 
 You can return a Work that is already done with the static `done` method and you can also
 return a work that has already failed with the `failed` method.
 
 ```
-Work.done.status.say   -- Output: Done
-Work.failed.status.say -- Output: Failed
+Work.done.status.say   # Output: Done
+Work.failed.status.say # Output: Failed
 ```
 
 We can chain Works just like you do with Promises in Javascript
 
 ATTENTION! The chaining mechanism of Works in Maat is completely different from that of Promises in javascript.
 
-So this is the story: you first start by creating a work with say `Work.does({ ... })`, this returns a work
-object on which you can do either but on only the following:
+So this is the story: you first start by creating a work with say `Work.does`, it returns a work object on which you can but not only do either of the following:
 
 1. Call the `.catch` method to handle any exception on the created Work, it returns back the same object for further chaining
 2. Call the `.then` method returns a new Work to be scheduled for execution if the invoker is `Done` with no expections.
 
-If the exception of the newly Work created by `.then` is not handled, it inherits it the exception handler of the top level Work.
+If the exception of the work created by `.then` is not handled, it inherits its exception handler from the top level Work.
 
 ```
 var w = Work.does({ sleep 4; 10 })
@@ -854,49 +850,50 @@ var w = Work.does({ sleep 4; 10 })
             .then({(r) say "Mine is below"; r - 2 })
             .catch({(e) warn "Couldn't sub 2 from 12? ans: #{e}" })
 
-say abide w -- Output: 10
+say abide w # Output: 10
 ```
 
-To abide a work say `w` with function `abide` is to call the method `.result` on it.
+To abide a work say `w` with function `abide` is to call the method `.result` on it. `abide` function can take multiple Works as argument and return their results
+in an Array. If a work with a handled exception encounters an exception, calling `.result` on it return `nil`.
 
 You can set a work to do work by sleeping for a given amount of time using the static `.for` method, yes! sleeping is a
-kind of work, even in real life :).
+kind of a work, even in real life :).
 
-```
+```js
 Work.for(5)
     .then({ say "Previous work was to sleep 5 seconds" })
 ```
 
 The above is kinda similar to this one and both of them can be used to build timers.
 
-```
+```js
 Work.does(:5.sleep)
     .then(:…)
 ```
 
-You can also set a work to do work by waiting til a specified period of time using the `.til` static method
+You can also set a work to do work by waiting til a specified time using the `.til` static method
 
-```
+```js
 Work.til(Date.now + 10)
-    .then(:say "Previous work is done at #{_}")
+    .then(:say "Previous work is done at ", _ )
 ```
 
-You can also use the block version of work
+You can use the `Work.allof` method to return a new Work object that will be `Done` when all the work passed as arguments are either `Done` or `Failed`.
+The value return by `.result` method called of this work is always `true` and is practically useless.
 
+```js
+var k = ^5.map {(i) Work.does(:sleep i) }
+
+Work.allof(k)
+    .then: k.map(:.result).sum.say
+```
 
 Check the documentation on the object `Work` for more information regarding async programming in Maat.
 
 # Maatines
 
-Maatines are lightweight threads managed by the Maat runtime, they are extremely easy and less costly to create
-and destroy. Internally, Maat has a high performant scheduler which schedules the executions of Maatines accross
-Operating systems threads.
-
-
-# Supply/React
-
-```
-```
+Maatines are lightweight threads managed by the Maat runtime, they are extremely easy and less costly to create and destroy.
+Internally, Maat has a high performant scheduler which schedules the executions of Maatines accross Operating systems threads.
 
 # Packages
 

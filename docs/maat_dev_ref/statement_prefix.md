@@ -4,7 +4,7 @@
 
 1. `lazy`
 3. `do`
-4. `fast`
+4. `ma`
 
 Statement prefixes are keywords preceding statements that changes their default behavoir. Internally, this
 changes the way the Maat compiler compiles Maat code and thus generates different type of opcodes for
@@ -20,8 +20,7 @@ do for ...
 do with ...
 ```
 
-the `do` statement prefix treats statements as expressions and returns the value of the last evaluation in the
-statement of concern.
+the `do` statement prefix treats statements as expressions and returns the value of the last evaluation in the statement of concern.
 
 Given the following maat code
 
@@ -45,16 +44,12 @@ m.say
 
 ```
 lazy gather ...
-lazy EXPR ...
 ```
 
-
-
-
-### fast
+### ma
 
 ```
-fast for ...
+ma for ...
 ```
 
 

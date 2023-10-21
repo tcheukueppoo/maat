@@ -78,8 +78,8 @@
 /*
  * '!' in Windows expands to the directory of the current process' executable file.
  * After Maat installation on Windows OS, '!' would probably expand to the path
- * 'X:\\Program Files\Maat\'. These definitions make sure multiple versions of Maat
- * can co-exist within 'X:\\Program Files\Maat\'
+ * 'X:\\Program Files\Maat\'. The below definitions make sure multiple versions of
+ * Maat can co-exist within 'X:\\Program Files\Maat\'
  */
 #if !defined(MA_CLIB_DEFAULT_PATH)
 #define MA_CLIB_DEFAULT_PATH  "!\\" MA_VERSION "\\lib\\",
