@@ -46,7 +46,7 @@ is the closest group of characters you judge to be sane for repeatition.
 - `++`: ****(p,b)**** incrementation operator
 - `--`: **(p,b)** decrementation operator
 - `-`: **(b)** negate the operand
-- `+`: **(b)** 
+- `+`: **(b)** positive operators, result is equals to the operand
 - `~`: **(b)** binary complement
 - `…` or `...`: **(b)** Destructing operator in assignments and Accumulator operator in functions
 - `^`: **(p)** `^5` return an array of element i.e from `0` to `5`
@@ -69,13 +69,13 @@ is the closest group of characters you judge to be sane for repeatition.
 - `print`: **(b)** print without a new line
 - `printf`: **(b)** print formatted string
 - `sprintf`: **(b)** sprintf, return formatted string
-- `join`: **(b)** Function version of the Array.join() method
-- `map`: **(b)** Function version of the Array.join() method
-- `lmap`: **(b)**
-- `grep`: **(b)**
+- `join`: **(b)** Function version of `.join` method of the Array type
+- `map`: **(b)** Function version of `.map` method of the Array type
+- `lmap`: **(b)** Function version of `.lmap` method of the Array type
+- `grep`: **(b)** Function version of `.grep` method of the Array type
 - `run`: **(b)**
-- `die`: **(b)** raise an exception with a given message on then stderr and exit program if there is no exception handler
-- `warn`: **(b)** warn with a message on stderr
+- `die`: **(b)** raise an exception with a given message on then stderr and exit program if there is no handler
+- `warn`: **(b)** warn by sending passed message to the stderr
 
 ## Named binary operators
 
@@ -278,19 +278,21 @@ to make important decisions.
 We expand the content of special variables using the sigil `$`.
 Some of these variables are writable(`w`) while others are read-only(`r`).
 
-#### Example
-
 ```js
 say "Running #{$0} on #$OS"
 ```
-- `Maat`: (r) Maat version
-- `OS`: (r) OS version on which `pity` was build
-- `.`: (r) current line in a file
-- `,`: (w) output field separator
-- `/`: (w) input record separator
+- `V`: (r) Maat version
+- `O`: (r) OS version on which `pity` was build
+- `.`: (w) Current line in a file
+- `,`: (w) Output field separator
+- `/`: (w) Input record separator
 - `"`: (w) Separator character during interpolation
-- `$`: (r) Pid of the current maat process
-- `0`: (r) Program name
+- `$`: (r) Pid of the current running process
+- `0`: (r) Name of the executing program
+- `(`, `)`, `<`, `>`: (w) real
+
+- `F`: (w)
+
 - `!`: (r) retrieve errors from syscalls
 
 ### Type II special variable
@@ -298,14 +300,13 @@ say "Running #{$0} on #$OS"
 We donot expand type 2 special variables with `$`, they are just
 like simple variable we use in our Maat programs
 
-- `_` : (w) Topic variable, used mostly in blocks
-- `__` : (w) Topic variable, used mostly in blocks
+- `_` : Topic variable, assinged a value when topicalizing with `with`, `given`, `for`, `if`, ... etc
 - `ENV`: a `Map` object which contains your current environment variables
 - `PATH`: an `Array` object which contains the absolute path to directories where maat searches for modules
 - `INC`: a `Map`, which map each imported module to their path location in the filesystem
 - `SIG`: for traping signals, map a signal name to a `Fun` object to be called when given signal is trapped
-- `ARGV`: array containing command line arguments
-- `ARGC`: represents the argument count, it is an object of type `Int`
+- `ARGV`: An array containing command line arguments
+- `ARGC`: represents the argument count, it is an object of type `Num`
 - `DATA`: represents a file handle to manipulate data under `_DATA_`, just like in perl
 
 ### Special tokens
@@ -323,43 +324,64 @@ like simple variable we use in our Maat programs
 
 ## Assignments
 
-# Objects
+You can use the accumulator and destructor operator in assignments, here are
+some examples which are self understandable.
 
-Maat has ... builtin objects, types are objects and objects are types, check details on each types here.
+```js
+var (a, b, c, d, e, f)
+var array = [1, 2, 3, 4, 5]
 
-- [`Any`](./objects/Any.md)
-- [`Bool`](./objects/Bool.md)
-- [`Num`](./objects/Num.md)
-- [`Str`](./objects/Str.md)
-- [`Range`](./objects/Range.md)
-- [`Array`](./objects/Array.md)
-- [`Map`](./objects/Map.md)
-- [`Set`](./objects/Set.md)
-- [`MSet`](./objects/MSet.md)
-- [`Bag`](./objects/Bag.md)
-- [`MBag`](./objects/MBag.md)
-- [`Lazy`](./objects/Lazy.md)
-- [`Fun`](./objects/Fun.md)
-- [`GFun`](./objects/GFun.md)
-- [`Regex`](./objects/Regex.md)
-- [`Ma`](./objects/Ma.md)
-- [`Work`](./objects/Work.md)
-- [`Chan`](./objects/Chan.md)
-- [`Socket`](./objects/Socket.md)
-- [`Socket::Work`](./objects/Socket::Work.md)
-- [`Proc`](./objects/Proc.md)
-- [`Proc::Work`](./objects/Proc::Work.md)
-- [`Pipe`](./objects/Pipe.md)
-- [`File`](./objects/File.md)
-- [`Dir`](./objects/Dir.md)
-- [`Date`](./objects/Date.md)
-- [`Sys`](./objects/Sys.md)
-- [`Term`](./objects/Term.md)
+(a, b, c)    = 2, 10, -1, 5 # a: 2, b: 10, c: -1
+(a, b, c)    = array        # a: [1, 2, 3, 4, 5], b: nil, c: nil
+(a, b, c)    = [2, 4, 5]... # a: 2, b: 4, c: 5
+(a, b, ...c) = array..., 10 # a: 1, b: 2, c: [3, 4, 5, 10]
+(a,,b)       = array...     # a: 1, b: 3
+
+# fails during compilation, only use '...' at the end
+(a, ...b, c) = 2, 4, 5
+
+(e, f) = (10, -1) # e: 10, f: -1
+(e, f) = (f, e)   # e: -1, f: 10
+```
+
+# Types
+
+Maat has ... builtin objects, types are objects and objects are types, check
+details on each types here.
+
+- [`Any`](./types/Any.md)
+- [`Bool`](./types/Bool.md)
+- [`Num`](./types/Num.md)
+- [`Str`](./types/Str.md)
+- [`Range`](./types/Range.md)
+- [`Array`](./types/Array.md)
+- [`Map`](./types/Map.md)
+- [`Set`](./types/Set.md)
+- [`MSet`](./types/MSet.md)
+- [`Bag`](./types/Bag.md)
+- [`MBag`](./types/MBag.md)
+- [`Lazy`](./types/Lazy.md)
+- [`Fun`](./types/Fun.md)
+- [`GFun`](./types/GFun.md)
+- [`Regex`](./types/Regex.md)
+- [`Ma`](./types/Ma.md)
+- [`Work`](./types/Work.md)
+- [`Chan`](./types/Chan.md)
+- [`Socket`](./types/Socket.md)
+- [`Socket::Work`](./types/Socket::Work.md)
+- [`Proc`](./types/Proc.md)
+- [`Proc::Work`](./types/Proc::Work.md)
+- [`Pipe`](./types/Pipe.md)
+- [`File`](./types/File.md)
+- [`Dir`](./types/Dir.md)
+- [`Date`](./types/Date.md)
+- [`Sys`](./types/Sys.md)
+- [`Term`](./types/Term.md)
 
 # Blocks and Flow Controls
 
-We separate statements with a generic newline or a semicolon in case
-we have more than one statement on a single line.
+We separate statements with a generic newline or a semicolon in case we have
+more than one statement on a single line.
 
 1. Blocks
 
@@ -401,35 +423,15 @@ say v
 do { false } || die "failed"
 ```
 
-3. `ma` statement and function call prefix
+## Topic variable `_`
 
-```
-ma METHOD_CALL
-ma FOR_LOOP
-```
+Maat does topicalization with flow control statements and anonymous functions a way
+similar to that in Perl and Raku. It is important to understand this more to avoid
+confusion when reading the below specification. Here, we'll focus on topicalization
+regarding flow controls and the one about functions will be exlpained later.
 
-`ma` is a function call and `for` statement prefix, it is responsible
-for running code concurrently using maatines. When prefixed to function
-calls, it runs the function in a new lightweight thread known as a
-Maatine.
 
-```
-fun just_sleep(n) { n.sleep }
-
-for 10..20 -> time {
-    ma just_sleep(time)
-}
-```
-
-When `ma` is used on a `for` loop, each block runs run on its own
-Maatine. In Maat, you'll never have to care about concurrent access
-to shared memory because synchronization is done my Maat itself.
-
-```raku
-ma for ^10 { .sleep }
-```
-
-4. `if` conditional
+2. `if` conditional construct
 
 ```
 if EXPR [ -> VAR ] { CODE } [ elsif EXPR [ -> VAR ] { CODE } ]... [ else { CODE } ]
@@ -461,13 +463,18 @@ if x % 2 -> r {
 }
 ```
 
-if has a statement modifer 
+if has a statement modifer form where EXPR does not get executed
+in a new scope.
 
 ```
 say "one" if true
+
+var k = 2 if 1
+# output: 2
+k.say
 ```
 
-5. `with` condition
+3. `with` conditional construct
 
 ```
 with EXPR [ -> VAR ] { CODE } [ orwith EXPR [ -> VAR ] { CODE } ]... [ else { CODE } ]
@@ -492,21 +499,34 @@ orwith u / 2 -> m { say m, u }
 else              { say "and never here too" }
 ```
 
-Explicit topicalization avoids you from doing the following
+The `with` statement avoid you from doing the following
 
-```js
+```raku
 var x = (y + 1) / 2
-
-with x { ... }
+with x { .say }
 ```
 
 But simple do
 
-```js
-with (y + 1) / 2 -> x { ... }
+```raku
+with (y + 1) / 2  { .say }
 ```
 
-6. `for` loop
+Its statement modifer form.
+
+>
+>
+>
+
+```raku
+# output: 2 4 4 8
+for 4, 8 {
+    var k = _ with _ / 2
+    say k / _
+}
+```
+
+4. `for` loop control
 
 ```
 for LIST | ARRAY | MAP | RANGE [ -> VAR [ , ... ] ] { CODE }
@@ -526,9 +546,12 @@ for "a", r/regex/, [2, 4] { .say }
 
 var ar = qa<one two three four five>
 
-# Trailing comma to indicate it is a list and thus only one iteration
+# trailing comma to indicate it is a list and thus only one iteration
 for ar, { .say }
 # or
+.say for (ar,)
+# and not this otherwise you get something weird if what follows "," can be
+# evaluated by the for loop or compiler bails out if it does not make sense
 .say for ar,
 
 ---
@@ -567,50 +590,28 @@ for a.lazy
                             -> x { x.dump }
 ```
 
-7. Generator function
-
-A Generator function for gathering values with `take`
-
-The `take` keyword pauses generator function execution and the 
-
-```
-fun factors(n) {
-    var k = 1
-
-    while k ** 2 < n {
-        take k, n.div(k) if n % k 
-        k++
-    }
-    take k if k ** 2 == n
-}
-
-.say for factors(36)
-```
-
-8. `given`-`case`
+5. `given`-`when`
 
 ```
 EXPR given EXPR
 given EXPR { CODE }
-given EXPR { match COND [ | COND ] ... { CODE } [ match COND [ | COND ] ... { CODE } ] ... [ default { CODE } ] }
+given EXPR { when COND [ | COND ] ... { CODE } [ when COND [ | COND ] ... { CODE } ] ... [ default { CODE } ] }
 ```
-
-
 
 ```
 # output: Num, 42
 given 34 {
-    match Num { say "Num"; proceed }
-    match 42  { say "42" }
-    default   { say "Default" }
+    when Num { say "Num"; proceed }
+    when 42  { say "42" }
+    default  { say "Default" }
 }
 
 # use '|' for alternation
 var name = "kueppo"
 given name {
-    match /^k/ | /o$/ { say "matches" }
-    match /^m/        { say "starts with 'm'" }
-    default           { say "nothing worked" }
+    when /^k/ | /o$/ { say "matches" }
+    when /^m/        { say "starts with 'm'" }
+    default          { say "nothing worked" }
 }
 ```
 
@@ -626,7 +627,7 @@ given x {
 print .map {|rx| rx ** 2 } given x
 ```
 
-10. looping with the `loop` construct
+6. looping with the `loop` construct
 
 ```
 loop [ [ INIT ] ; [ COND ] ; [ STEP ] ] { CODE }
@@ -648,7 +649,7 @@ loop var k = 0;;k++ {
 loop { say "looping forever" }
 ```
 
-12. `while` and `until`
+7. `while` and `until`
 
 The basic `while` and `until` loop.
 
@@ -665,7 +666,7 @@ until k == 0 {
 }
 ```
 
-13. `do`-`while`/`until`
+8. `do`-`while`/`until`
 
 ```
 var k = Set.new(2, 4, 5)
@@ -680,7 +681,7 @@ do {
 } until false;
 ```
 
-14. loop control statments: `next`, `break`, and `redo`
+9. loop control statments: `next`, `break`, and `redo`
 
 general form: `next [LABEL|LEVEL]`, if you donot specify the label then it
 performs the action for the current block.
@@ -689,11 +690,11 @@ performs the action for the current block.
 - `break`: just like `C`'s `break` loop control statement
 - `redo`: rerun the block without testing the condition
 
-15. `labels`
+10. `labels`
 
 labels permits you to jump between labeled blocks using a loop control statement
 
-```
+```raku
 # an infinite loop with prints "one"
 ONE: {
     say "one"
@@ -707,17 +708,22 @@ TWO: {
         say "three"
         _BLOCK_
     }
-    # dead code to be wiped by the compiler
+    # dead code
     say "never gonna be executed"
 }
 ```
 
-16. `once`
+It is not just blocks, you can labeled the `while`, `until`, `for` and `loop` construct
 
-`once` gives you the possibility to execute a statement within a
-loop only once regardless of the number of iterations. One great
-advantage it offers is avoid the burdens of using a conditional
-construct to avoid the execution of a statement.
+```raku
+```
+
+11. Execute once in a loop/function with `once`
+
+`once` gives you the possibility to execute a statement within a loop
+only once regardless of the number of iterations. One great advantage
+it offers is avoid the burdens of using a conditional construct to avoid
+the execution of a statement.
 
 ```
 var amap = qm{one 1 two 2 three 3}
@@ -728,12 +734,42 @@ amap.each_kv {|k,v|
 }
 ```
 
-17. `try`-`catch`-`finally`
+11. Handling exceptions with `try`-`catch`-`finally`
+
+```
+try { CODE } catch ( EXCEPTION_VAR ) { CODE } [ catch () { CODE } ]... [ finally { CODE } ]
+```
 
 `try`-`catch` for handling exceptions.
 
 
+12. Concurrency with the `ma` statement prefix
 
+```
+ma METHOD_CALL
+ma FOR_LOOP
+```
+
+`ma` is a function call and `for` statement prefix, it is responsible
+for running code concurrently using maatines. When prefixed to function
+calls, it runs the function in a new lightweight thread known as a
+Maatine.
+
+```
+fun just_sleep(n) { n.sleep }
+
+for 10..20 -> time {
+    ma just_sleep(time)
+}
+```
+
+When `ma` is used on a `for` loop, each block runs run on its own
+Maatine. In Maat, you'll never have to care about concurrent access
+to shared memory because synchronization is done my Maat itself.
+
+```raku
+ma for ^10 { .sleep }
+```
 
 # Functions
 
@@ -772,7 +808,7 @@ sleep
 
 ## Topic variable `_`
 
-The type I variable `_` is called a topic variable, this variable operates on
+The type II variable `_` is called a topic variable, this variable operates on
 anonymous functions and flow control blocks. The usage of a topic variable when
 calling an anonymous function implies the anonymous function takes a single
 argument whose parameter wasn't explicitly declared with `|...|` and hence
@@ -879,6 +915,27 @@ fun fib(n) :save {
 }
 ```
 
+## Generator function
+
+A Generator function for gathering values with `take`
+
+The `take` keyword pauses generator function execution and the 
+
+```
+fun factors(n) {
+    var k = 1
+
+    while k ** 2 < n {
+        take k, n.div(k) if n % k 
+        k++
+    }
+    take k if k ** 2 == n
+}
+
+.say for factors(36)
+```
+
+
 # Classes and Roles
 
 ```
@@ -948,7 +1005,7 @@ Maat uses Perl compatible regular expressions(PCRE2).
 ```
 ```
 
-See section on the [Regex](./objects/Regex.md) type for more information.
+See section on the [Regex](./types/Regex.md) type for more information.
 
 # Work
 
@@ -1002,7 +1059,7 @@ do either of the following:
 If the exception of the work created by `.then` is not handled, it inherits its exception
 handler from the top level Work.
 
-```js
+```raku
 var w = Work.does({ sleep 4; 10 })
             .catch({(e) say "Catched: #{e}" })
             .then({ say "My handler is the one above"; _ + 2 })
@@ -1054,7 +1111,7 @@ Work.allof(k)
     .then: k.map(:.result).sum.say
 ```
 
-See section on the [Work](./objects/Work.md) type for more information.
+See section on the [Work](./types/Work.md) type for more information.
 
 # Maatines
 
@@ -1063,7 +1120,7 @@ extremely easy and less costly to create and destroy. Internally, Maat
 has a high performant scheduler which schedules the executions of
 Maatines accross Operating systems threads.
 
-See section on the [Ma](./objects/Ma.md) type for more information.
+See section on the [Ma](./types/Ma.md) type for more information.
 
 # Packages
 
