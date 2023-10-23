@@ -15,23 +15,22 @@ Key features of the Maat programming language:
 - Object Oriented Programming
 - Multiple Dispatching
 - Closures
-- Concurrency with **Works** and **Maatines**
+- Concurrency with [Works](./types/Work.md) and [Maatines](./types/Ma.md)
 - Traits
 - Lazy Evaluation
-- Regex using PCRE
+- Regular Expressions using PCRE2
 - Full Unicode support
 - Phasers
 
-This is the first reference to the Maat programming language, it is
-written for its for implementation.
+This is the specification of the Maat programming language, it is
+written as a guidance for its implementation.
 
-**NB**: Take note of the following conventions about syntax definition
+> **NB**: Take note of the following conventions about syntax definition
 
-- `[ X ]` implies X is optional
-- `|` implies alternation, that's `A | B` signifies either `A` or `B`
-- `...` implies the previous element be it optional or not, can occur multiple times, that element
-is the closest group of characters you judge to be sane for repeatition.
-- Word tokens fully written in capital letters are self documentary, for example we have `CODE`
+> - `[ X ]` implies X is optional
+> - `|` implies alternation, for example `A | B` signifies either `A` or `B`
+> - `...` implies the previous entity be it optional or not, can occur multiple times
+> - Words written in capital letter are self-documentary, for example `CODE`
 
 # Operators
 
@@ -45,22 +44,23 @@ is the closest group of characters you judge to be sane for repeatition.
 
 - `++`: ****(p,b)**** incrementation operator
 - `--`: **(p,b)** decrementation operator
-- `-`: **(b)** negate the operand
-- `+`: **(b)** positive operators, result is equals to the operand
+- `-`: **(b)** negation operator
+- `+`: **(b)** positive operator, result of the evaluation is equal to the operand
 - `~`: **(b)** binary complement
-- `…` or `...`: **(b)** Destructing operator in assignments and Accumulator operator in functions
-- `^`: **(p)** `^5` return an array of element i.e from `0` to `5`
+- `…` or `...`: **(b)** Destructor/Accumulator operator
+- `^`: **(p)** Range operator, `^5` return a `Range` object, i.e `Range.new(0, 5)`
 - `√`: **(p)** sqaure root operator
-- `⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`: **(b)** super-script power operators
+- `⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`: **(b)** power operators
 - `Σ`: **(p)** summation operator
 - `Π`: **(p)** product operator
 
 ## Named unary operators
 
-- `defined`: **(b)** check if a varible is `nil` and return true otherwise
-- `sleep`: **(b)** call sleep() syscall
+- `defined`: **(b)** check if a variable is `nil`
+- `sleep`: **(b)** sleep the current Maatine for a given amount of time
 - `return`: **(b)** return from a function
 - `assert`: **(b)** test an assertion
+- `assert_eq`: **(b)** test an assertion
 - `exit`: **(b)** exit program with given exit code
 
 ## Named list operators
@@ -73,32 +73,33 @@ is the closest group of characters you judge to be sane for repeatition.
 - `map`: **(b)** Function version of `.map` method of the Array type
 - `lmap`: **(b)** Function version of `.lmap` method of the Array type
 - `grep`: **(b)** Function version of `.grep` method of the Array type
-- `run`: **(b)**
-- `die`: **(b)** raise an exception with a given message on then stderr and exit program if there is no handler
-- `warn`: **(b)** warn by sending passed message to the stderr
+- `run`: **(b)** run the passed command on a new shell
+- `die`: **(b)** raise an exception with the given message on the stderr and exit program if there is no handler
+- `warn`: **(b)** warn by sending a message to the stderr
 
 ## Named binary operators
 
-- `isa`: **(i)** checks if the left object `isa`(of the same class or kind of inherited) the right object
-- `minmax`: **(i)** return in an Array the min and the max of the right and left operand respectively
+- `isa`: **(i)** checks if the left object `isa` or kind of the class with the right object
+- `minmax`: **(i)** return in an array the min and the max of the right and left operand respectively
 
 ## Binary operators for maat objects
 
-- `.`, `.^`: **(i)** method/attribute call operators for objects and metaobjects/metaclasses respectively
-- `,`, `=>`: **(i,b)** comma operator, and key-value separator infix operator
+- `.`: **(i)** method call operator on objects and classes
+- `.^`: **(i)** method call operator for meta-programming
+- `,`, `=>`: **(i,i)** comma operator, and key-value separator infix operator
 - `!`: **(p)** negation operator ex: `!true == false`
 - `=`, `:=`: **(i)** assignment and binding operator
-- `//`: **(i)** `a // b`, return `a` it is set otherwise `b`
-- `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: **(i)** basic operators between objects
+- `//`: **(i)** a variant of the `||` operator that tests for definedness, `a // b`, return `a` it is not `nil` otherwise `b`
+- `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: **(i)** basic infix operators
 - `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: **(i)** add, sub, div, div, mul, remainder and range operator
-- `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: **(i)** `left operand(a variable)` `=` `left operand value` `op` `right operand`
+- `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: **(i)** `X op= Y` same as `X = X op Y`
 - `<<`, `>>`, `^`, `&`, `&=`, `|=`: **(i)** bitwise shift on left and right, logical `or` and `and`
 - `&&`, `||`, `&&=`, `||=`: **(i)** logical "and" and "or" operator
-- `≅` / `=~`, `~~`: **(i)** regex operator and smart match operator
+- `≅` / `=~`, `~~`: **(i)** regex operator and smartmatch operator
 - `∉`,  `∈`, `∊`, `∍`, `∋`, `∌`, `⊂`, `⊄`, `⊆`, `⊈`, `⊃`, `⊅`, `⊇`, `⊉`, `≡`, `≢`, `⊖`, `∩`, `⊍`, `∪`, `⊖`, `⊎`, `∖`: **(i)** set operators
-- `<=>` : **(i)**`op1 <=> op2` says if `op1 < op2` yield `-1`, `op1 == op2` yield `0`, `op1 > op2` yield `1`
-- `∘`: **(i)** function composition, take two subroutines as operand
-- `?:`: tenary operator
+- `<=>` : **(i)** `X <=> Y` says if `X < Y` yield `-1` or if `X == Y` yield `0` elseif `X > Y` yield `1`
+- `∘`: **(i)** function composition infix operator
+- `?:`: **(?)** tenary operator
 
 ## List of all operators from highest precedence to lowest
 
@@ -130,7 +131,7 @@ is the closest group of characters you judge to be sane for repeatition.
 
 # Comments
 
-Single line comments with `#` and multi lines comments with `---`
+Single line comments are done with `#` and multi-line comments with `---`
 
 ```
 # single line comment
@@ -145,9 +146,12 @@ comment
 
 ## Pair delimiters
 
-Pair delimiters below are used to declare enums, arrays, hashes and regexs
+
+The following pair delimiters can be used as delimiters for quoted values
+and regular expression operators.
 
 ```
+( )       [ ]       { }       < >
 ⦗ ⦘       ⧼ ⧽      〈 〉      ❨ ❩
 ❲ ❳       ❴ ❵       ⟅ ⟆       ⟦ ⟧
 « »       » «       ‹ ›       › ‹
@@ -158,14 +162,13 @@ Pair delimiters below are used to declare enums, arrays, hashes and regexs
 ❪ ❫       ❬ ❭       ❮ ❯       ❰ ❱
 ⟨ ⟩       ⟪ ⟫       ⟬ ⟭       ⟮ ⟯
 ⦃ ⦄       ⦅ ⦆       ⦋ ⦌       ⦍ ⦎
-( )       [ ]       { }       < >
 ⦏ ⦐       ⦑ ⦒
 ```
 
 ### Examples
 
-```js
-var x = qa|one two three|
+```
+var x = [ qw(one two three) ]
 
 # [ "Three", "Two", "One" ]
 var b = x.map(:.cap).rev
@@ -176,15 +179,17 @@ x =~ s<o>«0»
 
 ## Single character delimiter
 
-We also have a restricted set of delimiters for double quoted strings(`q`), single
-quoted strings(`qq`) and regex operators and values
+We also have a restricted set of delimiters for quoted values and regular
+expression operators.
 
-`/ | % "  '`
+```
+/ | % "  '
+```
 
 ### Examples
 
-```js
-var a = qa|ONE TWO THREE|
+```raku
+var a = [ qw|ONE TWO THREE| ]
 a.each: .lc.say
 
 say q"interpolation won't work"
@@ -192,35 +197,40 @@ say q"interpolation won't work"
 say qq<interpolation works, array: #a>
 
 # [ "0ne", "Tw0" ]
-a.grep({|x| x =~ m|o| }).map(:s|o|0|r).map(:.ucfirst).say
+a.grep({|x| x =~ m|o|i }).map(:s|o|0|r).map(:.ucfirst).say
 ```
 
 # Variables
 
-`Maat` has four types of variables: package, lexical, temporal and persistent variables.
+`Maat` has four types of variables: package, lexical, temporary and persistent variables.
 
-Package variable can be accessed from other packages using their full qualified
+A module file has a `.mm` extension, a package is a namespace, variables who are fully
+qualified are known as package variables, there is no one-to-one mapping between a
+namespace and module file, therefore multiple namespaces can be define in a single
+module file but this is not a good practice.
+
+Package variables can be accessed from other packages using their fully qualified
 name and lexically scoped variables cannot be accessed from outside the package in
-which it was declared.
+which they were declared.
 
-Temporal variables are declared within a scope and refers to previously declared
-package variables from the current package if its name at declaration isn't fully
-qualified otherwise refers to the variable in the specified package. Any changes
-made to temporal variables remains local to the scope from where it was declare
-and thus the referenced variables remains untouched. You cannot localize lexically
-scoped variables.
+A temporary variable is a variable that is lexically scoped and refers to a package
+variable declared from another package if the name of the temporary variable at
+declaration is fully qualified otherwise, it refers to a package variable declared
+in its own package. Any modification made to temporary variables remains **local** to
+their scopes of declaration, thus, out of these scopes, package variables they refer
+to remain untouched. You cannot temporarize lexically scoped variables.
 
-Declare package variables with the keyword `pkg`, lexically scoped variables
-with `var` and temporal variable with `temp`.
+We declare package variables with the keyword `pkg`, lexically scoped variables
+with `var` and temporary variables with `temp`.
 
 ```raku
 package One::Two {
-    pkg x = qa<one two three>
+    pkg x = [ qw<one two three> ]
 
-    var a = { one => 1 }
+    var a = {one => 1}
     {
-        # a: { one => 1, two => 2 }
-        var a += qm{two 2}
+        # a: {one => 1, two => 2}
+        var a += {two => 2}
 
         # could still use "One::Two::x" at declaration
         temp x = {}
@@ -228,33 +238,35 @@ package One::Two {
         say One::Two::x
     }
 
-    # output: qm{one 1}
+    # output: {one => 1}
     a.say
-    # output: qa<one two three>
+    # output: [ qw<one two three> ]
     x.say
 }
 
 package One::Two::Three {
     # refers to the package variable "x" declared in the namespace "One::Two"
-    say One::Two::Three::x
+    say One::Two::x
 
-    # tells there is no such package variable in namespace "One::Two::Three"
+    # compiler fails and tells that "a" isn't declared in namespace "One::Two::Three"
     say One::Two::Three::a
 }
 ```
 
-Static variables defined in a function or block are lexically scoped variables
-which retains their values between function calls and block jumps. We declare
-static lexically scoped variables with the `state` keyword.
+Static variables are lexically scoped variables that when defined in a function
+or block, retains their values between recalls and jumps. We declare static
+variables with the `state` keyword.
 
-```js
-fun increment(n) {
-    state k = n
-    _FUN_(nil), return k if ++k != 9
+```
+fun incr(n) {
+   state k = n
+
+   return k if ++k == 9
+   _FUN_(nil)
 }
 
-# 9
-increment(0, 9).say
+# output: 9
+say incr(5)
 ```
 constant variables are lexically scoped by default unless you precise they're
 global with the global keyword.
