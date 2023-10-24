@@ -25,8 +25,7 @@ Key features of the Maat programming language:
 This is the specification of the Maat programming language, it is
 written as a guidance for its implementation.
 
-> **NB**: Take note of the following conventions about syntax definition
-
+> **NB**: Take note of the following conventions when reading syntax definitions
 > - `[ X ]` implies X is optional
 > - `|` implies alternation, for example `A | B` signifies either `A` or `B`
 > - `...` implies the previous entity be it optional or not, can occur multiple times
@@ -47,8 +46,8 @@ written as a guidance for its implementation.
 - `-`: **(b)** negation operator
 - `+`: **(b)** positive operator, result of the evaluation is equal to the operand
 - `~`: **(b)** binary complement
-- `…` or `...`: **(b)** Destructor/Accumulator operator
-- `^`: **(p)** Range operator, `^5` return a `Range` object, i.e `Range.new(0, 5)`
+- `…` or `...`: **(b)** destructor/accumulator operator
+- `^`: **(p)** Range operator, `^5` returns a `Range` object, i.e `Range.new(0, 5)`
 - `√`: **(p)** sqaure root operator
 - `⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`: **(b)** power operators
 - `Σ`: **(p)** summation operator
@@ -60,7 +59,7 @@ written as a guidance for its implementation.
 - `sleep`: **(b)** sleep the current Maatine for a given amount of time
 - `return`: **(b)** return from a function
 - `assert`: **(b)** test an assertion
-- `assert_eq`: **(b)** test an assertion
+- `assert_eq`: **(b)** equality test assertion
 - `exit`: **(b)** exit program with given exit code
 
 ## Named list operators
@@ -69,35 +68,35 @@ written as a guidance for its implementation.
 - `print`: **(b)** print without a new line
 - `printf`: **(b)** print formatted string
 - `sprintf`: **(b)** sprintf, return formatted string
-- `join`: **(b)** Function version of `.join` method of the Array type
-- `map`: **(b)** Function version of `.map` method of the Array type
-- `lmap`: **(b)** Function version of `.lmap` method of the Array type
-- `grep`: **(b)** Function version of `.grep` method of the Array type
-- `run`: **(b)** run the passed command on a new shell
-- `die`: **(b)** raise an exception with the given message on the stderr and exit program if there is no handler
+- `join`: **(b)** function version of `.join` method of the `Array` type
+- `map`: **(b)** function version of `.map` method of the `Array` type
+- `lmap`: **(b)** function version of `.lmap` method of the `Array` type
+- `grep`: **(b)** function version of `.grep` method of the `Array` type
+- `run`: **(b)** run the passed as argument commands with their parameters on a new shell
+- `die`: **(b)** raise an exception and exit program if there is no handler
 - `warn`: **(b)** warn by sending a message to the stderr
 
 ## Named binary operators
 
-- `isa`: **(i)** checks if the left object `isa` or kind of the class with the right object
-- `minmax`: **(i)** return in an array the min and the max of the right and left operand respectively
+- `isa`: **(i)** `o isa str` returns true if `o` is an object instance of class `str` or of a class which is subclass to `str`
+- `minmax`: **(i)** returns in an array the min and the max of its left and right operand
 
 ## Binary operators for maat objects
 
+- `=`: **(i)** assignment operator
 - `.`: **(i)** method call operator on objects and classes
 - `.^`: **(i)** method call operator for meta-programming
-- `,`, `=>`: **(i,i)** comma operator, and key-value separator infix operator
+- `,`, `=>`: **(i,i)** comma and key-value separator infix operator
 - `!`: **(p)** negation operator ex: `!true == false`
-- `=`, `:=`: **(i)** assignment and binding operator
-- `//`: **(i)** a variant of the `||` operator that tests for definedness, `a // b`, return `a` it is not `nil` otherwise `b`
+- `//`: **(i)** a variant of the `||` operator that tests for definedness, `a // b`, returns `a` if it isn't `nil` otherwise `b`
 - `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: **(i)** basic infix operators
-- `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: **(i)** add, sub, div, div, mul, remainder and range operator
+- `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: **(i)** add, sub, div, mul, remainder and range operator
 - `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: **(i)** `X op= Y` same as `X = X op Y`
 - `<<`, `>>`, `^`, `&`, `&=`, `|=`: **(i)** bitwise shift on left and right, logical `or` and `and`
 - `&&`, `||`, `&&=`, `||=`: **(i)** logical "and" and "or" operator
 - `≅` / `=~`, `~~`: **(i)** regex operator and smartmatch operator
 - `∉`,  `∈`, `∊`, `∍`, `∋`, `∌`, `⊂`, `⊄`, `⊆`, `⊈`, `⊃`, `⊅`, `⊇`, `⊉`, `≡`, `≢`, `⊖`, `∩`, `⊍`, `∪`, `⊖`, `⊎`, `∖`: **(i)** set operators
-- `<=>` : **(i)** `X <=> Y` says if `X < Y` yield `-1` or if `X == Y` yield `0` elseif `X > Y` yield `1`
+- `<=>` : **(i)** `X <=> Y` says yield `-1` if `X < Y`, `0` if `X == Y`, or `-1` if `X > Y`
 - `∘`: **(i)** function composition infix operator
 - `?:`: **(?)** tenary operator
 
@@ -188,7 +187,7 @@ expression operators.
 
 ### Examples
 
-```raku
+```
 var a = [ qw|ONE TWO THREE| ]
 a.each: .lc.say
 
@@ -202,7 +201,7 @@ a.grep({|x| x =~ m|o|i }).map(:s|o|0|r).map(:.ucfirst).say
 
 # Variables
 
-`Maat` has four types of variables: package, lexical, temporary and persistent variables.
+`Maat` has four types of variables: package, lexical, temporary and static variables.
 
 A module file has a `.mm` extension, a package is a namespace, variables who are fully
 qualified are known as package variables, there is no one-to-one mapping between a
@@ -215,15 +214,16 @@ which they were declared.
 
 A temporary variable is a variable that is lexically scoped and refers to a package
 variable declared from another package if the name of the temporary variable at
-declaration is fully qualified otherwise, it refers to a package variable declared
-in its own package. Any modification made to temporary variables remains **local** to
-their scopes of declaration, thus, out of these scopes, package variables they refer
-to remain untouched. You cannot temporarize lexically scoped variables.
+declaration is fully qualified, otherwise it refers to a package variable of the same
+name declared in its own package. Any modification made to temporary variables remains
+**local** to their scopes of declaration, thus, out of these scopes, package variables
+they refer to remain untouched. You cannot temporarize lexically scoped variables and
+all package variables regardless of their types can to temporarize.
 
 We declare package variables with the keyword `pkg`, lexically scoped variables
 with `var` and temporary variables with `temp`.
 
-```raku
+```
 package One::Two {
     pkg x = [ qw<one two three> ]
 
@@ -268,64 +268,84 @@ fun incr(n) {
 # output: 9
 say incr(5)
 ```
-constant variables are lexically scoped by default unless you precise they're
-global with the global keyword.
+A constant variable when declared is lexically scoped by default unless you
+explicitly indicate that it is a package variables.
 
-```js
+```
 # lexically scoped declaration of a constant
 const z = 4
 
-# a constant package variable
+# constant package variables
 const pkg (x, y) = (2, 10)
 ```
 
-## special package variables
+## Special variables
 
-Special variables are package variables, some are writetable and can change the
-behavoir of your programs while others are readonly and contain useful information
-to make important decisions.
+Some special variables are package variables(`p`) while others are
+lexically scoped to their dedicated maatines(`l`). Also, some these
+variables are writable(`w`) while others are read-only(`r`).
 
 ### Type I special variables
 
-We expand the content of special variables using the sigil `$`.
-Some of these variables are writable(`w`) while others are read-only(`r`).
+We expand the content of a type I special variable using the sigil `$`. It is
+prohibited to declare a variable with a sigil, regardless of whether or not
+it corresponds to any of the following.
 
-```js
+```
 say "Running #{$0} on #$OS"
 ```
-- `V`: (r) Maat version
-- `O`: (r) OS version on which `pity` was build
-- `.`: (w) Current line in a file
-- `,`: (w) Output field separator
-- `/`: (w) Input record separator
-- `"`: (w) Separator character during interpolation
-- `$`: (r) Pid of the current running process
-- `0`: (r) Name of the executing program
-- `(`, `)`, `<`, `>`: (w) real
+- `V`: (r,p) Maat version
+- `O`: (r,p) OS on which `Maat` was build
+- `,`: (w,p) cutput field separator
+- `/`: (w,p) input record separator, new line by default
+- `\`: (w,p) output record separator(what trails `print`), it is empty string by default
+- `|`: (w,p) if set to true, turns on flushing after every write or read operator
+- `"`: (w,p) separator char for arrays when interpolated in double-quoted strings and regexs
+- `$`: (r,p) pid of the current running process
+- `0`: (r,p) name of the executing program
+- `(`, `)`: (w,p) real and effective uid of the current process
+- `<`, `>`: (w,p) real and effective gid of the current process
 
+- `*`: (r,l) id of the current maatine
+- `.`: (r,l) current line in a file
 - `F`: (w)
-
 - `!`: (r) retrieve errors from syscalls
 
-### Type II special variable
+### Type II special variables
 
-We donot expand type 2 special variables with `$`, they are just
-like simple variable we use in our Maat programs
+Any of these variables in the exception of `_` declared in your Maat
+code will cause the compiler to fail.
 
-- `_` : Topic variable, assinged a value when topicalizing with `with`, `given`, `for`, `if`, ... etc
-- `ENV`: a `Map` object which contains your current environment variables
-- `PATH`: an `Array` object which contains the absolute path to directories where maat searches for modules
-- `INC`: a `Map`, which map each imported module to their path location in the filesystem
-- `SIG`: for traping signals, map a signal name to a `Fun` object to be called when given signal is trapped
-- `ARGV`: An array containing command line arguments
-- `ARGC`: represents the argument count, it is an object of type `Num`
-- `DATA`: represents a file handle to manipulate data under `_DATA_`, just like in perl
+- `_`: (w,l) topic variable, it is assigned a value when topicalizing with `with`, `given`, `for` or anonymous functions
 
-### Special tokens
+In contrary to Perl, `_` is lexically scoped which is important
+as Maat natively support concurrency. 
 
-- `_FUN_`: for recursion, call the current function
-- `_BLOCK_`: for recursion, call the current block
-- `_FILE_`: a string object, represents the name of current script in execution
+```
+for ^5 {
+    var _
+}
+```
+
+The above declaration of `_` will fail at compile time as it is
+already declared and used by the `for`-loop.
+
+- `ENV`: **(w,p)** a `Map` object which contains your current environment variables
+- `PATH`: **(w,p)** an `Array` object which contains the absolute path to directories where maat searches for modules
+- `INC`: **(w,p)** a `Map`, which map each imported module to their path location on disk
+- `SIG`: **(w,p)** for traping signals, map a signal name to a `Fun` object to be called when a triggered signal is trapped
+- `ARGV`: **(w,p)** an array containing command line arguments
+- `ARGC`: **(w,p)** represents the argument count, it is an object of type `Num`
+- `DATA`: **(w,p)** represents a file handle to manipulate data under the `__DATA__`, just like in Perl
+- `_FILE_`: **(r,p)** a `Str` object, contains the name of the file from which 
+- `_FUN_`: **(r,p)** for recursion, call the current function
+
+All these special variables in the exception of `_` can be temporarized
+as they are package variables of the main package.
+
+### Special token
+
+- `__DATA__`:
 
 ## Constants
 
@@ -901,7 +921,7 @@ count("orange")             # output: You have 0 oranges
 
 fun sum(...ar) { ar.sum }
 
-# does not make sense, all fail at compilation
+# they don't make sense at all! fail at compilation
 fun bad_func1(a, ...b, c)    { ... }
 fun bad_func2(...a, b, c)    { ... }
 fun bad_func3(...a, b, ...c) { ... }
