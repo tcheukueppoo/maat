@@ -1,7 +1,16 @@
-# List of terminals (refer to perl regular expressions)
+# MAAT's CUSTOM BNF
+
+## Terminologies
+
+- 
+-
+-
+
+```
+# Terminals
 Term_var_name: 
-Term_comment: #.* \z
-Term_comment: /\* .*? \*/
+Term_comment: qr/ #.* \z /x
+Term_comment: qr/ --- .*? --- /x
 Term_whitespace: \R | \h
 
 separators           -> Term_comment | Term_whitespace 
@@ -14,14 +23,4 @@ variable_declaration -> var_modifier variables '=' expression
 variables            -> Term_varname | '(' Term_varname [ ',' Term_varname ',' ... ] ')'
 expresion            -> builtin_object_declaration | do_block | literal | tenary_op
 flow_construct       ->
-
-# parsing algorithm
-
-list of parsing functions
-
--
--
--
--
-
-Parse
+```

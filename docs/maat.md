@@ -1,5 +1,5 @@
 ---
-title: Maat Programming Language Specification
+title: The Maat Programming Language Specification
 author: Kueppo Tcheukam J. W.
 email: tcheukueppo@yandex.com
 ---
@@ -34,6 +34,10 @@ email: tcheukueppo@yandex.com
 
 # Operators
 
+    This is the list of all operators supported by the Maat programming
+    language, you are not required to master everything now as they are
+    meticulously documented
+
 ## Lonely operator
 
 - `…`, `...`: to specify unimplemented code
@@ -42,7 +46,7 @@ email: tcheukueppo@yandex.com
 
 ## Basic unary operators
 
-- `++`: ****(p,b)**** incrementation operator
+- `++`: **(p,b)** incrementation operator
 - `--`: **(p,b)** decrementation operator
 - `-`: **(b)** negation operator
 - `+`: **(b)** positive operator, result of the evaluation is equal to the operand
@@ -263,7 +267,7 @@ fun incr(n) {
    state k = n
 
    return k if ++k == 9
-   _FUN_(nil)
+   __FUN__(nil)
 }
 
 # output: 9
@@ -355,9 +359,9 @@ variables can be temporarized.
 
 - `__DATA__`
 
-    `__DATA__` is not a variable, it is a special token you fit into your
-    maat code right at the end so whatever comes after it can be accessed
-    as a file handle via the DATA special variable.
+    `__DATA__` is not a variable. Hmm... it is a special token you fit into your
+    maat code right at the end so that whatever data following it can be obtained
+    via a file handle in the special variable `DATA`.
 
 ```
 {
@@ -367,6 +371,7 @@ variables can be temporarized.
 __DATA__
 This is not code but rather
 data accessible via "DATA"
+This is a nice feature is from Perl
 ```
 
 ## Constants
@@ -477,27 +482,46 @@ say v
 do { false } || die "failed"
 ```
 
-## Topic variable `_`
+## Topic variables
 
-    Maat does topicalization with flow control statements and anonymous functions a way
-    similar to that in Perl and Raku. It is important to understand this more to avoid
-    confusion when reading the below specification. Here, we'll focus on topicalization
-    regarding flow controls and the one about functions will be exlpained later.
+    Maat does topicalization with flow control statements and anonymous
+    functions a way similar to that in Perl and Raku. It is important to
+    understand this now to avoid confusion when reading the below
+    specification. Here, we'll focus on topicalization regarding flow
+    controls and the one about functions will be exlpained later.
+
+    Topicalization? What is it? first appeared in Perl, topicalization
+    is a technique used to apply a set of operations on one or a group
+    of specific targets, it involves making the topic of operations more
+    accessible in code. If not explicitly defined, a topic variable is
+    represented by the type II special variable `_` which holds the
+    current default or implied argument for certain operations. Topica-
+    lization allows you to use this special variable implicitly or
+    explicitly within your code to refer to the current topic without
+    having to explicitly declare it as parameter to each operation.
+    An example is using the default topic variable in an anynomous
+    function which implicitly means the anonymous function take a single
+    parameter and the default topic variable refers to it. Another
+    example is using the default topic variable within the code of the
+    `with` construct to implicitly refer to the return value of its
+    conditional expression.
 
 
 2. `if` conditional construct
 
 ```
-if EXPR [ -> VAR ] { CODE } [ elsif EXPR [ -> VAR ] { CODE } ]... [ else { CODE } ]
+if EXPR [ -> TOPIC_VAR ] { CODE } [ elsif EXPR [ -> TOPIC_VAR ] { CODE } ]... [ else { CODE } ]
 EXPR if EXPR
 ```
 
     Conditional construct `if`, note that paranthesis are optional.
 
-    You must explicitly defined a topic variable as the `if` / `elseif`
-    construct does not change the value of the default topic variable `_`.
+    You must explicitly defined a topic variable if the return value of the
+    conditional expression of `if` or any `elsif` is of interest to you as
+    this flow construct neither changes nor defines the default topic
+    variable `_`.
 
-```js
+```
 if true { say "it is true" }
 
 if 0 {
@@ -531,7 +555,7 @@ k.say
 3. `with` conditional construct
 
 ```
-with EXPR [ -> VAR ] { CODE } [ orwith EXPR [ -> VAR ] { CODE } ]... [ else { CODE } ]
+with EXPR [ -> TOPIC_VAR ] { CODE } [ orwith EXPR [ -> TOPIC_VAR ] { CODE } ]... [ else { CODE } ]
 EXPR with EXPR
 ```
 
@@ -542,7 +566,7 @@ EXPR with EXPR
     default topic variable `_` to the value returned by the their
     conditional expressions.
 
-```raku
+```
 var (u, y) = 5, nil
 
 with u { say "defined, see: #{_}" }
@@ -555,24 +579,24 @@ else              { say "and never here too" }
 
     The `with` statement avoid you from doing the following
 
-```raku
+```
 var x = (y + 1) / 2
 with x { .say }
 ```
 
     But simple do
 
-```raku
+```
 with (y + 1) / 2  { .say }
 ```
 
     Its statement modifer form.
 
->
+> 
 >
 >
 
-```raku
+```
 # output: 2 4 4 8
 for 4, 8 {
     var k = _ with _ / 2
@@ -583,18 +607,19 @@ for 4, 8 {
 4. `for` loop control
 
 ```
-for LIST | ARRAY | MAP | RANGE [ -> VAR [ , ... ] ] { CODE }
+for LIST | ARRAY | MAP | RANGE [ -> TOPIC_VAR [ , ... ] ] { CODE }
 EXPR for LIST | ARRAY | RANGE | MAP
 ```
 
-    `for` either iterate over a comma separated list of values or an iterable objects.
-    `for` can iterate over objects of type Array, Map, Range and Lazy.
-
+    `for` either iterate over an iterable object or a comma separated
+    list of values which internal is represented as an object. Iterable
+    objects here are object of the following types: `Array`, `Map`
+    `Range`, `Lazy` and `GFun`.
 
     Here are examples of iterations over a comma seperated list of values
 
 ```
-# Three iterations
+# three iterations
 for "a", r/regex/, [2, 4] { .say }
 
 var ar = [ qw<one two three four five> ]
@@ -637,7 +662,7 @@ for ar -> i, j = "none" {
     For lazy evaluation, we iterate over a lazy object
 
 ```
-var a = qa(nairobi niamey yaounde)
+var a = [qw(nairobi niamey yaounde)]
 for a.lazy
      .map(:[.ucfirst, .len])
                             -> x { x.dump }
@@ -833,8 +858,8 @@ ma for ^10 { .sleep }
 # Functions
 
 ```
-fun NAME [ ( [ARG1] [, ARG2] ...) ] { CODE  }
-{ [ | VARNAME [ = VALUE ] [, VARNAME [ = VALUE ] ] ... | ] CODE }
+fun NAME [ ( [  [ PARAM1 [ = DEFAULT_VALUE ] ] [, PARAM2 [ = DEFAULT_VALUE ] ] ... ] ) ] { CODE  }
+{ [ | PARAM1 [ = DEFAULT_VALUE ] [, PARAM2 [ = DEFAULT_VALUE ] ] ... | ] CODE }
 : EXPR
 ```
 
@@ -1192,9 +1217,3 @@ Work.allof(k)
 
 ```
 ```
-
-# Conclusion
-
-It was a very long journey and I really hope all 
-
-## Epic Links
