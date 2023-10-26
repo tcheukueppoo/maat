@@ -1,51 +1,35 @@
-# Statement Prefix
+# Some details regarding Maat implementation
 
-    Statement prefixes are keywords preceding statements that changes
-    their default behavoir. Internally, this changes the way the Maat
-    compiler compiles Maat code and thus generates different type of
-    opcodes for the intention of the statement prefix to take effect
-    during bytecode execution.
+1. How is `once` handled?
 
-    `Maat` supports the following statement prefixes:
+2. How does the gc run accross each OS thread?
 
-1. `do`
-2. `ma`
+3. Explain the automatic synchronization of shared memory?
 
-## do
+4. How to implement `.then` and `.catch` so that handlers get registered before work is scheduled for execution?
 
-```
-do FILENAME
-do { CODE }
-do if ...
-do for ...
-do with ...
-```
+5. How do you implement Maatines
 
-    The `do` statement prefix treats statements as expressions and returns
-    the value of the last evaluation in the statement of concern.
+6. How to implement Works using Maatines
 
-    Given the following maat code
+7. How do you handle the scope of type I variables despite concurrency?
 
-```
-var x = do { 2 ** 4 } + 14                # output: 
-var y = 12 + do if True { 2 } else { 3 }  # output:
-```
+8. How does method resolution work?
 
-    Here the Maat compiler compiles the `do` statment and at execution, it
-    puts the result of the last evaluated expression of that statement in
-    the required register to serve as operand for the arithmetic addition
-    operation.
+9. How do you implement generator functions
 
-```
-var x = 10
-var m = do for ^5 -> w { x += 1 }
+10. How do you implement phasers?
 
--- output: a{11 12 13 14 15}
-m.say
-```
+11. How do you implement lazy evaluation?
 
-## ma
+12. How does topicalization work?
 
-```
-ma for ...
-```
+13. How do you implement exception handlers?
+
+14. What are the different optimizations?
+
+15. How do you implement swapping?
+
+16. How do you implement the accumulator and destructor operator
+
+17. 

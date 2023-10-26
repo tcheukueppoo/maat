@@ -468,9 +468,15 @@ block: {
 }
 ```
 
-2. `do` block
+2. The `do` statement
 
-`do { CODE }`
+```
+do { CODE }
+do 'PATH/TO/A/MAAT/FILE'
+```
+
+`do` runs the code from the passed block or file and returns the
+result of the last evaluated expression.
 
 ```
 var v = do { 2 }
@@ -482,6 +488,9 @@ say v
 (do { 3 }).say
 
 do { false } || die "failed"
+
+# x: 18
+var x = do { 2 ** 4 } + 2
 ```
 
 ## Topic variables
@@ -509,10 +518,13 @@ example is using the default topic variable within the code of the
 conditional expression.
 
 
-2. `if` conditional construct
+2. The `if` flow control statement
 
 ```
-if EXPR [ -> TOPIC_VAR ] { CODE } [ elsif EXPR [ -> TOPIC_VAR ] { CODE } ]* [ else { CODE } ]
+if EXPR [ -> TOPIC_VAR ]      { CODE }
+[ elsif EXPR [ -> TOPIC_VAR ] { CODE } ]*
+[ else                        { CODE } ]
+
 EXPR if EXPR
 ```
 
@@ -554,10 +566,13 @@ var k = 2 if 1
 k.say
 ```
 
-3. `with` conditional construct
+3. The `with` flow control
 
 ```
-with EXPR [ -> TOPIC_VAR ] { CODE } [ orwith EXPR [ -> TOPIC_VAR ] { CODE } ]* [ else { CODE } ]
+with EXPR [ -> TOPIC_VAR ]     { CODE }
+[ orwith EXPR [ -> TOPIC_VAR ] { CODE } ]*
+[ else                         { CODE } ]
+
 EXPR with EXPR
 ```
 
@@ -606,11 +621,12 @@ for 4, 8 {
 }
 ```
 
-4. `for` loop control
+4. The `for` loop control
 
 ```
-for LIST | ARRAY | MAP | RANGE [ -> TOPIC_VAR [ , TOPIC_VAR ]* ] { CODE }
-EXPR for LIST | ARRAY | RANGE | MAP
+for <LIST | ARRAY | MAP | RANGE | LAZY | GFun> [ -> TOPIC_VAR [ , TOPIC_VAR ]* ] { CODE }
+
+EXPR for <LIST | ARRAY | RANGE | MAP | LAZY | GFun>
 ```
 
 `for` either iterate over an iterable object or a comma separated
@@ -661,23 +677,43 @@ for ar -> i, j = "none" {
 .say for ar
 ```
 
-For lazy evaluation, we iterate over a lazy object
+For lazy evaluation, we iterate over a lazy object. A lazy object
+implements a subset of Array methods that process array elements
+to produce other elements. Each method call on a lazy object
+registers that method with its arguments so that it gets called
+for every lazy iteration.
 
 ```
 var a = [qw(nairobi niamey yaounde)]
+
+# "grep" and "map" got registered and they later on get called for every element in "a"
 for a.lazy
+     .grep(:/^n/)
      .map(:[.ucfirst, .len])
                             -> x { x.dump }
 ```
 
-5. `given`-`when`
+5. The `when` flow control
 
 ```
-EXPR given EXPR
+when COND [ | EXPR ]* { CODE }
+
+EXPR when COND
+```
+
+the when flow control is similar the `if` construct but differs from 
+how the condition is tested if COND is just an expression, then CODE
+gets executed if the value of the topic variable smartmatch the result
+of EXPR
+
+
+6. The `given` topicalizer
+
+```
 given EXPR { CODE }
-given EXPR { when COND [ | COND ]* { CODE } [ when COND [ | COND ]* { CODE } ]* [ default { CODE } ] }
-```
 
+EXPR given EXPR
+```
 
 
 
@@ -687,14 +723,6 @@ given 34 {
     when Num { say "Num"; proceed }
     when 42  { say "42" }
     default  { say "Default" }
-}
-
-# use '|' for alternation
-var name = "kueppo"
-given name {
-    when /^k/ | /o$/ { say "matches" }
-    when /^m/        { say "starts with 'm'" }
-    default          { say "nothing worked" }
 }
 ```
 
@@ -709,7 +737,7 @@ given x {
 print .map {|rx| rx ** 2 } given x
 ```
 
-6. looping with the `loop` construct
+7. looping with the `loop` construct
 
 ```
 loop [ [ INIT ] ; [ COND ] ; [ STEP ] ] { CODE }
@@ -729,7 +757,7 @@ loop var k = 0;;k++ {
 loop { say "looping forever" }
 ```
 
-7. `while` and `until`
+8. `while` and `until`
 
 The basic `while` and `until` loop.
 
@@ -746,7 +774,13 @@ until k == 0 {
 }
 ```
 
-8. `do`-`while`/`until`
+9. `do`-`while`/`until`
+
+```
+do { CODE } while COND
+
+do { CODE } until COND
+```
 
 ```
 var k = Set.new(2, 4, 5)
@@ -761,20 +795,24 @@ do {
 } until false;
 ```
 
-9. loop and block control statments: `next`, `break`, and `redo`
+10. loop control statments `next`, `break`, and `redo`
 
 ```
 break [ LABEL ]
 next  [ LABEL ]
 redo  [ LABEL ]
 ```
-use control statements to jump between points in your code
+use loop control statements to control the behavoir of loop
+and non-flow control blocks
 
 - `next`: just like `C`'s `continue` loop control statement
 - `break`: just like `C`'s `break` loop control statement
-- `redo`: to rerun any kinds of blocks without testing any conditional expression
+- `redo`: to rerun current loop block without evaluating the conditional 
 
-10. `labels`
+if the LABEL is omitted, the control statement refers to
+the innermost enclosing loop or non-flow control block.
+
+11. `labels`
 
 labels permits you to label blocks and flow controls so as to be able to
 perform jumps using control statements like `redo`, `break` and `next`.
@@ -807,7 +845,11 @@ fun do_sleep(n) {
 }
 ```
 
-11. Execute once in a loop/function with `once`
+12. Execute once in a loop/function with `once`
+
+```
+once STATEMENT
+```
 
 `once` gives you the possibility to execute a statement within a loop
 only once regardless of the number of iterations. One great advantage
@@ -815,15 +857,15 @@ it offers is freeing us from using a conditional construct to avoid
 the execution of a statement.
 
 ```
-var amap = qm{one 1 two 2 three 3}
+var amap = {qw(one 1 two 2 three 3)}
 
 amap.each_kv {|k,v|
-    once say 'only once!' if v == 1
-    "%s => %d".printfln(k, v)
+    once say 'only once!'
+    printf "%s => %d\n", k, v
 }
 ```
 
-11. Handling exceptions with `try`-`catch`-`finally`
+12. Handling exceptions with `try`-`catch`-`finally`
 
 ```
 try { CODE } catch ( EXCEPTION_VAR ) { CODE } [ catch () { CODE } ]* [ finally { CODE } ]
@@ -832,7 +874,7 @@ try { CODE } catch ( EXCEPTION_VAR ) { CODE } [ catch () { CODE } ]* [ finally {
 `try`-`catch` for handling exceptions.
 
 
-12. Concurrency with the `ma` statement prefix
+13. Concurrency with the `ma` statement prefix
 
 ```
 ma METHOD_CALL
@@ -863,17 +905,17 @@ ma for ^10 { .sleep }
 # Functions
 
 ```
-fun NAME [ ( [  [ PARAM [ = DEFAULT_VALUE ] ] [, PARAM [ = DEFAULT_VALUE ] ]* ] ) ] { CODE  }
+[ mul ] fun NAME [ ( [  [ PARAM [ = DEFAULT_VALUE ] ] [, PARAM [ = DEFAULT_VALUE ] ]* ] ) ] { CODE }
 
 { [ | PARAM [ = DEFAULT_VALUE ] [, PARAM [ = DEFAULT_VALUE ] ]* | ] CODE }
 
 : EXPR
 ```
 
-Functions are first class values and hence they can be assigned to variables.
-The use of parantheses during a function call is optional while its usage in
-a function definition is mandatory if and only if that function takes
-arguments.
+Functions are first class values and hence they can be assigned to
+variables. The use of parantheses during a function call is optional
+while its usage in a function definition is mandatory if and only if
+that function takes arguments.
 
 ```
 fun hello_world {
@@ -883,8 +925,8 @@ fun hello_world {
 hello_world()
 ```
 
-Here we are declaring an anonymous function which takes a single parameter
-and then call it.
+Here we are declaring an anonymous function which takes a single
+parameter and then call it.
 
 ```
 var sleep = {|x| x.sleep; say "slept for #x seconds" }
@@ -899,7 +941,7 @@ var sleep = :5.sleep
 sleep.call
 ```
 
-## Topic variable `_`
+## The default Topic Variable `_`
 
 The type II special variable `_` is called a topic variable, this variable
 can be implicitly refered on anonymous functions and some flow control blocks.
@@ -920,8 +962,8 @@ anony.call("tanzania")
 anony.call("a", "b")
 
 # .ucfirst is the same as _.ucfirst
-var ar = qm{tcheukam madjou monthe}
-say ar.map({.ucfirst})
+var ar = {qw<tcheukam madjou monthe>}
+say ar.map(:.ucfirst)
 ```
 
 The usage of the default topic variable in an anonymous function having
@@ -991,10 +1033,22 @@ fun bad_func3(...a, b, ...c) { ... }
 fun bad_func4(a, ...b, ...c) { ... }
 ```
 
+The reason why `fun` optionally precedes `{ ... }` when defining
+anonymous functions is mainly for syntatic sugar and so to avoid
+confusion with blocks, it is prohibited to declare an anonymous
+function as a value the following way
+
 ```
+# fails at compile time
 { .say }.call(20)
+```
+
+But this works
+
+```
 Fun.new({ .say }).call(20)
 (:.say).call(20)
+fun { .say }.call(20)
 ```
 
 ## Traits
