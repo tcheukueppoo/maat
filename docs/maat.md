@@ -27,10 +27,12 @@ written as a guidance for its implementation.
 
 > **NB**: Take note of the following conventions when reading syntax definitions
 > - `[ X ]` implies X is optional
+> - `< X >` for grouping `X`
 > - `|` implies alternation, for example `A | B` signifies either `A` or `B`
-> - `...` implies the previous entity be it optional or not, can occur multiple times
+> - `*` implies the previous entity be it optional or not, can occur 0 or many times
+> - `*` implies the previous entity be it optional or not, can occur 1 or many times
 > - Words written in capital letter are self-documentary, for example `CODE`
-> - Lowercase words are true words
+> - Lowercase words are keywords, for example `fun`
 
 # Operators
 
@@ -510,7 +512,7 @@ conditional expression.
 2. `if` conditional construct
 
 ```
-if EXPR [ -> TOPIC_VAR ] { CODE } [ elsif EXPR [ -> TOPIC_VAR ] { CODE } ]... [ else { CODE } ]
+if EXPR [ -> TOPIC_VAR ] { CODE } [ elsif EXPR [ -> TOPIC_VAR ] { CODE } ]* [ else { CODE } ]
 EXPR if EXPR
 ```
 
@@ -555,7 +557,7 @@ k.say
 3. `with` conditional construct
 
 ```
-with EXPR [ -> TOPIC_VAR ] { CODE } [ orwith EXPR [ -> TOPIC_VAR ] { CODE } ]... [ else { CODE } ]
+with EXPR [ -> TOPIC_VAR ] { CODE } [ orwith EXPR [ -> TOPIC_VAR ] { CODE } ]* [ else { CODE } ]
 EXPR with EXPR
 ```
 
@@ -607,7 +609,7 @@ for 4, 8 {
 4. `for` loop control
 
 ```
-for LIST | ARRAY | MAP | RANGE [ -> TOPIC_VAR [ , ... ] ] { CODE }
+for LIST | ARRAY | MAP | RANGE [ -> TOPIC_VAR [ , TOPIC_VAR ]* ] { CODE }
 EXPR for LIST | ARRAY | RANGE | MAP
 ```
 
@@ -633,9 +635,9 @@ for ar, { .say }
 .say for ar,
 
 ---
-We have a.len + 1 iterations, using the array destruction operator which
-breaks 'ar' into a list, at topic var declaration, set a custom default
-value when we are out of elements
+We have a.len + 1 iterations, the array destruction operator is used to
+break 'ar' into a list. At topic var declaration, set a custom default
+value to handle situations where we are out of elements
 ---
 for ar…, 2 -> m, n = 'default' { (n + '-' + m).say }
 ```
@@ -673,10 +675,11 @@ for a.lazy
 ```
 EXPR given EXPR
 given EXPR { CODE }
-given EXPR { when COND [ | COND ] ... { CODE } [ when COND [ | COND ] ... { CODE } ] ... [ default { CODE } ] }
+given EXPR { when COND [ | COND ]* { CODE } [ when COND [ | COND ]* { CODE } ]* [ default { CODE } ] }
 ```
 
-TODO
+
+
 
 ```
 # output: Num, 42
@@ -761,13 +764,15 @@ do {
 9. loop and block control statments: `next`, `break`, and `redo`
 
 ```
-break | next | redo [LABEL]
+break [ LABEL ]
+next  [ LABEL ]
+redo  [ LABEL ]
 ```
-use control statements to do jumps in your code
+use control statements to jump between points in your code
 
 - `next`: just like `C`'s `continue` loop control statement
 - `break`: just like `C`'s `break` loop control statement
-- `redo`: to rerun any kinds of blocks without testing any condition if there is
+- `redo`: to rerun any kinds of blocks without testing any conditional expression
 
 10. `labels`
 
@@ -821,7 +826,7 @@ amap.each_kv {|k,v|
 11. Handling exceptions with `try`-`catch`-`finally`
 
 ```
-try { CODE } catch ( EXCEPTION_VAR ) { CODE } [ catch () { CODE } ]... [ finally { CODE } ]
+try { CODE } catch ( EXCEPTION_VAR ) { CODE } [ catch () { CODE } ]* [ finally { CODE } ]
 ```
 
 `try`-`catch` for handling exceptions.
@@ -858,8 +863,10 @@ ma for ^10 { .sleep }
 # Functions
 
 ```
-fun NAME [ ( [  [ PARAM1 [ = DEFAULT_VALUE ] ] [, PARAM2 [ = DEFAULT_VALUE ] ] ... ] ) ] { CODE  }
-{ [ | PARAM1 [ = DEFAULT_VALUE ] [, PARAM2 [ = DEFAULT_VALUE ] ] ... | ] CODE }
+fun NAME [ ( [  [ PARAM [ = DEFAULT_VALUE ] ] [, PARAM [ = DEFAULT_VALUE ] ]* ] ) ] { CODE  }
+
+{ [ | PARAM [ = DEFAULT_VALUE ] [, PARAM [ = DEFAULT_VALUE ] ]* | ] CODE }
+
 : EXPR
 ```
 
@@ -894,11 +901,11 @@ sleep.call
 
 ## Topic variable `_`
 
-The type II variable `_` is called a topic variable, this variable operates on
-anonymous functions and flow control blocks. The usage of a topic variable when
-defining an anonymous function implies that this anonymous function takes a single
-argument whose parameter wasn't explicitly declared with `|...|` and hence
-defaults to `_`.
+The type II special variable `_` is called a topic variable, this variable
+can be implicitly refered on anonymous functions and some flow control blocks.
+The usage of this default topic variable within the code of an anonymous
+function implies that this anonymous function takes a single argument whose
+parameter wasn't explicitly declared with `| ... |` and hence defaults to `_`.
 
 It is possible to omit `_` when calling a method on the content of a topic
 variable.
@@ -917,11 +924,12 @@ var ar = qm{tcheukam madjou monthe}
 say ar.map({.ucfirst})
 ```
 
-The topic variable in an anonymous function with declared or expecting no
-parameters refers to if exists from outer scopes.
+The usage of the default topic variable in an anonymous function having
+declared parameter or expecting no parameters refers to the one from
+outer scopes.
 
-The method `.times` of the `Num` type expects no argument when called and thus
-refers to the topic variable from the lowest level outer scope.
+The method `.times` of the `Num` type expects no argument when called and
+thus the default topic variable refers to the one from the outer scope.
 
 ```
 # output: 88888888 666666 666666
@@ -958,11 +966,12 @@ mul("one").say    # output: oneone
 mul("two", 5).say # output: twotwotwotwo
 ```
 
-Maat has what we call an accumulator operator, this accumulator operator in a
-method/function definition is a prefix operator used to collect the rest of extra
-indefinite number of arguments as an array into the last declared parameter of
-that function/method during calls. This is done by prepending `…` to the last
-declared parameter at function/method definition.
+Maat has what we call an accumulator operator, this accumulator operator
+in a method/function definition is a prefix operator used to collect the
+rest of extra indefinite number of arguments as an array into the last
+declared parameter of that function/method during calls. This is done by
+prepending `…` to the last declared parameter at function/method
+definition.
 
 ```
 # using the array accumulator operator for variadic arguments
@@ -1022,14 +1031,32 @@ fun factors(n) {
 ```
 
 
-# Classes and Roles
+# Classes
 
 ```
-role D { ... }
-
-role E {
+class CLASS_NAME {
+    <
+        <
+            <
+                < has | state > ATTR_NAME :TRAIT [ = DEFAULT_VALUE ]
+            >
+            |
+            <
+                [ state ] meth METHOD_NAME
+                [
+                    ( [ PARAM [ = DEFAULT_VALUE ] [, PARAM [ = DEFAULT_VALUE ] ]* ] )
+                ]
+                { CODE }
+            >
+        >+
+    |
+        ...
+    >
 }
+```
 
+```
+# unimplemented classes
 class B { ... }
 class C { ... }
 
@@ -1084,6 +1111,36 @@ obj.^name     # name of the class from which the object was instantiated
 obj.^methods  # 
 ```
 
+# Roles
+
+```
+role ROLE_NAME {
+    <
+        <
+            [ state ] meth METHOD_NAME
+            [
+                ( [ PARAM [ = DEFAULT_VALUE ] [, PARAM [ = DEFAULT_VALUE ] ]* ] )
+            ]
+            { CODE }
+        >+
+    |
+        ...
+    >
+}
+```
+
+A class does 
+
+```
+role D { ... } # unimplemented role
+
+role E {
+    meth eat(x) {
+        say "#{self.name} eats #x"
+    }
+}
+```
+
 # Regular Expressions
 
 Maat uses Perl compatible regular expressions(PCRE2).
@@ -1091,7 +1148,7 @@ Maat uses Perl compatible regular expressions(PCRE2).
 ```
 ```
 
-    See section on the [Regex](./types/Regex.md) type for more information.
+See section on the [Regex](./types/Regex.md) type for more information.
 
 # Async Programming with Works
 
