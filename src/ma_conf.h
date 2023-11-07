@@ -19,11 +19,11 @@
 #define <limits.h>
 #define <stddef.h>
 
-/* $$Executable interpreter name */
+/*$$ Executable interpreter name */
 #define MAAT  maat MA_VERSION
 
-/*
- * $$Macros used to enable some platform specific features. Either
+/*$$
+ * Macros used to enable some platform specific features. Either
  * MA_IN_LINUX, MA_IN_MACOSX or MA_IN_IOS is defined in the Makefile
  * during the build process.
  *
@@ -51,8 +51,8 @@
 #define MA_USE_DLOPEN
 #endif
 
-/*
- * $$Configuring dir separator and default paths for Maat and external libs
+/*$$
+ * Configuring dir separator and default paths for Maat and external libs
  */
 
 /* On windows? */
@@ -94,7 +94,7 @@
 
 #endif
 
-/* $$Some macros which acts as utility functions */
+/*$$ Some macros which acts as utility functions */
 
 /* Get local radix character (decimal point) */
 #if !defined(mt_getradixchar)
@@ -118,7 +118,12 @@
 
 #endif
 
-/* $$Define attributes to mark symbols during their declarations/definitions */
+#if !defined(ma_assert)
+#define ma_assert
+#define ma_longassert
+#endif
+
+/*$$ Define attributes to mark symbols during their declarations/definitions */
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 
@@ -150,14 +155,13 @@
  * Without this attribute, check with `nm libmaat.so | grep ' T ' | wc -l` to see
  * how the number of dynamic symbols increased.
  */
-
 #if defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 302) && defined(__ELF__)
 #define MA_IFUNC  __attribute__ ((visibility("internal")))
 #elif
 #define MA_IFUNC  /* extern by default */
 #endif
 
-/* $$Configs for inline functions */
+/*$$ Configs for inline functions */
 
 #if defined(__GNUC__)
 #define ma_inline  __inline__
@@ -167,10 +171,17 @@
 
 #define ma_sinline  static ma_inline
 
-/* $$NAN_BOXING to optimize value representation */
+/*$$ Data type configuration */
 
-#if !defined(MA_NAN_TAGGING)
-#define MA_NAN_TAGGING
-#endif
+#define Ubyte          unsigned char
+#define Byte           signed char
+#define Num            double
+#define ma_number_fmt  "%.14g"
+
+/*$$
+ * MA_NAN_TAGGING is an optimization technique for value representation.
+ * You either define it here or with the '-D' option during compilation.
+ */
+/*#define MA_NAN_TAGGING */
 
 #endif
