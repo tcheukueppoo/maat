@@ -14,7 +14,7 @@
  * specific to `#if` body of the MA_NAN_TAGGING check.
  */
 
-/* Vary type 't' with the variant bits 'v', see Value */
+/* Vary type 't' with variant bits 'v', see Value */
 #define vary(t, v)  ((t) | (v << 5))
 
 #define with_variant(v)      ((v)->type & 0x7F)
@@ -25,7 +25,7 @@
 /* Get top level value type of 'v' */
 #define vtype(v)  with_variant(v)
 
-/* value 'o' is an object and get its object type */
+/* Value 'o' is an object and get its object type */
 #define otype(o)  with_variant(as_obj(v))
 
 /* Get profound type of 'v': dig into 'v' if it's an object */
@@ -68,7 +68,7 @@ typedef struct {
       struct Header *obj;
       Num n;
       CFunc f;
-      void *cdata;
+      void *p;
    } val;
 } Value;
 
@@ -77,15 +77,15 @@ typedef struct {
 #define set_valo(v, o)      set_val(v, o, (o)->type)
 
 /*
- * For objects, copy by reference v2 into v1 while
- * for non objects (numbers, etc), copy by value.
+ * For objects, copy by reference 'v2' into 'v1' while for other type
+ * of values like numbers, booleans, and function/void pointers, do a
+ * copy by value.
  */
 #define copy(v1, v2)  set_val(v1, v2->val, v2->type)
 
 /*
- * All the possible standard types of a value, look! V_TYPE_OBJ
- * is also one. A value 'v' is an object if the MSB of its $type
- * is 1.
+ * Defines all the possible standard types of a value, V_TYPE_OBJ is
+ * also a value. A value 'v' is an object if the MSB of its $type is 1.
  */
 #define V_TYPE_NIL    0
 #define V_TYPE_BOOL   1
@@ -102,7 +102,7 @@ typedef struct {
 #define is_cfunc(v)  check_type(v, V_TYPE_CFUNC)
 #define is_cdata(v)  check_type(v, V_TYPE_CDATA)
 
-/* Check if a value is collectable */
+/* Check if value 'v' is collectable */
 #define is_ctb(v)  is_obj(v)
 
 #define as_bool(v)   (is_true(v))
@@ -171,23 +171,25 @@ typedef struct Header {
 #define o_check_type(v, t)  is_obj(v) && check_type(v, t)
 
 /* Defining of all base objects */
-#define O_TYPE_CLASS   5    
+#define O_TYPE_CLASS   5   /* variant: O_TYPEV_CCLASS */
 #define O_TYPE_STR     6    
 #define O_TYPE_RANGE   7    
 #define O_TYPE_ARRAY   8   /* variants: O_TYPEV_SET, O_TYPEV_MSET, O_TYPEV_LIST */
 #define O_TYPE_MAP     9   /* variants: O_TYPEV_BAG, O_TYPEV_MBAG */
-#define O_TYPE_FUN     10  /* variants: O_TYPEV_CLOSURE */
-#define O_TYPE_CO     12  /* variants: O_TYPEV_MA, O_TYPEV_WORK */
-#define O_TYPE_RBQ     13  /* variants: O_TYPEV_CHAN, O_TYPEV_SCHEDQ */
-#define O_TYPE_REGEX   14
-#define O_TYPE_SOCKET  15
-#define O_TYPE_PIPE    16
-#define O_TYPE_FILE    17
-#define O_TYPE_DIR     18
-#define O_TYPE_PROC    19
-#define O_TYPE_SYS     20
-#define O_TYPE_DATE    21
+#define O_TYPE_FUN     10  /* variant:  O_TYPEV_CLOSURE */
+#define O_TYPE_MA      11  /* variants: O_TYPEV_CO, O_TYPEV_WORK */
+#define O_TYPE_RBQ     12  /* variants: O_TYPEV_CHAN, O_TYPEV_SCHEDQ */
+#define O_TYPE_REGEX   13
+#define O_TYPE_SOCKET  14
+#define O_TYPE_PIPE    15
+#define O_TYPE_FILE    16
+#define O_TYPE_DIR     17
+#define O_TYPE_PROC    18
+#define O_TYPE_SYS     19
+#define O_TYPE_DATE    20
+#define O_TYPE_PKG     21
 #define O_TYPE_TERM    22
+
 #define O_DEADKEY      31  /* */
 
 /* A Check macro on 'v' for each object type */
@@ -211,7 +213,16 @@ typedef struct Header {
 /* Test if the value 'v' is an object variant of variant type 't' */
 #define o_check_vartype(v,t)  is_obj(v) && check_vartype(v,t)
 
-/* Here are variants of some base objects */
+/* Here are variants of some standard objects */
+
+/*
+ * Cclass--a special way of extending Maat code with C/C++, here
+ * we store references to C/C++ functions as methods and structs
+ * as attributes.
+ */
+#define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 1)
+
+#define is_cclass(v)  o_check_vartype(v, O_TYPEV_CCLASS)
 
 /* Immutable and mutable bags */
 #define O_TYPEV_BAG   vary(O_TYPE_MAP, 1)
@@ -234,9 +245,9 @@ typedef struct Header {
 
 #define is_closure(v)  o_check_vartype(v, O_TYPEV_CLOSURE)
 
-#define O_TYPEV_MA    vary(O_TYPE_CMA, 1)
-#define O_TYPEV_GFUN  vary(O_TYPE_CMA, 1)
-#define O_TYPEV_MA    vary(O_TYPE_CMA, 1)
+/* Two other concurrency models: Coroutine, Work */
+#define O_TYPEV_CO    vary(O_TYPE_CMA, 1)
+#define O_TYPEV_WORK  vary(O_TYPE_CMA, 2)
 
 /* A threadsafe Channel and Scheduler queue */
 #define O_TYPEV_CHAN    vary(O_TYPE_RBQ, 1)
@@ -246,50 +257,81 @@ typedef struct Header {
 #define is_schedq(v)  o_check_type(v, O_TYPEV_SCHEDQ)
 
 /*
- * What? utf8 string object
- * $str: utf8 encoded string itself
+ * What? string object
+ * $str: utf-8 encoded string itself
  * $hash: hash value of $str
  * $rlen: real length of $str
  * $len: user-percieved length of $str
  */
+
 typedef struct {
    Header obj;
-   Uint hash;
+   unsigned int hash;
    size_t rlen;
    size_t len;
    Byte str[1];
 } Str;
 
 /*
- * What? Range object x..y
- * $x: the start (inclusive)
- * $y: the end (inclusive)
+ * What? Range object [x..y] (inclusive)
+ * $x: the start
+ * $y: and the end
  */
+
 typedef struct {
    Header obj;
-   Num x, y;
+   Num x;
+   Num y;
 } Range;
+
+/*
+ */
 
 typedef struct {
    Header obj;
 } Map;
 
 /*
- * $super: class' superclasses (C3 mro)
+ * $is: class' superclasses (Maat implements C3 mro)
  * $name: class name
- * $nfields: number of fields
+ * $n: number of fields(Class)/cdatas(Cclass)
  * $methods: a Map for methods
  */
+
+#define x ...
+
 typedef struct Class {
    Header obj;
-   struct Class *super[1];
    Str *name;
-   Ubyte nfields;
-   Map *methods[1];
+   union {
+      struct Class *is[1];
+      Value *cdatas;
+   } sc;
+   Ubyte n;
+   Map *methods;
 } Class;
 
 /*
+ * What? Instance of a class
+ * $fields: (C)?class' attributes/cdata
  */
+typedef struct {
+   Header obj;
+   Value *fields;
+} Instance;
+
+typedef struct Ma {
+
+} Ma;
+
+typedef struct {
+   Ma ma;
+   
+} Work;
+
+/*
+ */
+
 typedef struct {
    Header obj;
    //...
@@ -297,6 +339,7 @@ typedef struct {
 
 /*
  */
+
 typedef struct Upvalue {
    Header obj;
    Value *to;

@@ -65,13 +65,12 @@
  * Maat can co-exist within 'X:\\Program Files\Maat\'
  */
 #if !defined(MA_CLIB_DEFAULT_PATH)
-#define MA_CLIB_DEFAULT_PATH  "!\\" MA_VERSION "\\lib\\",
-#endif
 
-#if !defined(MA_MTLIB_DEFAULT_PATH)
+#define MA_CLIB_DEFAULT_PATH  "!\\" MA_VERSION "\\lib\\",
 #define MA_MTLIB_DEFAULT_PATH \
    "!\\" MA_VERSION "\\share\\", \
    "!\\" MA_VERSION "\\maat\\",
+
 #endif
 
 #define MA_DIRSEP  "\\"
@@ -81,13 +80,12 @@
 #define MA_LOCAL_ROOT  "/usr/local/"
 
 #if !defined(MA_CLIB_DEFAULT_PATH)
-#define MA_CLIB_DEFAULT_PATH  MA_LOCAL_ROOT "lib/maat/" MA_VERSION "/",
-#endif
 
-#if !defined(MA_MTLIB_DEFAULT_PATH)
+#define MA_CLIB_DEFAULT_PATH  MA_LOCAL_ROOT "lib/maat/" MA_VERSION "/",
 #define MA_MTLIB_DEFAULT_PATH \
    MA_LOCAL_ROOT "share/maat/" MA_VERSION "/", \
    "/usr/share/maat/" MA_VERSION "/",
+
 #endif
 
 #define MA_DIRSEP  "/"

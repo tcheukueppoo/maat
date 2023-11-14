@@ -410,7 +410,6 @@ var array = [1, 2, 3, 4, 5]
 Maat has ... builtin objects, types are objects and objects are types, check
 details on each types here.
 
-- [`Any`](./types/Any.md)
 - [`Bool`](./types/Bool.md)
 - [`Num`](./types/Num.md)
 - [`Str`](./types/Str.md)
@@ -426,6 +425,7 @@ details on each types here.
 - [`GFun`](./types/GFun.md)
 - [`Regex`](./types/Regex.md)
 - [`Ma`](./types/Ma.md)
+- [`Co`](./types/Co.md)
 - [`Work`](./types/Work.md)
 - [`Chan`](./types/Chan.md)
 - [`Socket`](./types/Socket.md)
