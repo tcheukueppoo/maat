@@ -130,7 +130,7 @@ sub c3_linearize_class {
 
    my ($prev_sol, $error);
    my $sub_sol    = $_[0]->{$supers->[0]};
-   my %merge_list = ($supers->[0] => 0);
+   my %merged = ($supers->[0] => 0);
 
    foreach my $c (1 .. $#$supers) {
       my $start     = 0;
@@ -141,13 +141,13 @@ sub c3_linearize_class {
 
     insertion: for (my $i = 0 ; $i < @$prev_sol ; $i++) {
          for (my $j = $start ; $j < @$to_insert ; $j++) {
-            if (exists $merge_list{$to_insert->[$j]}) {
+            if (exists $merged{$to_insert->[$j]}) {
                $error = <<~"EOE";
                Inconsistent hierarchy during C3 merge of class '$class':
                        current merge results \[
                                $class,
                EOE
-               $error .= "\n" . ' ' x 16 . "$_,\n" foreach @$supers[0 .. $merge_list{$to_insert->[$j]}];
+               $error .= "\n" . ' ' x 16 . "$_,\n" foreach @$supers[0 .. $merged{$to_insert->[$j]}];
                $error .= ' ' x 8 . "\]\n" . ' ' x 8;
                $error .= "merging failed on '$to_insert->[$j]' at .+";
                $_[0] = $error;
@@ -162,9 +162,8 @@ sub c3_linearize_class {
          push @$sub_sol, $prev_sol->[$i];
       }
 
-      $merge_list{$supers->[$c]} = $c;
+      $merged{$supers->[$c]} = $c;
    }
-
    push @{$_[0]->{$class}}, @$sub_sol;
 }
 
