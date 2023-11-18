@@ -102,9 +102,13 @@ sub gen_perl_code {
    return $perl_code;
 }
 
-# Compute the C3 linearization of a class from a section. The dynamic
-# hash table $c3 keeps track of all c3 results of classes defined in
-# the section of concern, set it to `undef' when entering a new section.
+sub cmp_val {
+   return lc $_[0] =~ s/\s+/ /gr =~ s/["']//gr;
+}
+
+# Compute the C3 linearization of a section's class. The dynamic hash
+# table $c3 keeps track of all c3 results of classes defined in the
+# section of concern, set it to `undef' when entering a new section.
 # In Maat, linearization is done at compilation
 sub c3_linearize_class {
    my ($section, $class) = (shift, shift);
@@ -116,7 +120,7 @@ sub c3_linearize_class {
 
    my ($supers, $i) = ($section->{$class}{s}, -1);
 
-   # Just in case subroutine `test' does not linearize in order of class creation
+   # Just in case subroutine `test_c3' does not linearize in order of class creation
    while (++$i < @$supers) {
       __SUB__->($section, $supers->[$i], $_[0]) unless exists $_[0]->{$supers->[$i]};
       return                                    unless ref $_[0];
@@ -142,14 +146,14 @@ sub c3_linearize_class {
     insertion: for (my $i = 0 ; $i < @$prev_sol ; $i++) {
          for (my $j = $start ; $j < @$to_insert ; $j++) {
             if (exists $merged{$to_insert->[$j]}) {
+               local $" = ', ';
+
                $error = <<~"EOE";
-               Inconsistent hierarchy during C3 merge of class '$class':
-                       current merge results \[
-                               $class,
+               Inconsistent hierarchy during C3 merge of class $class:
+                  current merge results
+                  [ $class, @$supers[0 .. $merged{$to_insert->[$j]} - 1] ]
+                  merging failed on $to_insert->[$j] at
                EOE
-               $error .= "\n" . ' ' x 16 . "$_,\n" foreach @$supers[0 .. $merged{$to_insert->[$j]}];
-               $error .= ' ' x 8 . "\]\n" . ' ' x 8;
-               $error .= "merging failed on '$to_insert->[$j]' at .+";
                $_[0] = $error;
                return;
             }
@@ -188,7 +192,7 @@ sub resolve_methods {
    return $resolved_meths;
 }
 
-# Simulate a method call $method on object $object
+# Simulate the $method method call on object $object
 sub call_method {
    my ($resolved_meths, $object, $method) = @_;
 
@@ -199,14 +203,14 @@ sub call_method {
       for (my $i = 0 ; $i < @$meth_list ; $i++) {
          $output .= $meth_list->[$i] =~ s/[@]$//r;
          if ($meth_list->[$i] =~ /[@]$/) {
-            $output .= "No next::method '$method' found for $object at .+" if $i == $#$meth_list;
+            $output .= "No next::method $method found for $object at" if $i == $#$meth_list;
             next;
          }
          return $output;
       }
    }
 
-   return qq{Can't locate object method "$method" via package "$object" at .+};
+   return "Can't locate object method $method via package $object at";
 }
 
 sub perl_c3_linearize_class {
@@ -216,7 +220,7 @@ sub perl_c3_linearize_class {
    EOP
 }
 
-sub perl_method_call {
+sub perl_call_method {
    my ($class, $method) = (shift, shift);
    return $_[0] . "\n$class->$method();";
 }
@@ -226,7 +230,7 @@ sub perl_run {
    my $code = shift;
 
    local $/;
-   open(my $fh, "-|", "perl -E '$code'") or die "$!\n";
+   open(my $fh, '-|', "perl -E '$code' 2>&1") or die "$!\n";
 
    return <$fh>;
 }
@@ -235,17 +239,19 @@ sub perl_run {
 # our own c3 implementation, It compares Perl's linearization of a class
 # with our own c3 list of the class, it performs series of method calls
 # to check.
-sub test_c3_maat_way {
+sub test_c3 {
    local $/;
-   my $ntests   = 0;
+
    my $sections = parse_sections(<DATA>);
    my @codes    = map gen_perl_code($_), @$sections;
+   my $ntests   = 0;
 
+   local $" = ', ';
  section: for (my $i = 0 ; $i < @$sections ; $i++) {
       my $c3s;
       my $section = $sections->[$i];
 
-      # Just like in real compilers, linearize classes in order of their definitions
+      # Just like real compilers do, linearize classes in order of their definitions
       foreach my $class (sort keys %$section) {
          my $expected = perl_run(perl_c3_linearize_class($class, $codes[$i]));
 
@@ -256,22 +262,22 @@ sub test_c3_maat_way {
             is($c3_result, $expected, "[section $i]: is c3 of '$class' [$c3s->{$class}->@*]?");
          }
          else {
-            ok($expected =~ qr/$c3s/s, "[section $i]: failed to c3 resolve '$class'?");
+            ($c3s, $expected) = (cmp_val($c3s), cmp_val($expected));
+            ok($expected =~ qr/^\Q$c3s\E/, "[section $i]: failed to find c3 of '$class'?");
             next section;
          }
       }
 
-      say Dumper $c3s;
-
-      # Test if method resolution works
       my $resolved_meths = resolve_methods($section, $c3s);
+
+      # Test if mro is okay
       foreach my $class (sort keys %$section) {
          foreach my $meth (keys $resolved_meths->{$class}->%*) {
-            my $expected = perl_run(perl_method_call($class, $meth, $codes[$i]));
-            my $result   = call_method($resolved_meths, $class, $meth);
+            my $expected = cmp_val(perl_run(perl_call_method($class, $meth, $codes[$i])));
+            my $result   = cmp_val(call_method($resolved_meths, $class, $meth));
 
-            is($result, $expected, "[section $i] call $meth on $class, r: [$resolved_meths->{$class}{$meth}->@*]");
             $ntests++;
+            ok($expected =~ qr/^\Q$result\E/s, "[section $i] is '$class'->$meth() okay given [$resolved_meths->{$class}{$meth}->@*]?");
          }
       }
    }
@@ -279,9 +285,14 @@ sub test_c3_maat_way {
    return $ntests;
 }
 
-done_testing(test_c3_maat_way());
+done_testing(test_c3());
 
 __DATA__
+A
+B -> (A)
+C -> (A)
+D -> (A B C)
+###
 A : meth1 meth2 meth3
 
 B -> (A) : meth2
