@@ -5,8 +5,8 @@
 #
 # General structure of a small DSL for defining classes with their
 # methods and inheritance relationships. This program parses the
-# DSL following __DATA__ and perform series of tests of c3 method
-# resolution with validation done with the help of Perl's c3 mro.
+# DSL following __DATA__ to perform c3 linearizations and method
+# resolutions with results tested against that of Perl's c3 module.
 #
 # CLASS_NAME: METHOD_NAME
 # SUBCLASS_NAME -> ( SUPERCLASS_NAME ... ) : METHOD_NAME ...
@@ -22,31 +22,36 @@
 
 use strict;
 use warnings;
-use feature qw(say current_sub);
+use feature qw(say current_sub postderef_qq);
 
 use Data::Dumper;
 
-# Parse a section
+use Test::More;
+
+# Parse a section and return the result
 sub parse_section {
    my $def_str = shift;
    my $section;
 
    while ($def_str =~
-          /\G ([A-Z]) (?: \h+ -> \h+ \( (?<s>[A-Z](?:\h++[A-Z])*) \) )? (?: \h+ : \h+ (?<m>\w+(?:\h++\w++)*) )? \s* /gx) {
+          /\G ([A-Z]) (?: \h* -> \h* \( (?<s>[A-Z](?:\h++[A-Z])*) \) )? (?: \h* : \h* (?<m>\w+[@]?(?:\h++\w++)*) )? \s* /gx) {
+
       $section->{$1} = undef;
-      if (defined $+{s}) {
+      if (exists $+{s}) {
          my @supers = split " ", $+{s};
          my @undef  = grep { $_ ne $1 && !exists $section->{$_} } @supers;
+
          die "undefined class(es): [@undef]\n" if @undef;
          $section->{$1}{s} = [@supers];
       }
+
       $section->{$1}{m} = [split " ", $+{m}] if defined($+{m});
    }
 
    return $section;
 }
 
-# Simple parse sections, don't you see?
+# Parse each section and return the result
 sub parse_sections {
    my $data = shift;
    my $sections;
@@ -55,160 +60,244 @@ sub parse_sections {
    return $sections;
 }
 
-# Generate Perl code that correspond to each section and return
-# them in an anonymous array.
+# Generate and return Perl code of a section
 sub gen_perl_code {
-   my $sections = shift;
-   my $codes;
+   my $section   = shift;
+   my $perl_code = <<~'EOF';
+   use strict;
+   use warnings;
+   use mro "c3";
+   EOF
 
-   foreach my $section (@$sections) {
-      my $perl_code = "\n\nuse feature qw(say);\n\n";
+   foreach my $class (sort keys %$section) {
+      my $class_info = $section->{$class};
 
-      foreach my $class (sort keys %$section) {
-         my $class_info = $section->{$class};
-
-         $perl_code .= "package $class {";
-         $perl_code .= "\n\n\tuse parent -norequire qw(@{$class_info->{s}});\n\n"
-           if exists $class_info->{s};
-         if (exists $class_info->{m}) {
-            foreach my $method (@{$class_info->{m}}) {
-               my $name = $method =~ s/@$//r;
-
-               $perl_code .= "\tsub $name { say 'A::$name'; "
-                 . (
-                    $method =~ /@$/
-                    ? "'$class'->next::method(); }"
-                    : "; }"
-                   );
-               $perl_code .= "\n\n";
-               $perl_code .= "}\n\n";
-            }
-         }
-         else {
-            $perl_code .= '}' if $perl_code =~ /{$/;
-         }
+      $perl_code .= "package $class {";
+      if (exists $class_info->{s}) {
+         $perl_code .= exists $class_info->{m} ? "\n\t" : ' ';
+         $perl_code .= "use parent -norequire, qw(@{$class_info->{s}});";
       }
-      push @$codes, $perl_code;
+
+      if (exists $class_info->{m}) {
+         my $len = $class_info->{m}->@*;
+         my $sep = $len > 1 || exists $class_info->{s} ? "\n" : ' ';
+
+         for (my $i = 0 ; $i < $len ; $i++) {
+            my $method = $class_info->{m}[$i];
+            my $name   = $method =~ s/[@]$//r;
+            my $tab    = !exists $class_info->{s} && ($i - 1) < 0 && ($i + 1 == $len) ? '' : "\t";
+
+            $perl_code .= qq[${sep}${tab}sub $name { print "${class}::$name"];
+            $perl_code .= '; $_[0]->next::method()' if $method =~ /[@]$/;
+            $perl_code .= ' }';
+         }
+
+         $perl_code .= "$sep}\n";
+      }
+      else {
+         $perl_code .= " }\n";
+      }
    }
 
-   return $codes;
+   return $perl_code;
 }
 
 # Compute the C3 linearization of a class from a section. The dynamic
-# hash table $c3 keeps track of c3 results of superclasses, it contains
-# all linearizations of the classes defined in a section, set it to
-# undef when entering for a new section.
+# hash table $c3 keeps track of all c3 results of classes defined in
+# the section of concern, set it to `undef' when entering a new section.
+# In Maat, linearization is done at compilation
 sub c3_linearize_class {
-   my ($class, $undef) = @_;
+   my ($section, $class) = (shift, shift);
 
-   state $c3;
-   $c3 = undef, return if $undef;
-   $c3->{$class} = [$class];
+   $_[0]->{$class} = [$class];
 
    # Has no superclass? probably 'A'
-   return $c3 unless exists $class->{s};
+   return unless exists $section->{$class}{s};
 
-   foreach my $sup (grep { !exists $c3->{$_} } $class->{s}->@*) {
-      my $result = __SUB__->($sup);
-      return $result unless ref $result;
+   my ($supers, $i) = ($section->{$class}{s}, -1);
+
+   # Just in case subroutine `test' does not linearize in order of class creation
+   while (++$i < @$supers) {
+      __SUB__->($section, $supers->[$i], $_[0]) unless exists $_[0]->{$supers->[$i]};
+      return                                    unless ref $_[0];
    }
 
    # Single inheritance? simply push
-   if ($class->{s}->@* == 1) {
-      push @{$c3->{$class}}, $c3->{$class->{s}[0]};
-      return $c3;
+   if (@$supers == 1) {
+      push @{$_[0]->{$class}}, $_[0]->{$supers->[0]}->@*;
+      return;
    }
 
    my ($prev_sol, $error);
-   my $sub_sol = $class->{s}[0];
+   my $sub_sol    = $_[0]->{$supers->[0]};
+   my %merge_list = ($supers->[0] => 0);
 
- class: foreach my $c (1 .. $#{$class->{s}}) {
-      my $start = 0;
+   foreach my $c (1 .. $#$supers) {
+      my $start     = 0;
+      my $to_insert = $_[0]->{$supers->[$c]};
 
-      $prev_sol  = $sub_sol;
-      $sub_sol   = [];
-      $to_insert = $c3->{$class->{s}[$c]};
+      $prev_sol = $sub_sol;
+      $sub_sol  = [];
 
     insertion: for (my $i = 0 ; $i < @$prev_sol ; $i++) {
          for (my $j = $start ; $j < @$to_insert ; $j++) {
+            if (exists $merge_list{$to_insert->[$j]}) {
+               $error = <<~"EOE";
+               Inconsistent hierarchy during C3 merge of class '$class':
+                       current merge results \[
+                               $class,
+               EOE
+               $error .= "\n" . ' ' x 16 . "$_,\n" foreach @$supers[0 .. $merge_list{$to_insert->[$j]}];
+               $error .= ' ' x 8 . "\]\n" . ' ' x 8;
+               $error .= "merging failed on '$to_insert->[$j]' at .+";
+               $_[0] = $error;
+               return;
+            }
             if ($prev_sol->[$i] eq $to_insert->[$j]) {
-               if ($s == $j) {
-
-                  # Mimic Perl's error message
-                  my $error = <<~"EOE";
-                  Inconsistent hierarchy during C3 merge of class '$class':
-                          current merge results \[
-                  EOE
-                  $error .= "\n" . ' ' x 16 . "$_,\n" foreach @$sub_sol;
-                  $error .= ' ' x 8 . "\]\n" . ' ' x 8;
-                  $error .= "merging failed on '$to_insert->[$j]' at .+\$\n";
-                  last class;
-               }
-               push @$sub_sol, @$prev_sol{$s .. $j};
+               push @$sub_sol, $to_insert->@[$start .. $j];
                $start = $j + 1;
                next insertion;
             }
          }
          push @$sub_sol, $prev_sol->[$i];
       }
+
+      $merge_list{$supers->[$c]} = $c;
    }
 
-   return $error if $error;
-   push @{$c3->{$class}}, @$sub_sol;
-   return $c3;
+   push @{$_[0]->{$class}}, @$sub_sol;
 }
 
-# Just like we'll do when compiling Maat code, get all the possible
-# methods a class might inherit and for each of them, build an array
-# of its supermethod.
+# For each class in a section, resolve all its methods, including
+# the inherited ones is done at class creation, this makes vm
+# execution fast. This is done by walking down the C3 list containing
+# the directly or indirectly inherited classes to bind their methods
+# to the base class so that the base class has direct access to
+# them during method calls.
 sub resolve_methods {
-   my ($section, $c3) = @_;
+   my ($section, $c3s) = @_;
+   my $resolved_meths;
 
-   my $meths_resolved;
-   foreach my $class (sort keys @$section) {
-      my $resolved_sups = $c3->{$class};
-      foreach my $sup (@$resolved_sups) {
-         push $meths_resolved->{$class}{$section->{$sup}{m}[$_ =~ s/@$//r]}->@*, "${e}::$_" foreach $section->{$sup}{m}->@*;
+   foreach my $class (sort keys %$section) {
+      my $class_c3 = $c3s->{$class};
+
+      foreach my $sup (@$class_c3) {
+         push $resolved_meths->{$class}{$_ =~ s/[@]$//r}->@*, "${sup}::$_" foreach $section->{$sup}{m}->@*;
       }
    }
 
-   return $meths_resolved;
+   return $resolved_meths;
 }
 
+# Simulate a method call $method on object $object
 sub call_method {
-   my ($meths_resolved, $class, $method) = @_;
+   my ($resolved_meths, $object, $method) = @_;
 
-   my $output = qq{Can't locate object method "$method" via package "$class" at .+};
-   if (defined $meths_resolved{$class}) {
-      my $meth_list = $meths_resolved{$class};
+   if (exists $resolved_meths->{$object}{$method}) {
+      my $output;
+      my $meth_list = $resolved_meths->{$object}{$method};
 
-      $output = '';
-      for (my $i = 0; $i < @$meth_list; $i++) {
-         $output .= $meth_list[$i] =~ s/@$//r;
-         if ($meth_list[$i] =~ /@$/) {
-            $output .= "No next::method '$method' found for $class at .+" if $i == $#$meth_list[$i];
+      for (my $i = 0 ; $i < @$meth_list ; $i++) {
+         $output .= $meth_list->[$i] =~ s/[@]$//r;
+         if ($meth_list->[$i] =~ /[@]$/) {
+            $output .= "No next::method '$method' found for $object at .+" if $i == $#$meth_list;
             next;
          }
-         last;
+         return $output;
       }
    }
 
-   return $output;
+   return qq{Can't locate object method "$method" via package "$object" at .+};
 }
 
+sub perl_c3_linearize_class {
+   my $class = shift;
+   return $_[0] . <<~"EOP";
+   print qq[\@{mro::get_linear_isa("$class", "c3")}];
+   EOP
+}
 
-# The whole story is about testing linearization and method calls, if
-# it all tests pass then this means well understood the C3 algorithm.
-sub test_all {
+sub perl_method_call {
+   my ($class, $method) = (shift, shift);
+   return $_[0] . "\n$class->$method();";
+}
+
+# Run generated perl code and return its stdout+stderr
+sub perl_run {
+   my $code = shift;
+
    local $/;
-   my $sections = parse_sections(<DATA>);
-   say Dumper gen_perl_code($sections);
+   open(my $fh, "-|", "perl -E '$code'") or die "$!\n";
+
+   return <$fh>;
 }
+
+# This is the entry point our program. It tests with the help of Perl's C3
+# our own c3 implementation, It compares Perl's linearization of a class
+# with our own c3 list of the class, it performs series of method calls
+# to check.
+sub test_c3_maat_way {
+   local $/;
+   my $ntests   = 0;
+   my $sections = parse_sections(<DATA>);
+   my @codes    = map gen_perl_code($_), @$sections;
+
+ section: for (my $i = 0 ; $i < @$sections ; $i++) {
+      my $c3s;
+      my $section = $sections->[$i];
+
+      # Just like in real compilers, linearize classes in order of their definitions
+      foreach my $class (sort keys %$section) {
+         my $expected = perl_run(perl_c3_linearize_class($class, $codes[$i]));
+
+         $ntests++;
+         c3_linearize_class($section, $class, $c3s);
+         if (ref $c3s) {
+            my $c3_result = join ' ', $c3s->{$class}->@*;
+            is($c3_result, $expected, "[section $i]: is c3 of '$class' [$c3s->{$class}->@*]?");
+         }
+         else {
+            ok($expected =~ qr/$c3s/s, "[section $i]: failed to c3 resolve '$class'?");
+            next section;
+         }
+      }
+
+      say Dumper $c3s;
+
+      # Test if method resolution works
+      my $resolved_meths = resolve_methods($section, $c3s);
+      foreach my $class (sort keys %$section) {
+         foreach my $meth (keys $resolved_meths->{$class}->%*) {
+            my $expected = perl_run(perl_method_call($class, $meth, $codes[$i]));
+            my $result   = call_method($resolved_meths, $class, $meth);
+
+            is($result, $expected, "[section $i] call $meth on $class, r: [$resolved_meths->{$class}{$meth}->@*]");
+            $ntests++;
+         }
+      }
+   }
+
+   return $ntests;
+}
+
+done_testing(test_c3_maat_way());
 
 __DATA__
-O : meth1 meth2 meth3
-A -> (O) : meth2
-B -> (O) : meth1
-C -> (A B) : meth2
-###
-O
+A : meth1 meth2 meth3
+
+B -> (A) : meth2
+C -> (A) : meth1@
+D -> (A) : meth2
+
+E -> (B)
+F -> (C)
+G -> (C)
+H -> (C)
+I -> (C)
+J -> (D)
+
+K -> (E)
+L -> (F I)
+M -> (I J)
+
+N -> (K E L M)
