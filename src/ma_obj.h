@@ -304,7 +304,7 @@ typedef struct Class {
    Header obj;
    Str *name;
    union {
-      struct Class *is[1];
+      struct Class *c3_list;
       Value *cdatas;
    } sc;
    Ubyte n;
