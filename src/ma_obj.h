@@ -292,32 +292,57 @@ typedef struct {
 } Map;
 
 /*
- * $is: class' superclasses (Maat implements C3 mro)
- * $name: class name
- * $n: number of fields(Class)/cdatas(Cclass)
- * $methods: a Map for methods
+ * What? Representation of a class
+ *
+ * $name: The class' name.
+ *
+ * A C class is a class whose implemented is done in foreign languages
+ * like C or C++, it is similar to full userdata in Lua lang.
+ *
+ * $as: A union which contains data specific to each type of class. The
+ * inherited field $type tells us which struct to use.
+ *
+ * $cdata: Pointer to the raw memory.
+ * $size: Size of the memory pointed by cdata.
+ *
+ * $c3_list: List of classes for mro, obtained using c3 linearization.
+ * $fields: Hash map for the class' fields, each field has the default
+ * value 'nil' unless explicitly stated.
+ *
+ * $methods: A hash map for the class' methods.
  */
 
-#define x ...
+#define is_cclass(o)
+#define is_maclass(o)
 
 typedef struct Class {
    Header obj;
    Str *name;
    union {
-      struct Class *c3_list;
-      Value *cdatas;
-   } sc;
-   Ubyte n;
+      struct {
+         struct Class *c3_list, *supers;
+         Map *fields;
+      } ma;
+      struct {
+         void *cdata;
+         size_t size;
+      } c;
+   } as;
    Map *methods;
 } Class;
 
+typedef struct Role {
+   Header obj;
+   Map *methods;
+};
+
 /*
  * What? Instance of a class
- * $fields: (C)?class' attributes/cdata
+ * $fields: 
  */
 typedef struct {
    Header obj;
-   Value *fields;
+   Map *fields;
 } Instance;
 
 typedef struct Ma {
