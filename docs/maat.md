@@ -174,10 +174,10 @@ and regular expression operators.
 ### Examples
 
 ```
-var x = [ qw(one two three) ]
+let x = [ qw(one two three) ]
 
 # [ "Three", "Two", "One" ]
-var b = x.map(:.cap).rev
+let b = x.map(:.cap).rev
 
 # [ "0ne", "tw0", "three" ]
 x =~ s<o>«0»
@@ -195,7 +195,7 @@ expression operators.
 ### Examples
 
 ```
-var a = [ qw|ONE TWO THREE| ]
+let a = [ qw|ONE TWO THREE| ]
 a.each: .lc.say
 
 say q"interpolation won't work"
@@ -227,17 +227,17 @@ name declared in its own package. Any modification made to temporary variables r
 they refer to remain untouched. You cannot temporarize lexically scoped variables and
 all package variables regardless of their types can to temporarize.
 
-We declare package variables with the keyword `pkg`, lexically scoped variables
-with `var` and temporary variables with `temp`.
+We declare package variables with the keyword `our`, lexically scoped variables
+with `let` and temporary variables with `temp`.
 
 ```
 package One::Two {
-    pkg x = [ qw<one two three> ]
+    our x = [ qw<one two three> ]
 
-    var a = {one => 1}
+    let a = {one => 1}
     {
         # a: {one => 1, two => 2}
-        var a += {two => 2}
+        let a += {two => 2}
 
         # could still use "One::Two::x" at declaration
         temp x = {}
@@ -283,7 +283,7 @@ explicitly indicate that it is a package variables.
 const z = 4
 
 # constant package variables
-const pkg (x, y) = (2, 10)
+const our (x, y) = (2, 10)
 ```
 
 ## Special variables
@@ -334,7 +334,7 @@ support concurrency.
 
 ```
 for ^5 {
-    var _
+    let _
 }
 ```
 
@@ -389,8 +389,8 @@ You can use the accumulator and destructor operator in assignments, here
 are some examples which are self-documentary.
 
 ```
-var (a, b, c, d, e, f)
-var array = [1, 2, 3, 4, 5]
+let (a, b, c, d, e, f)
+let array = [1, 2, 3, 4, 5]
 
 (a, b, c)    = 2, 10, -1, 5 # a: 2, b: 10, c: -1
 (a, b, c)    = array        # a: [1, 2, 3, 4, 5], b: nil, c: nil
@@ -479,7 +479,7 @@ do 'PATH/TO/A/MAAT/FILE'
 result of the last evaluated expression.
 
 ```
-var v = do { 2 }
+let v = do { 2 }
 
 # output: 2
 say v
@@ -490,7 +490,7 @@ say v
 do { false } || die "failed"
 
 # x: 18
-var x = do { 2 ** 4 } + 2
+let x = do { 2 ** 4 } + 2
 ```
 
 ## Topic variables
@@ -549,7 +549,7 @@ else {
 }
 
 
-var x = Num.rand(120)
+let x = Num.rand(120)
 if x % 2 -> r {
     say "remainder is #{r}"
 }
@@ -561,7 +561,7 @@ in a new scope.
 ```
 say "one" if true
 
-var k = 2 if 1
+let k = 2 if 1
 # output: 2
 k.say
 ```
@@ -584,7 +584,7 @@ default topic variable `_` to the value returned by the their
 conditional expressions.
 
 ```
-var (u, y) = 5, nil
+let (u, y) = 5, nil
 
 with u { say "defined, see: #{_}" }
 
@@ -597,7 +597,7 @@ else              { say "and never here too" }
 The `with` statement avoid you from doing the following
 
 ```
-var x = (y + 1) / 2
+let x = (y + 1) / 2
 with x { .say }
 ```
 
@@ -616,7 +616,7 @@ Its statement modifer form.
 ```
 # output: 2 4 4 8
 for 4, 8 {
-    var k = _ with _ / 2
+    let k = _ with _ / 2
     say k / _
 }
 ```
@@ -640,7 +640,7 @@ Here are examples of iterations over a comma seperated list of values
 # three iterations
 for "a", r/regex/, [2, 4] { .say }
 
-var ar = [ qw<one two three four five> ]
+let ar = [ qw<one two three four five> ]
 
 # trailing comma to indicate it is a list and thus only one iteration
 for ar, { .say }
@@ -652,7 +652,7 @@ for ar, { .say }
 
 ---
 We have a.len + 1 iterations, the array destruction operator is used to
-break 'ar' into a list. At topic var declaration, set a custom default
+break 'ar' into a list. At topic let declaration, set a custom default
 value to handle situations where we are out of elements
 ---
 for ar…, 2 -> m, n = 'default' { (n + '-' + m).say }
@@ -684,7 +684,7 @@ registers that method with its arguments so that it gets called
 for every lazy iteration.
 
 ```
-var a = [qw(nairobi niamey yaounde)]
+let a = [qw(nairobi niamey yaounde)]
 
 # "grep" and "map" got registered and they later on get called for every element in "a"
 for a.lazy
@@ -729,7 +729,7 @@ given 34 {
 For topicalization, you can also use `given` as a standalone statement
 
 ```
-var x = [2, 5]
+let x = [2, 5]
 given x {
     say "variable x has two elements" if .len == 2
 }
@@ -746,10 +746,10 @@ loop [ [ INIT ] ; [ COND ] ; [ STEP ] ] { CODE }
 Just like the C-for loop
 
 ```
-loop var k = 0; k ≤ 20; k² { k.say }
+loop let k = 0; k ≤ 20; k² { k.say }
 
 # you can skip some parts
-loop var k = 0;;k++ {
+loop let k = 0;;k++ {
     k.say
     break if k == 10
 }
@@ -762,7 +762,7 @@ loop { say "looping forever" }
 The basic `while` and `until` loop.
 
 ```
-var k = 6
+let k = 6
 
 while k > 1 {
     k.say
@@ -783,8 +783,8 @@ do { CODE } until COND
 ```
 
 ```
-var k = Set.new(2, 4, 5)
-var b = [2, 7, 3]
+let k = Set.new(2, 4, 5)
+let b = [2, 7, 3]
 
 do {
     k.push(b.pop)
@@ -857,7 +857,7 @@ it offers is freeing us from using a conditional construct to avoid
 the execution of a statement.
 
 ```
-var amap = {qw(one 1 two 2 three 3)}
+let amap = {qw(one 1 two 2 three 3)}
 
 amap.each_kv {|k,v|
     once say 'only once!'
@@ -929,7 +929,7 @@ Here we are declaring an anonymous function which takes a single
 parameter and then call it.
 
 ```
-var sleep = {|x| x.sleep; say "slept for #x seconds" }
+let sleep = {|x| x.sleep; say "slept for #x seconds" }
 sleep.call(5)
 ```
 
@@ -937,7 +937,7 @@ You can use the other syntax if your anonymous function is just a
 single expression. `__FUNC__` does not work here!
 
 ```
-var sleep = :5.sleep
+let sleep = :5.sleep
 sleep.call
 ```
 
@@ -953,16 +953,16 @@ It is possible to omit `_` when calling a method on the content of a topic
 variable.
 
 ```
-var anony = { say _.Str * 2 }
+let anony = { say _.Str * 2 }
 
 # output: tanzaniatanzania
 anony.call("tanzania")
 
-# Err: takes only one arg as the topic var is used in anony
+# Err: takes only one arg as the topic let is used in anony
 anony.call("a", "b")
 
 # .ucfirst is the same as _.ucfirst
-var ar = {qw<tcheukam madjou monthe>}
+let ar = {qw<tcheukam madjou monthe>}
 say ar.map(:.ucfirst)
 ```
 
@@ -1072,7 +1072,7 @@ function was paused by a `take` call.
 
 ```
 fun factors(n) {
-    var k = 1
+    let k = 1
 
     while k ** 2 < n {
         take k, n.div(k) if n % k 
@@ -1225,7 +1225,7 @@ its updated status and result with the `status` and `done` methods
 respectively.
 
 ```
-var w = Work.new   # new Work object
+let w = Work.new   # new Work object
 say w.status       # output: Do
 w.done("I'm done")
 say w.status       # output: Done
@@ -1257,7 +1257,7 @@ If the exception of the work created by `.then` is not handled, it inherits
 its exception handler from the highiest top level Work.
 
 ```
-var w = Work.does({ sleep 4; 10 })
+let w = Work.does({ sleep 4; 10 })
             .catch({(e) say "Catched: #{e}" })
             .then({ say "My handler is the one above"; _ + 2 })
             .then({(r) say "Mine is below"; r - 2 })
@@ -1302,7 +1302,7 @@ or `Failed`. The value return by `.result` method call on the returned
 work object is always `true` and practically useless.
 
 ```
-var k = ^5.map {|i| Work.does(:sleep i) }
+let k = ^5.map {|i| Work.does(:sleep i) }
 
 Work.allof(k)
     .then: k.map(:.result).sum.say

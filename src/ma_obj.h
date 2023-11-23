@@ -34,17 +34,17 @@
 #if !defined(MA_NAN_TAGGING)
 
 /*
- * $val: The value itself.
- *   $n: Representation of a number (see 'ma_conf.h').
- *   $obj: Pointer to an object, here, $val is an object.
+ * #val: The value itself.
+ *   #n: Representation of a number (see 'ma_conf.h').
+ *   #obj: Pointer to an object, here, $val is an object.
  *
  *   The below attributes are used to extend Maat code with C/C++:
  *
- *   $cdata: Pointer to some memory representing data of a C class
- *   $f: Pointer to a C function, either represent a cdata's
+ *   #cdata: Pointer to some memory representing data of a C class
+ *   #f: Pointer to a C function, either represent a cdata's
  *       method or just a standalone function.
  *
- * $type: Determines $val's type, its bits are segmented into three
+ * #type: Determines $val's type, its bits are segmented into three
  * parts. This variable already gathers all what is necessary to
  * represent booleans and nils values.
  *
@@ -52,7 +52,7 @@
  *
  * - Bits 0-4:
  *   To represent the different types of values except for object
- *   values which is detected when the value's MSB is 1. If $val
+ *   values which is detected when the value's MSB is 1. If #val
  *   is an object then bits 0-4 determine its object's type. This
  *   gives us a maximum of 32 objects which suffices.
  *
@@ -60,7 +60,7 @@
  *   To represent variants of certain (O_)?TYPE_.* types. You can
  *   have at most 3 variants for each base type which suffices.
  *
- * - bit 7: Mark bit: if 1 then $val is an object, 0 otherwise.
+ * - bit 7: Mark bit: if 1 then #val is an object, 0 otherwise.
  */
 typedef struct {
    Ubyte type;
@@ -85,7 +85,7 @@ typedef struct {
 
 /*
  * Defines all the possible standard types of a value, V_TYPE_OBJ is
- * also a value. A value 'v' is an object if the MSB of its $type is 1.
+ * also a value. A value 'v' is an object if the MSB of its #type is 1.
  */
 #define V_TYPE_NIL    0
 #define V_TYPE_BOOL   1
@@ -154,11 +154,11 @@ typedef uint64_t Value;
 #endif
 
 /*
- * $$Header inherited by all the below objects
- * $type: type of the object
- * $mark: flag to mark the object during collection
- * $class: the object's class
- * $next: next obj,to keep track of all objects
+ * ##Header inherited by all the below objects
+ * #type: type of the object
+ * #mark: flag to mark the object during collection
+ * #class: the object's class
+ * #next: next obj,to keep track of all objects
  */
 typedef struct Header {
    Ubyte type;
@@ -221,8 +221,10 @@ typedef struct Header {
  * as attributes.
  */
 #define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 1)
+#define O_TYPEV_ROLE    vary(O_TYPE_CLASS, 2)
 
 #define is_cclass(v)  o_check_vartype(v, O_TYPEV_CCLASS)
+#define is_role(v)    o_check_vartype(v, O_TYPEV_ROLE)
 
 /* Immutable and mutable bags */
 #define O_TYPEV_BAG   vary(O_TYPE_MAP, 1)
@@ -257,11 +259,11 @@ typedef struct Header {
 #define is_schedq(v)  o_check_type(v, O_TYPEV_SCHEDQ)
 
 /*
- * $$string object
- * $str: utf-8 encoded string itself
- * $hash: hash value of $str
- * $rlen: real length of $str
- * $len: user-percieved length of $str
+ * ##String object
+ * #str: utf-8 encoded string itself
+ * #hash: hash value of $str
+ * #rlen: real length of $str
+ * #len: user-percieved length of $str
  */
 
 typedef struct {
@@ -269,15 +271,15 @@ typedef struct {
    unsigned int hash;
    size_t rlen;
    size_t len;
-   Byte str[1];
+   Byte *str;
 } Str;
 
 /*
- * $$Range object [x..y] (inclusive)
- * $x: the start
- * $y: and the end
+ * ##Range object [x..y] (inclusive)
+ *
+ * #x: the start
+ * #y: and the end
  */
-
 typedef struct {
    Header obj;
    Num x;
@@ -285,31 +287,68 @@ typedef struct {
 } Range;
 
 /*
+ * ##Representation of a node
+ *
+ * #val: node's value
+ * #k:
+ *   #key: node's key
+ *   #next: next node in case of collision
  */
+typedef struct Node {
+   struct NodeKey {
+      Value key;
+      Int next;
+   } k;
+   Value val;
+} Node;
 
+/*
+ * ##Representation of a Map(a.k.a Hash table), it has
+ * two parts, it has two parts, the array and the hash
+ * one.
+ *
+ * #lsize:
+ * #array:
+ * #asize:
+ * #node:
+ */
 typedef struct {
    Header obj;
+   Value *array;
+   Uint asize;
+   Ubyte lsize;
+   Node *node;
 } Map;
 
 /*
- * $$Representation of a class, every object has a class, even the class
+ * ##Representation of a class, every object has a class, even the class
  * itself. Class of objects which aren't first class values are useless.
  *
- * $name: The class' name.
- * $methods: A map for the class' methods.
+ * #name: The class' name.
+ * #methods: A map for the class' methods.
  *
  * A C class is a class whose implemented is done in foreign languages
  * like C or C++, it is similar to full userdata in Lua lang.
  *
- * $as: A union which contains data specific to each type of class.
- * The inherited field $type tells us which struct to use.
+ * #in: A union which defines data depending on the object variant, we
+ * have 2 variants which are Role and Cclass
  *
- * $cdata: Pointer to the raw memory.
- * $size: Size of the memory pointed by cdata.
+ *   For a Cclass we have #c:
  *
- * $c3: List of classes obtained after c3 method resolution was applied
- * $fields: Hash map for the class' fields, each field has the default
- * value 'nil' unless explicitly stated.
+ *     #cdata: Pointer to the raw memory.
+ *     #size: Size of the memory pointed by cdata.
+ *
+ *   For a Ma class and a Role we have #ma:
+ *
+ *     #c3: List of classes obtained after c3 method resolution was applied
+ *     #fields: Hash map for the class' fields, each field has the default
+ *     value 'nil' unless explicitly stated.
+ *     #roles: Keeps the list of roles the class does.
+ *     #supers: Keeps the list of directly inherited superclasses.
+ *
+ * #roles and $supers exist mainly for class/object introspection. method
+ * bindings are done so the classes have direct access to roles' field and
+ * methods they ":does" and inherited methods from superclasses they ":is".
  */
 
 typedef struct Class {
@@ -318,23 +357,24 @@ typedef struct Class {
    union {
       struct {
          Map *fields;
-         struct Class *roles, *supers, *c3;
+         struct Class *roles;
+         struct Class *supers;
+         struct Class *c3;
       } ma;
       struct {
          Value cdata;
          size_t size;
       } c;
-   } as;
+   } in;
    Map *methods;
 } Class;
 
-
 /*
- * $$Instance of a class.
+ * ##Instance of a class.
  *
- * $fields: A map, the instance's fields, during object instanciation we
- * copy the instance's class $fields map which contains all the defaults.
- * Is this a good idea?
+ * #fields: A map, the instance's fields, during object instanciation it
+ * is set to its class' #fields map that keeps fields' defaults. Is this
+ * a good idea?
  */
 typedef struct {
    Header obj;
@@ -342,55 +382,78 @@ typedef struct {
 } Instance;
 
 /*
- * $$Represents the spec of a namespace: the namespace value and
- * its variables which have to be fully qualified when accessed
- * from outside.
+ * ##Represents the spec of a namespace: the namespace value and its
+ * variables which have to be fully qualified when accessed from outside
+ * itself.
  *
- * $ours: A map for the namespace's "our" variables.
- * $val: Either a class, role or package.
+ * #name: Namespace's name.
+ *
+ * #ours: A map for the namespace's "our" variables. For the main::
+ * namespace, #ours takes care of the following type I & II special
+ * variables:
+ *      ENV, ARGC, ARGV, INC, PATH, SIG, DATA, $v, $o, $,, $/, $\
+ *      $|, $", $$, $(, $), $<, $>, $f, and $0.
+ *
+ * The "main::" namespace which is a package {}, is "use"d by all the
+ * other namespaces and these special variables can be accessed without
+ * using their FQN.
+ *
+ * #exports: Values for keys of to be exported "our" variables.
+ * #ns_value: Either a class{}, role{} or package{}.
  */
-typedef struct Namespace_Spec {
+typedef struct Namespace {
    Header obj;
+   Str *name; 
    Map *ours;
-   Value val;
-} Namespace_Spec;
+   Value *exports;
+   Value ns_val;
+} Namespace;
 
 /*
- * $ns_spec: A buffer of namespaces, since namespaces are unique
- * and aren't restrained by the concept of scopes wether or not
- * a namespace is defined in another, w
+ * ##Struct for a Function
+ *
+ * #ns: is mainly used for class/object instrospection.
+ *
+ * #code:
+ * #constants:
+ *
+ * #temp_vars: For temporarization(the 'temp' key word) of package variables
+ * it is a map with keys correspond to scope level counts since multiple
+ * scopes multiple scopes can temporarize indentical package variables, using
+ * a map because it uses its array part when necessary and optimizes into a
+ * real map when indexes are sparsed. $temps takes care of the following
+ * special variables:
+ *   $<digit>(e.g $1, $2, $3, etc), $., $`, $&, and $'
+ *
+ * It is internally implemented c code that have to appropiately set these
+ * variables in $temps e.g Regex's .gmatch method.
  */
-typedef struct NameSpace {
+typedef struct Fun {
    Header obj;
-   NameSpace_Spec ns_spec;
-} NameSpace;
-
-typedef struct Ma {
-} Ma;
-
-typedef struct {
-   Ma ma;
-} Work;
-
-/*
- */
-
-typedef struct {
-   Header obj;
-   //...
+   Namespace *ns;
+   Buf code;
+   Buf constants;
+   Map *temps;
+   int num_up;
+   int arity;
 } Fun;
 
 /*
  */
-
 typedef struct Upvalue {
    Header obj;
-   Value *to;
+   Value *p;
    union {
       struct Upvalue *next;
       Value val;
    } state;
 } Upvalue;
 
-#endif
+typedef struct Closure {
+   Header obj;
+   Fun *fun;
+   Upvalue *upvalues;
+} Closure;
 
+
+#endif
