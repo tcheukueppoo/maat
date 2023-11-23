@@ -34,30 +34,30 @@
 #if !defined(MA_NAN_TAGGING)
 
 /*
- * $val: the value itself.
- *   $n: representation of a number (see 'ma_conf.h').
- *   $obj: pointer to an object, here, $val is an object.
+ * $val: The value itself.
+ *   $n: Representation of a number (see 'ma_conf.h').
+ *   $obj: Pointer to an object, here, $val is an object.
  *
  *   The below attributes are used to extend Maat code with C/C++:
  *
- *   $cdata: pointer to C-class attributes('struct's).
- *   $f: pointer to a C function, either represent a cdata's
+ *   $cdata: Pointer to some memory representing data of a C class
+ *   $f: Pointer to a C function, either represent a cdata's
  *       method or just a standalone function.
  *
- * $type: determines $val's type, its bits are segmented into three
+ * $type: Determines $val's type, its bits are segmented into three
  * parts. This variable already gathers all what is necessary to
  * represent booleans and nils values.
  *
  * Bits distribution:
  *
- * - bits 0-4:
- *   to represent the different types of values except for object
- *   values which is determined by the MSB. If $val is an object
- *   then bits 0-4 determine its object's type. This gives us a
- *   maximum of 32 objects which suffices.
+ * - Bits 0-4:
+ *   To represent the different types of values except for object
+ *   values which is detected when the value's MSB is 1. If $val
+ *   is an object then bits 0-4 determine its object's type. This
+ *   gives us a maximum of 32 objects which suffices.
  *
- * - bits 5-6:
- *   to represent variants of certain (O_)?TYPE_.* types. You can
+ * - Bits 5-6:
+ *   To represent variants of certain (O_)?TYPE_.* types. You can
  *   have at most 3 variants for each base type which suffices.
  *
  * - bit 7: Mark bit: if 1 then $val is an object, 0 otherwise.
@@ -114,12 +114,12 @@ typedef struct {
 /*
  * Define variants of the 'nil' type and its singleton values.
  *
- * V_TYPEV_FREE: this nil variant differentiates a key whose
+ * V_TYPEV_FREE: This nil variant differentiates a key whose
  * corresponding value is a user-perceived 'nil' from a free
- * position in a hash table.
+ * position in a map.
  *
- * V_TYPEV_ABSKEY: when indexing a hash table and key isn't
- * found, return a dummy value of type V_TYPEV_ABSKEY.
+ * V_TYPEV_ABSKEY: When indexing a table and key isn't found,
+ * return a dummy value of type V_TYPEV_ABSKEY.
  */
 #define V_TYPEV_FREE    vary(V_TYPE_NIL, 1)
 #define V_TYPEV_ABSKEY  vary(V_TYPE_NIL, 2)
@@ -154,7 +154,7 @@ typedef uint64_t Value;
 #endif
 
 /*
- * What? Header inherited by all the below objects
+ * $$Header inherited by all the below objects
  * $type: type of the object
  * $mark: flag to mark the object during collection
  * $class: the object's class
@@ -257,7 +257,7 @@ typedef struct Header {
 #define is_schedq(v)  o_check_type(v, O_TYPEV_SCHEDQ)
 
 /*
- * What? string object
+ * $$string object
  * $str: utf-8 encoded string itself
  * $hash: hash value of $str
  * $rlen: real length of $str
@@ -273,7 +273,7 @@ typedef struct {
 } Str;
 
 /*
- * What? Range object [x..y] (inclusive)
+ * $$Range object [x..y] (inclusive)
  * $x: the start
  * $y: and the end
  */
@@ -292,66 +292,84 @@ typedef struct {
 } Map;
 
 /*
- * What? Representation of a class
+ * $$Representation of a class, every object has a class, even the class
+ * itself. Class of objects which aren't first class values are useless.
  *
  * $name: The class' name.
+ * $methods: A map for the class' methods.
  *
  * A C class is a class whose implemented is done in foreign languages
  * like C or C++, it is similar to full userdata in Lua lang.
  *
- * $as: A union which contains data specific to each type of class. The
- * inherited field $type tells us which struct to use.
+ * $as: A union which contains data specific to each type of class.
+ * The inherited field $type tells us which struct to use.
  *
  * $cdata: Pointer to the raw memory.
  * $size: Size of the memory pointed by cdata.
  *
- * $c3_list: List of classes for mro, obtained using c3 linearization.
+ * $c3: List of classes obtained after c3 method resolution was applied
  * $fields: Hash map for the class' fields, each field has the default
  * value 'nil' unless explicitly stated.
- *
- * $methods: A hash map for the class' methods.
  */
-
-#define is_cclass(o)
-#define is_maclass(o)
 
 typedef struct Class {
    Header obj;
    Str *name;
    union {
       struct {
-         struct Class *c3_list, *supers;
          Map *fields;
+         struct Class *roles, *supers, *c3;
       } ma;
       struct {
-         void *cdata;
+         Value cdata;
          size_t size;
       } c;
    } as;
    Map *methods;
 } Class;
 
-typedef struct Role {
-   Header obj;
-   Map *methods;
-};
 
 /*
- * What? Instance of a class
- * $fields: 
+ * $$Instance of a class.
+ *
+ * $fields: A map, the instance's fields, during object instanciation we
+ * copy the instance's class $fields map which contains all the defaults.
+ * Is this a good idea?
  */
 typedef struct {
    Header obj;
    Map *fields;
 } Instance;
 
-typedef struct Ma {
+/*
+ * $$Represents the spec of a namespace: the namespace value and
+ * its variables which have to be fully qualified when accessed
+ * from outside.
+ *
+ * $ours: A map for the namespace's "our" variables.
+ * $val: Either a class, role or package.
+ */
+typedef struct Namespace_Spec {
+   Header obj;
+   Map *ours;
+   Value val;
+} Namespace_Spec;
 
+/*
+ * $ns_spec: A buffer of namespaces, since namespaces are unique
+ * and aren't restrained by the concept of scopes wether or not
+ * a namespace is defined in another, w
+ */
+typedef struct NameSpace {
+   Header obj;
+   NameSpace_Spec ns_spec;
+} NameSpace;
+
+typedef struct Ma {
 } Ma;
 
 typedef struct {
    Ma ma;
-   
 } Work;
 
 /*
