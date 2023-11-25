@@ -9,9 +9,9 @@
 #include "ma_conf.h"
 
 /*
- * Macros defined below are both used to manipulate objects and
- * non NAN-TAGGING represented values, reason why they aren't
- * specific to `#if` body of the MA_NAN_TAGGING check.
+ * Macros defined below are both used to manipulate objects and non
+ * NAN-TAGGING represented values, reason why they aren't specific
+ * to `#if` body of the "MA_NAN_TAGGING" conditional test.
  */
 
 /* Vary type 't' with variant bits 'v', see Value */
@@ -22,16 +22,10 @@
 #define check_type(v, t)     (without_variant(v) == t)
 #define check_vartype(v, t)  (with_variant(v) == t)
 
-/* Get top level value type of 'v' */
-#define vtype(v)  with_variant(v)
-
-/* Value 'o' is an object and get its object type */
-#define otype(o)  with_variant(as_obj(v))
-
-/* Get profound type of 'v': dig into 'v' if it's an object */
-#define type(v)  (ma_likely(is_obj(v)) ? otype(v) : vtype(v))
-
 #if !defined(MA_NAN_TAGGING)
+
+/* Collectable object has the same type as the orignal value */
+#define type(v)  without_variant(v)
 
 /*
  * #val: The value itself.
@@ -60,7 +54,7 @@
  *   To represent variants of certain (O_)?TYPE_.* types. You can
  *   have at most 3 variants for each base type which suffices.
  *
- * - bit 7: Mark bit: if 1 then #val is an object, 0 otherwise.
+ * - Bit 7: Mark bit: if 1 then #val is an object, 0 otherwise.
  */
 typedef struct {
    Ubyte type;
@@ -72,9 +66,9 @@ typedef struct {
    } val;
 } Value;
 
-#define set_type(v, t)      ((v)->type = t)
-#define set_val(v, val, t)  set_type(v, t); ((v)->val = val);
-#define set_valo(v, o)      set_val(v, o, (o)->type)
+#define set_type(v, t)       ((v)->type = t)
+#define set_val(v, _val, t)  set_type(v, t); ((v)->val = _val);
+#define set_valo(v, o)       set_val(v, o, (o)->type)
 
 /*
  * For objects, copy by reference 'v2' into 'v1' while for other type
@@ -95,7 +89,7 @@ typedef struct {
 
 #define OBJ_BIT  (0b1 << 7)
 
-#define is_obj(v)    (type(v) & OBJ_BIT)
+#define is_obj(v)    ((v) & OBJ_BIT)
 #define is_num(v)    check_type(v, V_TYPE_NUM)
 #define is_nil(v)    check_type(v, V_TYPE_NIL)
 #define is_bool(v)   check_type(v, V_TYPE_BOOL)
@@ -170,35 +164,37 @@ typedef struct Header {
 /* Test if the value 'v' is an object of type 't' */
 #define o_check_type(v, t)  is_obj(v) && check_type(v, t)
 
-/* Defining of all base objects */
-#define O_TYPE_CLASS   5   /* variant: O_TYPEV_CCLASS */
-#define O_TYPE_STR     6    
-#define O_TYPE_RANGE   7    
-#define O_TYPE_ARRAY   8   /* variants: O_TYPEV_SET, O_TYPEV_MSET, O_TYPEV_LIST */
-#define O_TYPE_MAP     9   /* variants: O_TYPEV_BAG, O_TYPEV_MBAG */
-#define O_TYPE_FUN     10  /* variant:  O_TYPEV_CLOSURE */
-#define O_TYPE_MA      11  /* variants: O_TYPEV_CO, O_TYPEV_WORK */
-#define O_TYPE_RBQ     12  /* variants: O_TYPEV_CHAN, O_TYPEV_SCHEDQ */
-#define O_TYPE_REGEX   13
-#define O_TYPE_SOCKET  14
-#define O_TYPE_PIPE    15
-#define O_TYPE_FILE    16
-#define O_TYPE_DIR     17
-#define O_TYPE_PROC    18
-#define O_TYPE_SYS     19
-#define O_TYPE_DATE    20
-#define O_TYPE_PKG     21
-#define O_TYPE_TERM    22
+/* Defining all base objects, each object here may or not have variants */
 
-#define O_DEADKEY      31  /* */
+#define O_TYPE_CLASS     5   /* variant: O_TYPEV_CCLASS */
+#define O_TYPE_INSTANCE  6
+#define O_TYPE_STR       7   /* variants: O_TYPEV_SHTSTR, O_TYPEV_LNGSTR */
+#define O_TYPE_RANGE     8    
+#define O_TYPE_ARRAY     9   /* variants: O_TYPEV_SET, O_TYPEV_MSET, O_TYPEV_LIST */
+#define O_TYPE_MAP       10  /* variants: O_TYPEV_BAG, O_TYPEV_MBAG */
+#define O_TYPE_FUN       11  /* variant:  O_TYPEV_CLOSURE */
+#define O_TYPE_UPVAL     12
+#define O_TYPE_MA        13  /* variants: O_TYPEV_CO, O_TYPEV_WORK */
+#define O_TYPE_RBQ       14  /* variants: O_TYPEV_CHAN, O_TYPEV_SCHEDQ */
+#define O_TYPE_REGEX     15
+#define O_TYPE_SOCKET    16
+#define O_TYPE_PIPE      17
+#define O_TYPE_FILE      18
+#define O_TYPE_DIR       19
+#define O_TYPE_PROC      20
+#define O_TYPE_SYS       21
+#define O_TYPE_DATE      22
+#define O_TYPE_NS        23
+#define O_TYPE_TERM      24
+
+/*
+ * A special kind of type to mark objects which act as keys to maps as
+ * "dead". Dead objects will be resurrected by the program if they are
+ * needed before the next GC cycle.
+ */
+#define O_TYPE_DEADKEY      31
 
 /* A Check macro on 'v' for each object type */
-#define is_class(v)   o_check_type(v, O_TYPE_CLASS)
-#define is_str(v)     o_check_type(v, O_TYPE_STR)
-#define is_range(v)   o_check_type(v, O_TYPE_RANGE)
-#define is_array(v)   o_check_type(v, O_TYPE_ARRAY)
-#define is_map(v)     o_check_type(v, O_TYPE_MAP)
-#define is_fun(v)     o_check_type(v, O_TYPE_FUN)
 #define is_ma(v)      o_check_type(v, O_TYPE_MA)
 #define is_rbq(v)     o_check_type(v, O_TYPE_RBQ)
 #define is_regex(v)   o_check_type(v, O_TYPE_REGEX)
@@ -213,39 +209,6 @@ typedef struct Header {
 /* Test if the value 'v' is an object variant of variant type 't' */
 #define o_check_vartype(v,t)  is_obj(v) && check_vartype(v,t)
 
-/* Here are variants of some standard objects */
-
-/*
- * Cclass--a special way of extending Maat code with C/C++, here
- * we store references to C/C++ functions as methods and structs
- * as attributes.
- */
-#define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 1)
-#define O_TYPEV_ROLE    vary(O_TYPE_CLASS, 2)
-
-#define is_cclass(v)  o_check_vartype(v, O_TYPEV_CCLASS)
-#define is_role(v)    o_check_vartype(v, O_TYPEV_ROLE)
-
-/* Immutable and mutable bags */
-#define O_TYPEV_BAG   vary(O_TYPE_MAP, 1)
-#define O_TYPEV_MBAG  vary(O_TYPE_MAP, 2)
-
-#define is_bag(v)     o_check_vartype(v, O_TYPEV_BAG)
-#define is_mbag(v)    o_check_vartype(v, O_TYPEV_MBAG)
-
-/* Comma-separated list of values, immutable and mutable sets */
-#define O_TYPEV_LIST  vary(O_TYPE_ARRAY, 1)
-#define O_TYPEV_SET   vary(O_TYPE_ARRAY, 2)
-#define O_TYPEV_MSET  vary(O_TYPE_ARRAY, 3)
-
-#define is_list(v)  o_check_type(v, O_TYPE_LIST)
-#define is_set(v)   o_check_vartype(v, O_TYPEV_SET)
-#define is_mset(v)  o_check_vartype(v, O_TYPEV_MSET)
-
-/* A closure, it encapsulates upvalues */
-#define O_TYPEV_CLOSURE vary(O_TYPE_FUN, 1)
-
-#define is_closure(v)  o_check_vartype(v, O_TYPEV_CLOSURE)
 
 /* Two other concurrency models: Coroutine, Work */
 #define O_TYPEV_CO    vary(O_TYPE_CMA, 1)
@@ -259,14 +222,22 @@ typedef struct Header {
 #define is_schedq(v)  o_check_type(v, O_TYPEV_SCHEDQ)
 
 /*
- * ##String object
+ * ##String object, represents both short and long strings
+ *
  * #str: utf-8 encoded string itself
  * #hash: hash value of $str
  * #rlen: real length of $str
  * #len: user-percieved length of $str
  */
 
-typedef struct {
+#define O_TYPEV_LNGSTR  vary(O_TYPE_STR, 1)
+#define O_TYPEV_SHTSTR  vary(O_TYPE_STR, 2)
+
+#define is_str(v)     o_check_type(v, O_TYPE_STR)
+#define is_lngstr(v)  o_check_type(v, O_TYPEV_LNGSTR)
+#define is_shtstr(v)  o_check_type(v, O_TYPEV_SHTSTR)
+
+typedef struct Str {
    Header obj;
    unsigned int hash;
    size_t rlen;
@@ -275,11 +246,13 @@ typedef struct {
 } Str;
 
 /*
- * ##Range object [x..y] (inclusive)
+ * ##Range object [x..y] (inclusive).
  *
- * #x: the start
- * #y: and the end
+ * #x: The start and.
+ * #y: The end.
  */
+#define is_range(v)  o_check_type(v, O_TYPE_RANGE)
+
 typedef struct {
    Header obj;
    Num x;
@@ -287,6 +260,13 @@ typedef struct {
 } Range;
 
 /*
+ * ##Representation of a Map(a.k.a Hash table), it has
+ *
+ * #lsize:
+ * #array:
+ * #asize:
+ * #node:
+ *
  * ##Representation of a node
  *
  * #val: node's value
@@ -294,25 +274,25 @@ typedef struct {
  *   #key: node's key
  *   #next: next node in case of collision
  */
+
+/* Variants of a Map: immutable and mutable bags */
+#define O_TYPEV_BAG   vary(O_TYPE_MAP, 1)
+#define O_TYPEV_MBAG  vary(O_TYPE_MAP, 2)
+
+#define is_map(v)   o_check_type(v, O_TYPE_MAP)
+#define iss_map(v)  o_check_vartype(v, O_TYPE_MAP)
+#define is_bag(v)   o_check_vartype(v, O_TYPEV_BAG)
+#define is_mbag(v)  o_check_vartype(v, O_TYPEV_MBAG)
+
 typedef struct Node {
-   struct NodeKey {
+   struct {
       Value key;
       Int next;
    } k;
    Value val;
 } Node;
 
-/*
- * ##Representation of a Map(a.k.a Hash table), it has
- * two parts, it has two parts, the array and the hash
- * one.
- *
- * #lsize:
- * #array:
- * #asize:
- * #node:
- */
-typedef struct {
+typedef struct Map {
    Header obj;
    Value *array;
    Uint asize;
@@ -320,43 +300,83 @@ typedef struct {
    Node *node;
 } Map;
 
+
+/* ##Representation of an Array object
+ *
+ * #array: The array itself.
+ * #size: Its size.
+ * #capacity: The array's capacity.
+ */
+
+/* Array Variants: comma-separated list of values, immutable and mutable sets */
+#define O_TYPEV_LIST  vary(O_TYPE_ARRAY, 1)
+#define O_TYPEV_SET   vary(O_TYPE_ARRAY, 2)
+#define O_TYPEV_MSET  vary(O_TYPE_ARRAY, 3)
+
+#define is_array(v)   o_check_type(v, O_TYPE_ARRAY)
+#define iss_array(v)  o_check_vartype(v, O_TYPE_ARRAY)
+#define is_list(v)    o_check_vartype(v, O_TYPEV_LIST)
+#define is_set(v)     o_check_vartype(v, O_TYPEV_SET)
+#define is_mset(v)    o_check_vartype(v, O_TYPEV_MSET)
+
+typedef struct Array {
+   Header obj;
+   size_t size;
+   size_t capacity;
+   Value *array;
+} Array;
+
 /*
- * ##Representation of a class, every object has a class, even the class
- * itself. Class of objects which aren't first class values are useless.
+ * ##Representation of a class, every collectable object has a class, even
+ * the class itself. The Class of objects which aren't first class values
+ * are probably useless, e.g Upval.
  *
  * #name: The class' name.
  * #methods: A map for the class' methods.
  *
- * A C class is a class whose implemented is done in foreign languages
+ * A C class is a class whose implemention is done in foreign languages
  * like C or C++, it is similar to full userdata in Lua lang.
  *
- * #in: A union which defines data depending on the object variant, we
- * have 2 variants which are Role and Cclass
+ * #in: A union which defines data depending on the object variant, here we
+ * have 2 variants which defines Roles and Cclasses
  *
- *   For a Cclass we have #c:
+ *  For a Cclass we have in #c:
  *
- *     #cdata: Pointer to the raw memory.
- *     #size: Size of the memory pointed by cdata.
+ *   #cdata: Pointer to the raw memory.
+ *   #size: Size of the memory pointed by #cdata.
  *
- *   For a Ma class and a Role we have #ma:
+ *  For a Ma class or Role we have in #ma:
  *
- *     #c3: List of classes obtained after c3 method resolution was applied
- *     #fields: Hash map for the class' fields, each field has the default
- *     value 'nil' unless explicitly stated.
- *     #roles: Keeps the list of roles the class does.
- *     #supers: Keeps the list of directly inherited superclasses.
+ *   #c3: List of classes obtained after c3 linearization was applied.
+ *   #fields: Pointer to an array of values, each index corresponds to a
+ *   field and values in the array holds fields' defaults.
+ *   #roles: Keeps the list of roles our class ":does".
+ *   #supers: Keeps the list of directly inherited superclasses.
  *
- * #roles and $supers exist mainly for class/object introspection. method
- * bindings are done so the classes have direct access to roles' field and
+ * #roles and #supers exist mainly for class/object introspection. At class
+ * creation, all necessary resolutions and bindings are done at once so that at
+ * the level of the VM classes have direct access to roles' fields and
  * methods they ":does" and inherited methods from superclasses they ":is".
  */
+
+/*
+ * Cclass-A special way of extending Maat code with C/C++, here
+ * we store references to C/C++ functions as methods and structs
+ * as attributes.
+ */
+#define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 1)
+#define O_TYPEV_ROLE    vary(O_TYPE_CLASS, 2)
+
+#define is_class(v)   o_check_vartype(v, O_TYPE_CLASS)
+#define is_cclass(v)  o_check_vartype(v, O_TYPEV_CCLASS)
+#define is_role(v)    o_check_vartype(v, O_TYPEV_ROLE)
 
 typedef struct Class {
    Header obj;
    Str *name;
    union {
       struct {
-         Map *fields;
+         Value *fields;
          struct Class *roles;
          struct Class *supers;
          struct Class *c3;
@@ -372,21 +392,24 @@ typedef struct Class {
 /*
  * ##Instance of a class.
  *
- * #fields: A map, the instance's fields, during object instanciation it
- * is set to its class' #fields map that keeps fields' defaults. Is this
- * a good idea?
+ * #fields: A pointer to a to be allocated array of type "Value", each
+ * field has a unique id which corresponds to an index in #fields. This
+ * also holds inherited fields.
  */
-typedef struct {
+#define is_instance(v)  o_check_type(v, O_TYPE_INSTANCE)
+
+typedef struct Instance {
    Header obj;
-   Map *fields;
+   Value *fields;
 } Instance;
 
 /*
- * ##Represents the spec of a namespace: the namespace value and its
+ * ##Represents a namespace: 
  * variables which have to be fully qualified when accessed from outside
  * itself.
  *
  * #name: Namespace's name.
+ * #ns_val: The namespace value, either a class, role or package.
  *
  * #ours: A map for the namespace's "our" variables. For the main::
  * namespace, #ours takes care of the following type I & II special
@@ -394,13 +417,14 @@ typedef struct {
  *      ENV, ARGC, ARGV, INC, PATH, SIG, DATA, $v, $o, $,, $/, $\
  *      $|, $", $$, $(, $), $<, $>, $f, and $0.
  *
- * The "main::" namespace which is a package {}, is "use"d by all the
- * other namespaces and these special variables can be accessed without
- * using their FQN.
+ * The "main::" namespace define with package{} is "use"d by all the other
+ * namespaces and as a result these special variables can be accessed
+ * without using their FQNs.
  *
  * #exports: Values for keys of to be exported "our" variables.
- * #ns_value: Either a class{}, role{} or package{}.
  */
+#define is_ns(v)  o_check_type(v, O_TYPE_NS)
+
 typedef struct Namespace {
    Header obj;
    Str *name; 
@@ -410,50 +434,99 @@ typedef struct Namespace {
 } Namespace;
 
 /*
- * ##Struct for a Function
+ * ##Struct a user function written in Maat.
  *
- * #ns: is mainly used for class/object instrospection.
- *
- * #code:
- * #constants:
- *
- * #temp_vars: For temporarization(the 'temp' key word) of package variables
- * it is a map with keys correspond to scope level counts since multiple
- * scopes multiple scopes can temporarize indentical package variables, using
- * a map because it uses its array part when necessary and optimizes into a
- * real map when indexes are sparsed. $temps takes care of the following
- * special variables:
- *   $<digit>(e.g $1, $2, $3, etc), $., $`, $&, and $'
- *
- * It is internally implemented c code that have to appropiately set these
- * variables in $temps e.g Regex's .gmatch method.
+ * #ns: The function's namespace, it's mainly used for instrospection.
+ * #code: Its bytecode.
+ * #constants: The function's contant values.
+ * #arity: The number of arguments the function takes.
+ * #up_count: Number of upvals the function has.
  */
+#define is_fun(v)  o_check_type(v, O_TYPE_FUN)
+
 typedef struct Fun {
    Header obj;
+   CodeBuf code;
+   ValueBuf constants;
    Namespace *ns;
-   Buf code;
-   Buf constants;
-   Map *temps;
-   int num_up;
+   int up_count;
    int arity;
 } Fun;
 
 /*
+ * ##A function that keeps track of its upvalues is called a closure, upvalues
+ * initially are lexically scoped variables living in vm's registers, they
+ * were supposed to stop existing when the program goes out of their scopes
+ * of definition but since some functions need them, these lexicals are kept
+ * as upvalues.
+ *
+ * #p: Pointer to upvalue, when an upvalue is opened, it points to a value
+ * in a vm register but when closed, it points to #state.
+ *
+ * #state: A pointer to the #next open upvalue when this one is still open
+ * otherwise it'll contain the register vm value #p pointed to.
  */
-typedef struct Upvalue {
+typedef struct Upval {
    Header obj;
    Value *p;
    union {
-      struct Upvalue *next;
+      struct Upval *next;
       Value val;
    } state;
-} Upvalue;
+} Upval;
+
+/* ##A closure is a variant of a function which keep tracks of its upvalues.
+ * That is why it is called a closure.
+ *
+ * #fun: The closure's function.
+ * #upvals: The List of upvalues the function has.
+ */
+#define O_TYPEV_CLOSURE  vary(O_TYPE_FUN, 1)
+
+#define is_closure(v)  o_check_vartype(v, O_TYPEV_CLOSURE)
 
 typedef struct Closure {
    Header obj;
    Fun *fun;
-   Upvalue *upvalues;
+   Upvalue *upvals;
 } Closure;
 
+/*
+ * #cl:
+ * #next: __SUPER__
+ */
+
+#define O_TYPEV_METHOD  vary(O_TYPE_FUN, 2)
+
+#define is_method(v)  o_check_vartype(v, O_TYPEV_METHOD)
+#define as_method(v)  #
+#define next_meth(v)  ((as_method(v))->next)
+
+typedef struct Method {
+   Header obj;
+   Closure *cl;
+   struct Method *next;
+} Method;
+
+/*
+ * #ip:
+ *
+ * #temps: For temporarization(Maat's "temp" keyword) of package variables. It
+ * is a map with keys corresponding to scope level counts since multiple scopes
+ * can temporarize a same package variable, we are using a map because the
+ * Array type has an initial capacity which is wastful in this scenario while the
+ * Map uses its array part when necessary then optimizes into a real map when
+ * scope indexes are sparsed. $temps takes care of the following special
+ * variables:
+ *   $<digit>(e.g $1, $2, $3, etc), $., $`, $&, and $'
+ *
+ * It is internally implemented c codes that have to appropiately set these
+ * variables in $temps for usage e.g the Regex's method ".gmatch".
+ */
+
+typedef struct CallFrame {
+   uint8_t *ip;
+   Map *temps;
+} CallFrame;
 
 #endif
