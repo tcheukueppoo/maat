@@ -230,12 +230,16 @@ typedef struct Header {
  * #len: user-percieved length of $str
  */
 
-#define O_TYPEV_LNGSTR  vary(O_TYPE_STR, 1)
-#define O_TYPEV_SHTSTR  vary(O_TYPE_STR, 2)
+#define O_TYPEV_SHTSTR  vary(O_TYPE_STR, 1)
+#define O_TYPEV_LNGSTR  vary(O_TYPE_STR, 2)
 
 #define is_str(v)     o_check_type(v, O_TYPE_STR)
-#define is_lngstr(v)  o_check_type(v, O_TYPEV_LNGSTR)
 #define is_shtstr(v)  o_check_type(v, O_TYPEV_SHTSTR)
+#define is_lngstr(v)  o_check_type(v, O_TYPEV_LNGSTR)
+
+#define as_str(v)     ((Str *)as_obj(v))
+#define as_shtstr(v)  as_str(v)
+#define as_lngstr(v)  as_str(v)
 
 typedef struct Str {
    Header obj;
@@ -252,6 +256,7 @@ typedef struct Str {
  * #y: The end.
  */
 #define is_range(v)  o_check_type(v, O_TYPE_RANGE)
+#define as_range(v)  ((Range *)as_obj(v))
 
 typedef struct {
    Header obj;
@@ -284,6 +289,10 @@ typedef struct {
 #define is_bag(v)   o_check_vartype(v, O_TYPEV_BAG)
 #define is_mbag(v)  o_check_vartype(v, O_TYPEV_MBAG)
 
+#define as_map(v)   ((Map *)as_obj(v))
+#define as_bag(v)   as_map(v)
+#define as_mbag(v)  as_map(v)
+
 typedef struct Node {
    struct {
       Value key;
@@ -299,7 +308,6 @@ typedef struct Map {
    Ubyte lsize;
    Node *node;
 } Map;
-
 
 /* ##Representation of an Array object
  *
@@ -319,6 +327,11 @@ typedef struct Map {
 #define is_set(v)     o_check_vartype(v, O_TYPEV_SET)
 #define is_mset(v)    o_check_vartype(v, O_TYPEV_MSET)
 
+#define as_array(v)  ((Array *)as_obj(v))
+#define as_list(v)   as_array(v)
+#define as_set(v)    as_array(v)
+#define as_mset(v)   as_array(v)
+
 typedef struct Array {
    Header obj;
    size_t size;
@@ -332,13 +345,16 @@ typedef struct Array {
  * are probably useless, e.g Upval.
  *
  * #name: The class' name.
- * #methods: A map for the class' methods.
+ * #methods: Points to map for the class' methods. A value to a key here is a
+ * pointer to a Closure but can later on change to an Array so as to cache
+ * super methods, the cache can never be invalidate since we do not have the
+ * luxery of changing inheritance relationships at runtime.
  *
  * A C class is a class whose implemention is done in foreign languages
  * like C or C++, it is similar to full userdata in Lua lang.
  *
- * #in: A union which defines data depending on the object variant, here we
- * have 2 variants which defines Roles and Cclasses
+ * #in: A union which defines data depending on the object variant, here the
+ * object Class defines 2 variants which are Roles and Cclasses.
  *
  *  For a Cclass we have in #c:
  *
@@ -348,32 +364,35 @@ typedef struct Array {
  *  For a Ma class or Role we have in #ma:
  *
  *   #c3: List of classes obtained after c3 linearization was applied.
- *   #fields: Pointer to an array of values, each index corresponds to a
- *   field and values in the array holds fields' defaults.
- *   #roles: Keeps the list of roles our class ":does".
+ *   #fields: Pointer to an array of values, indexes correspond to fields
+ *   with values holding their defaults.
+ *   #roles: Keeps the list of roles the class ":does".
  *   #supers: Keeps the list of directly inherited superclasses.
  *
- * #roles and #supers exist mainly for class/object introspection. At class
- * creation, all necessary resolutions and bindings are done at once so that at
- * the level of the VM classes have direct access to roles' fields and
- * methods they ":does" and inherited methods from superclasses they ":is".
+ * #supers exist mainly for class/object introspection since #c3 handles
+ * super calls.
  */
 
 /*
- * Cclass-A special way of extending Maat code with C/C++, here
- * we store references to C/C++ functions as methods and structs
- * as attributes.
+ * Cclass-A special way of extending Maat code with C/C++, here we store
+ * references to C/C++ functions as methods and structs as attributes.
  */
-#define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 1)
-#define O_TYPEV_ROLE    vary(O_TYPE_CLASS, 2)
+#define O_TYPEV_ROLE    vary(O_TYPE_CLASS, 1)
+#define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 2)
 
-#define is_class(v)   o_check_vartype(v, O_TYPE_CLASS)
-#define is_cclass(v)  o_check_vartype(v, O_TYPEV_CCLASS)
+#define is_class(v)   o_check_type(v, O_TYPE_CLASS)
+#define iss_class(v)  o_check_vartype(v, O_TYPE_CLASS)
 #define is_role(v)    o_check_vartype(v, O_TYPEV_ROLE)
+#define is_cclass(v)  o_check_vartype(v, O_TYPEV_CCLASS)
+
+#define as_class(v)   ((Class *)as_obj(v))
+#define as_role(v)    as_class(v)
+#define as_cclass(v)  as_class(v)
 
 typedef struct Class {
    Header obj;
    Str *name;
+   Map *methods;
    union {
       struct {
          Value *fields;
@@ -386,7 +405,6 @@ typedef struct Class {
          size_t size;
       } c;
    } in;
-   Map *methods;
 } Class;
 
 /*
@@ -395,12 +413,19 @@ typedef struct Class {
  * #fields: A pointer to a to be allocated array of type "Value", each
  * field has a unique id which corresponds to an index in #fields. This
  * also holds inherited fields.
+ * #call_level: Keeps track of the level of super calls for each method called
+ * on the instance, it is 'NULL' if none of the methods of the instance's class
+ * do super calls i.e self.SUPER::<method_name>(...). Where SUPER is a
+ * a pseudo-class that resolves to the next class in the instance's class c3
+ * list.
  */
 #define is_instance(v)  o_check_type(v, O_TYPE_INSTANCE)
+#define as_instance(v)  ((Instance *)as_obj(v))
 
 typedef struct Instance {
    Header obj;
    Value *fields;
+   Map *call_level;
 } Instance;
 
 /*
@@ -424,6 +449,7 @@ typedef struct Instance {
  * #exports: Values for keys of to be exported "our" variables.
  */
 #define is_ns(v)  o_check_type(v, O_TYPE_NS)
+#define as_ns(v)  ((Namespace *)as_obj(v))
 
 typedef struct Namespace {
    Header obj;
@@ -434,23 +460,24 @@ typedef struct Namespace {
 } Namespace;
 
 /*
- * ##Struct a user function written in Maat.
+ * ##Struct of a Maat function.
  *
- * #ns: The function's namespace, it's mainly used for instrospection.
- * #code: Its bytecode.
- * #constants: The function's contant values.
  * #arity: The number of arguments the function takes.
  * #up_count: Number of upvals the function has.
+ * #code: Its bytecode.
+ * #constants: The function's contant values.
+ * #ns: The function's namespace, it's mainly used for instrospection.
  */
 #define is_fun(v)  o_check_type(v, O_TYPE_FUN)
+#define as_fun(v)  ((Fun *)as_obj(v))
 
 typedef struct Fun {
    Header obj;
+   int up_count;
+   int arity;
    CodeBuf code;
    ValueBuf constants;
    Namespace *ns;
-   int up_count;
-   int arity;
 } Fun;
 
 /*
@@ -466,6 +493,10 @@ typedef struct Fun {
  * #state: A pointer to the #next open upvalue when this one is still open
  * otherwise it'll contain the register vm value #p pointed to.
  */
+
+/* #define close_upval(u, v)  u->state.val = v; copy_val(u->state.val, v) */
+/* #define next_upval(u)      (u->state.next) */
+
 typedef struct Upval {
    Header obj;
    Value *p;
@@ -484,29 +515,13 @@ typedef struct Upval {
 #define O_TYPEV_CLOSURE  vary(O_TYPE_FUN, 1)
 
 #define is_closure(v)  o_check_vartype(v, O_TYPEV_CLOSURE)
+#define as_closure(v)  ((Closure *)as_obj(v))
 
 typedef struct Closure {
    Header obj;
    Fun *fun;
    Upvalue *upvals;
 } Closure;
-
-/*
- * #cl:
- * #next: __SUPER__
- */
-
-#define O_TYPEV_METHOD  vary(O_TYPE_FUN, 2)
-
-#define is_method(v)  o_check_vartype(v, O_TYPEV_METHOD)
-#define as_method(v)  #
-#define next_meth(v)  ((as_method(v))->next)
-
-typedef struct Method {
-   Header obj;
-   Closure *cl;
-   struct Method *next;
-} Method;
 
 /*
  * #ip:
