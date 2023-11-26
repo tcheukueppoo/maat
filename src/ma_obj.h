@@ -59,7 +59,7 @@
 typedef struct {
    Ubyte type;
    union {
-      struct Header *obj;
+      struct Object *obj;
       Num n;
       CFunc f;
       void *p;
@@ -148,34 +148,51 @@ typedef uint64_t Value;
 #endif
 
 /*
- * ##Header inherited by all the below objects
+ * ##Object inherited by all the below objects
  * #type: type of the object
  * #mark: flag to mark the object during collection
  * #class: the object's class
  * #next: next obj,to keep track of all objects
  */
-typedef struct Header {
+typedef struct Object {
    Ubyte type;
    Ubyte mark;
    struct Class *class;
-   struct Header *next;
-} Header;
+   struct Object *next;
+} Object;
 
 /* Test if the value 'v' is an object of type 't' */
 #define o_check_type(v, t)  is_obj(v) && check_type(v, t)
 
 /* Defining all base objects, each object here may or not have variants */
 
-#define O_TYPE_CLASS     5   /* variant: O_TYPEV_CCLASS */
+/* O_TYPEV_CCLASS, O_TYPEV_ROLE */
+#define O_TYPE_CLASS     5
+
 #define O_TYPE_INSTANCE  6
-#define O_TYPE_STR       7   /* variants: O_TYPEV_SHTSTR, O_TYPEV_LNGSTR */
+
+/* O_TYPEV_SHTSTR, O_TYPEV_LNGSTR */
+#define O_TYPE_STR       7
+
 #define O_TYPE_RANGE     8    
-#define O_TYPE_ARRAY     9   /* variants: O_TYPEV_SET, O_TYPEV_MSET, O_TYPEV_LIST */
-#define O_TYPE_MAP       10  /* variants: O_TYPEV_BAG, O_TYPEV_MBAG */
-#define O_TYPE_FUN       11  /* variant:  O_TYPEV_CLOSURE */
+
+/* O_TYPEV_SET, O_TYPEV_MSET, O_TYPEV_LIST */
+#define O_TYPE_ARRAY     9
+
+/* O_TYPEV_BAG, O_TYPEV_MBAG */
+#define O_TYPE_MAP       10
+
+/* O_TYPEV_CLOSURE */
+#define O_TYPE_FUN       11
+
 #define O_TYPE_UPVAL     12
-#define O_TYPE_MA        13  /* variants: O_TYPEV_CO, O_TYPEV_WORK */
-#define O_TYPE_RBQ       14  /* variants: O_TYPEV_CHAN, O_TYPEV_SCHEDQ */
+
+/* O_TYPEV_CO, O_TYPEV_GFUN, O_TYPEV_MA, O_TYPEV_WORK */
+#define O_TYPE_MSTATE    13
+
+/* O_TYPEV_CHAN, O_TYPEV_SCHEDQ */
+#define O_TYPE_RBQ       14
+
 #define O_TYPE_REGEX     15
 #define O_TYPE_SOCKET    16
 #define O_TYPE_PIPE      17
@@ -186,13 +203,6 @@ typedef struct Header {
 #define O_TYPE_DATE      22
 #define O_TYPE_NS        23
 #define O_TYPE_TERM      24
-
-/*
- * A special kind of type to mark objects which act as keys to maps as
- * "dead". Dead objects will be resurrected by the program if they are
- * needed before the next GC cycle.
- */
-#define O_TYPE_DEADKEY      31
 
 /* A Check macro on 'v' for each object type */
 #define is_ma(v)      o_check_type(v, O_TYPE_MA)
@@ -242,7 +252,7 @@ typedef struct Header {
 #define as_lngstr(v)  as_str(v)
 
 typedef struct Str {
-   Header obj;
+   Object obj;
    unsigned int hash;
    size_t rlen;
    size_t len;
@@ -259,7 +269,7 @@ typedef struct Str {
 #define as_range(v)  ((Range *)as_obj(v))
 
 typedef struct {
-   Header obj;
+   Object obj;
    Num x;
    Num y;
 } Range;
@@ -302,7 +312,7 @@ typedef struct Node {
 } Node;
 
 typedef struct Map {
-   Header obj;
+   Object obj;
    Value *array;
    Uint asize;
    Ubyte lsize;
@@ -316,7 +326,7 @@ typedef struct Map {
  * #capacity: The array's capacity.
  */
 
-/* Array Variants: comma-separated list of values, immutable and mutable sets */
+/* Variants: comma-separated list of values, immutable and mutable sets */
 #define O_TYPEV_LIST  vary(O_TYPE_ARRAY, 1)
 #define O_TYPEV_SET   vary(O_TYPE_ARRAY, 2)
 #define O_TYPEV_MSET  vary(O_TYPE_ARRAY, 3)
@@ -333,7 +343,7 @@ typedef struct Map {
 #define as_mset(v)   as_array(v)
 
 typedef struct Array {
-   Header obj;
+   Object obj;
    size_t size;
    size_t capacity;
    Value *array;
@@ -372,11 +382,6 @@ typedef struct Array {
  * #supers exist mainly for class/object introspection since #c3 handles
  * super calls.
  */
-
-/*
- * Cclass-A special way of extending Maat code with C/C++, here we store
- * references to C/C++ functions as methods and structs as attributes.
- */
 #define O_TYPEV_ROLE    vary(O_TYPE_CLASS, 1)
 #define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 2)
 
@@ -390,7 +395,7 @@ typedef struct Array {
 #define as_cclass(v)  as_class(v)
 
 typedef struct Class {
-   Header obj;
+   Object obj;
    Str *name;
    Map *methods;
    union {
@@ -410,10 +415,10 @@ typedef struct Class {
 /*
  * ##Instance of a class.
  *
- * #fields: A pointer to a to be allocated array of type "Value", each
- * field has a unique id which corresponds to an index in #fields. This
- * also holds inherited fields.
- * #call_level: Keeps track of the level of super calls for each method called
+ * #fields: A pointer to a to-be-allocated array of values, each field has a
+ * unique id which corresponds to an index in #fields. This also holds
+ * inherited fields.
+ * #c_level: Keeps track of the level of super calls for each method called
  * on the instance, it is 'NULL' if none of the methods of the instance's class
  * do super calls i.e self.SUPER::<method_name>(...). Where SUPER is a
  * a pseudo-class that resolves to the next class in the instance's class c3
@@ -423,19 +428,18 @@ typedef struct Class {
 #define as_instance(v)  ((Instance *)as_obj(v))
 
 typedef struct Instance {
-   Header obj;
+   Object obj;
    Value *fields;
-   Map *call_level;
+   Map *c_level;
 } Instance;
 
 /*
- * ##Represents a namespace: 
- * variables which have to be fully qualified when accessed from outside
- * itself.
+ * ##Represents a namespace, e.g FOO::BAR, a namespace contains variables that
+ * can be access from out using the FQNs, for example "FOO::BAR::meth()" calls
+ * the method "meth" in the namespace "FOO::BAR".
  *
  * #name: Namespace's name.
  * #ns_val: The namespace value, either a class, role or package.
- *
  * #ours: A map for the namespace's "our" variables. For the main::
  * namespace, #ours takes care of the following type I & II special
  * variables:
@@ -446,13 +450,13 @@ typedef struct Instance {
  * namespaces and as a result these special variables can be accessed
  * without using their FQNs.
  *
- * #exports: Values for keys of to be exported "our" variables.
+ * #exports: Names of to-be-exported symbols from the namespace when used.
  */
 #define is_ns(v)  o_check_type(v, O_TYPE_NS)
 #define as_ns(v)  ((Namespace *)as_obj(v))
 
 typedef struct Namespace {
-   Header obj;
+   Object obj;
    Str *name; 
    Map *ours;
    Value *exports;
@@ -472,7 +476,7 @@ typedef struct Namespace {
 #define as_fun(v)  ((Fun *)as_obj(v))
 
 typedef struct Fun {
-   Header obj;
+   Object obj;
    int up_count;
    int arity;
    CodeBuf code;
@@ -498,7 +502,7 @@ typedef struct Fun {
 /* #define next_upval(u)      (u->state.next) */
 
 typedef struct Upval {
-   Header obj;
+   Object obj;
    Value *p;
    union {
       struct Upval *next;
@@ -518,30 +522,26 @@ typedef struct Upval {
 #define as_closure(v)  ((Closure *)as_obj(v))
 
 typedef struct Closure {
-   Header obj;
+   Object obj;
    Fun *fun;
    Upvalue *upvals;
 } Closure;
 
 /*
- * #ip:
- *
- * #temps: For temporarization(Maat's "temp" keyword) of package variables. It
- * is a map with keys corresponding to scope level counts since multiple scopes
- * can temporarize a same package variable, we are using a map because the
- * Array type has an initial capacity which is wastful in this scenario while the
- * Map uses its array part when necessary then optimizes into a real map when
- * scope indexes are sparsed. $temps takes care of the following special
- * variables:
- *   $<digit>(e.g $1, $2, $3, etc), $., $`, $&, and $'
- *
- * It is internally implemented c codes that have to appropiately set these
- * variables in $temps for usage e.g the Regex's method ".gmatch".
  */
-
-typedef struct CallFrame {
-   uint8_t *ip;
-   Map *temps;
-} CallFrame;
+union Ounion {
+   Object obj;
+   struct Str str;
+   struct Array ar;
+   struct Map map;
+   struct Fun fun;
+   struct Closure clo;
+   struct Upval uv;
+   struct Class cls;
+   struct Instance ins;
+   struct MState ms;
+   struct Rbq rbq;
+   struct Namespace ns;
+} Ounion;
 
 #endif
