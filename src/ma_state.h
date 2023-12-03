@@ -32,58 +32,63 @@ typedef struct CallFrame {
 } CallFrame;
 
 /*
- * ##An Mstate simple represent a thread of execution,
- * Maatines(VM-level threads), Coroutines, and generator functions all inherit
- * an MState.
- *
- * #
+ * ##A coroutine
+ * #callstack: Coroutine's callstack
+ * #cs_cap: Coroutine's callstack capacity.
+ * #cs_size: Coroutine's callstack size.
+ * #ma: The maatine to who this coroutine belongs.
+ * #stack: Coroutine's stack.
+ * #stop: The stack's top.
+ * #upvals: Coroutine's list of upvals.
+ * #cc: The Caller coroutine.
  */
-typedef struct MState {
-   Header obj;
+typedef struct Co {
+   Object obj;
+   UByte state;
    CallFrame *callstack;
    size_t cs_cap;
    size_t cs_size;
    Upval *upvals;
    Value *stack;
-   Value *stack_top;
-} MState;
+   Value *top;
+   Ma *ma;
+   struct Co *cc;
+} Co;
 
 /*
- * ##VM-level thread, kind-of a context executed by an OS-level thread
+ * ##A maatine is a VM-level thread, 
  * #state: Current state of the Maatine
- * #allobj: List of all allocated object in the current Maatine
- * #is_work: Is maatine running as a Work?
- * #num_temps: Number of temporary roots.
- * #
+ * #ntemps: Number of temporary roots.
+ * #co: The main Coroutine bounded to this Maatine(VM thread), it does not yield
+ * control back to any other coroutine and
+ * #gco: list of all collectable object, it is called the nursery in gen mode.
+ * #mm: Pointer to the main maatine
  */
 typedef struct Ma {
    Object obj;
-   MState *mstate;
+   Co co[1];
    UByte state;
    struct Work *work;
    struct MVM *instance;
-   Object *gray;
-   Object *gcount;
-   Object *allobj;
+   Int ntemps;
    Object *temproots;
-   Int num_temps;
-} Ma;
+   Object *gco;
+   Object *nursery2;
+   Object *old;
+   Object *old2;
+   Object *gray;
+   Object *gray2;
+   Object *fin_nur2;
+   Object *fin_old;
+   Object *fin_old2;
 
-/*
- * ##A coroutine, it is a blocking VM-level thread that runs on top of a Maatine
- */
-typedef struct Co {
-   Object obj;
-   UByte state;
-   MState *mstate;
-   Ma *ma;
-   struct Co *caller;
-} Co;
+   Ma *mm;
+} Ma;
 
 typedef struct Work {
    Object obj;
    UByte state;
-   Closure *then;
+   Closure *thens;
    Closure *catch;
 } Work;
 

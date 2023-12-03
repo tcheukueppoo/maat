@@ -148,11 +148,12 @@ typedef uint64_t Value;
 #endif
 
 /*
- * ##Object inherited by all the below objects
- * #type: type of the object
- * #mark: flag to mark the object during collection
- * #class: the object's class
- * #next: next obj,to keep track of all objects
+ * ##Object-struct inherited by all the below objects.
+ *
+ * #type: Type of the object.
+ * #mark: Flag to mark the object during collection.
+ * #class: The object's class.
+ * #next: Next obj, to keep track of all objects.
  */
 typedef struct Object {
    Ubyte type;
@@ -164,7 +165,7 @@ typedef struct Object {
 /* Test if the value 'v' is an object of type 't' */
 #define o_check_type(v, t)  is_obj(v) && check_type(v, t)
 
-/* Defining all base objects, each object here may or not have variants */
+/* Here are base objects, some do have variants */
 
 /* O_TYPEV_CCLASS, O_TYPEV_ROLE */
 #define O_TYPE_CLASS     5
@@ -232,14 +233,12 @@ typedef struct Object {
 #define is_schedq(v)  o_check_type(v, O_TYPEV_SCHEDQ)
 
 /*
- * ##String object, represents both short and long strings
- *
- * #str: utf-8 encoded string itself
- * #hash: hash value of $str
- * #rlen: real length of $str
- * #len: user-percieved length of $str
+ * ##String object.
+ * #str: The UTF-8 encoded string itself.
+ * #hash: Hash value of $str.
+ * #rlen: Real length of $str.
+ * #len: User-percieved length of $str.
  */
-
 #define O_TYPEV_SHTSTR  vary(O_TYPE_STR, 1)
 #define O_TYPEV_LNGSTR  vary(O_TYPE_STR, 2)
 
@@ -261,7 +260,6 @@ typedef struct Str {
 
 /*
  * ##Range object [x..y] (inclusive).
- *
  * #x: The start and.
  * #y: The end.
  */
@@ -350,78 +348,83 @@ typedef struct Array {
 } Array;
 
 /*
- * ##Representation of a class, every collectable object has a class, even
- * the class itself. The Class of objects which aren't first class values
- * are probably useless, e.g Upval.
+ * ##Representation of a class, every collectable object has a
+ * class, even the class itself. The Class of objects which
+ * aren't first class values are probably useless, e.g Upval.
  *
  * #name: The class' name.
- * #methods: Points to map for the class' methods. A value to a key here is a
- * pointer to a Closure but can later on change to an Array so as to cache
- * super methods, the cache can never be invalidate since we do not have the
- * luxery of changing inheritance relationships at runtime.
+ * #methods: Pointer to a map for the class' methods. A value to
+ * a key here is a pointer to a Closure but can later on change
+ * to an Array of closures so as to cache super methods, the
+ * cache can never be invalidate since c3 linearization is done
+ * at compile time.
  *
- * A C class is a class whose implemention is done in foreign languages
- * like C or C++, it is similar to full userdata in Lua lang.
+ * A C class is a class whose implemention is done in foreign
+ * languages like C or C++, it is similar to full userdata in Lua.
  *
- * #in: A union which defines data depending on the object variant, here the
- * object Class defines 2 variants which are Roles and Cclasses.
+ * variant, here the object Class defines 2 variants which are
+ * Roles and Cclasses.
  *
- *  For a Cclass we have in #c:
+ * For a Maat class and a Role we have the following fields:
+ *  #c3: List of classes got after c3 linearization was applied.
+ *  #fields: Pointer to an array of values, indexes correspond
+ *  to fields with values holding their defaults.
+ *  #roles: Keeps the list of roles that this lass ":does".
+ *  #sups: Keeps the list of directly inherited superclasses.
+ *  #sups exist mainly for introspection since #c3 handles super
+ *  calls.
  *
- *   #cdata: Pointer to the raw memory.
- *   #size: Size of the memory pointed by #cdata.
- *
- *  For a Ma class or Role we have in #ma:
- *
- *   #c3: List of classes obtained after c3 linearization was applied.
- *   #fields: Pointer to an array of values, indexes correspond to fields
- *   with values holding their defaults.
- *   #roles: Keeps the list of roles the class ":does".
- *   #supers: Keeps the list of directly inherited superclasses.
- *
- * #supers exist mainly for class/object introspection since #c3 handles
- * super calls.
+ * And for a Cclass we have:
+ *  #cdata: A pointer to the raw memory.
+ *  #size: The size of the memory pointed by #cdata.
  */
-#define O_TYPEV_ROLE    vary(O_TYPE_CLASS, 1)
-#define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 2)
+#define O_TYPEV_ROLE  vary(O_TYPE_CLASS, 1)
 
-#define is_class(v)   o_check_type(v, O_TYPE_CLASS)
 #define iss_class(v)  o_check_vartype(v, O_TYPE_CLASS)
+#define is_class(v)   o_check_type(v, O_TYPE_CLASS)
 #define is_role(v)    o_check_vartype(v, O_TYPEV_ROLE)
-#define is_cclass(v)  o_check_vartype(v, O_TYPEV_CCLASS)
 
-#define as_class(v)   ((Class *)as_obj(v))
-#define as_role(v)    as_class(v)
-#define as_cclass(v)  as_class(v)
+#define as_class(v)  ((Class *)as_obj(v))
+#define as_role(v)   as_class(v)
 
 typedef struct Class {
    Object obj;
    Str *name;
+   Value *fields;
+   struct Class *roles;
+   struct Class *sups;
+   struct Class *c3;
    Map *methods;
-   union {
-      struct {
-         Value *fields;
-         struct Class *roles;
-         struct Class *supers;
-         struct Class *c3;
-      } ma;
-      struct {
-         Value cdata;
-         size_t size;
-      } c;
-   } in;
 } Class;
+
+#define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 2)
+
+#define is_cclass(v)  o_check_vartype(v, O_TYPEV_CCLASS)
+#define as_cclass(v)  ((Cclass *)as_obj(v))
+
+typedef struct Cclass {
+   Object obj;
+   Str *name;
+   Value cdata;
+   size_t size;
+   Map *methods;
+} Cclass;
 
 /*
  * ##Instance of a class.
  *
- * #fields: A pointer to a to-be-allocated array of values, each field has a
- * unique id which corresponds to an index in #fields. This also holds
- * inherited fields.
- * #c_level: Keeps track of the level of super calls for each method called
- * on the instance, it is 'NULL' if none of the methods of the instance's class
- * do super calls i.e self.SUPER::<method_name>(...). Where SUPER is a
- * a pseudo-class that resolves to the next class in the instance's class c3
+ * #fields: A pointer to a to-be-allocated array of values, each
+ * field has a unique id which corresponds to an index in #fields.
+ * This also holds inherited fields too.
+ *
+ * #s_level: Keeps track of the level of super calls for each
+ * method called on the instance, in otherwords it is a list 
+ * of indexes to super methods cached at the level of this
+ * instance's class, it is set 'NULL' if none of the methods
+ * of this instance's class does a super call.
+ *
+ * "self.SUPER::<method_name>(...)" Where SUPER is a pseudo-class
+ * that resolves to the next class in the instance's class c3
  * list.
  */
 #define is_instance(v)  o_check_type(v, O_TYPE_INSTANCE)
@@ -430,27 +433,41 @@ typedef struct Class {
 typedef struct Instance {
    Object obj;
    Value *fields;
-   Map *c_level;
+   Map *s_level;
 } Instance;
 
 /*
- * ##Represents a namespace, e.g FOO::BAR, a namespace contains variables that
- * can be access from out using the FQNs, for example "FOO::BAR::meth()" calls
- * the method "meth" in the namespace "FOO::BAR".
+ * ##Represents a namespace e.g FOO::BAR. A namespace can either
+ * be represented as a package, role or (c)class.
+ * "FOO::BAR::x()" is a call to the function "x" in "FOO::BAR"
+ * if ever there is.
  *
  * #name: Namespace's name.
- * #ns_val: The namespace value, either a class, role or package.
- * #ours: A map for the namespace's "our" variables. For the main::
- * namespace, #ours takes care of the following type I & II special
- * variables:
- *      ENV, ARGC, ARGV, INC, PATH, SIG, DATA, $v, $o, $,, $/, $\
- *      $|, $", $$, $(, $), $<, $>, $f, and $0.
+ * #ours_const: Constant globals of the #ns_val (thread-safe)
+ * #ours: Stores writeable globals (not thread-safe, use mutex?)
  *
- * The "main::" namespace define with package{} is "use"d by all the other
- * namespaces and as a result these special variables can be accessed
- * without using their FQNs.
+ * #ours of the package "main::" takes care of the following
+ * type I & II special variables:
  *
- * #exports: Names of to-be-exported symbols from the namespace when used.
+ *   ENV, ARGC, ARGV, INC, PATH, SIG, DATA, $v, $o, $,, $/, $\
+ *   $|, $", $$, $(, $), $<, $>, $f, and $0.
+ *
+ * Access to one these variables from another package most not
+ * necessarily be done using its fully qualified form unless a
+ * variables of the same name declared in a scope shields it.
+ *
+ * #exports: Names of to-be-exported globals when used by another
+ * package.
+ *
+ * NB:
+ * - The argument to the "use" statement never translates to a
+ *   namespace.
+ * - Not all classes or roles are namespaces, some can be
+ *   lexically scoped and thus can never be fully qualified.
+ * - For consistency, you cannot nest namespaces as they don't
+ *   really have an identity.
+ * 
+ * #ns_val: The namespace value, a package/class/role.
  */
 #define is_ns(v)  o_check_type(v, O_TYPE_NS)
 #define as_ns(v)  ((Namespace *)as_obj(v))
@@ -459,6 +476,7 @@ typedef struct Namespace {
    Object obj;
    Str *name; 
    Map *ours;
+   Map *const_ours;
    Value *exports;
    Value ns_val;
 } Namespace;
@@ -470,7 +488,7 @@ typedef struct Namespace {
  * #up_count: Number of upvals the function has.
  * #code: Its bytecode.
  * #constants: The function's contant values.
- * #ns: The function's namespace, it's mainly used for instrospection.
+ * #ns: The function's namespace.
  */
 #define is_fun(v)  o_check_type(v, O_TYPE_FUN)
 #define as_fun(v)  ((Fun *)as_obj(v))
@@ -485,22 +503,21 @@ typedef struct Fun {
 } Fun;
 
 /*
- * ##A function that keeps track of its upvalues is called a closure, upvalues
- * initially are lexically scoped variables living in vm's registers, they
- * were supposed to stop existing when the program goes out of their scopes
- * of definition but since some functions need them, these lexicals are kept
- * as upvalues.
+ * ##A function that keeps track of its upvalues is called a
+ * closure, upvalues initially are lexically scoped variables
+ * living in vm's registers, they were supposed to stop existing
+ * when the program goes out of their scopes of definition but
+ * since some functions need them, these lexicals are kept as
+ * upvalues.
  *
- * #p: Pointer to upvalue, when an upvalue is opened, it points to a value
- * in a vm register but when closed, it points to #state.
+ * #p: Pointer to upvalue, when an upvalue is opened, it points
+ * to a value in a vm register but when closed, it points to
+ * #state.
  *
- * #state: A pointer to the #next open upvalue when this one is still open
- * otherwise it'll contain the register vm value #p pointed to.
+ * #state: A pointer to the #next open upvalue when this one is
+ * still open otherwise it'll contain the register vm value #p
+ * pointed to.
  */
-
-/* #define close_upval(u, v)  u->state.val = v; copy_val(u->state.val, v) */
-/* #define next_upval(u)      (u->state.next) */
-
 typedef struct Upval {
    Object obj;
    Value *p;
@@ -510,8 +527,8 @@ typedef struct Upval {
    } state;
 } Upval;
 
-/* ##A closure is a variant of a function which keep tracks of its upvalues.
- * That is why it is called a closure.
+/* ##A closure is a variant of a function which keep tracks of
+ * its upvalues.
  *
  * #fun: The closure's function.
  * #upvals: The List of upvalues the function has.
@@ -527,8 +544,7 @@ typedef struct Closure {
    Upvalue *upvals;
 } Closure;
 
-/*
- */
+/* ##Union of all collectable objects used for conversion. */
 union Ounion {
    Object obj;
    struct Str str;
@@ -538,10 +554,39 @@ union Ounion {
    struct Closure clo;
    struct Upval uv;
    struct Class cls;
+   struct Cclass ccls;
    struct Instance ins;
-   struct MState ms;
+   struct Co co;
+   struct Ma ma;
+   struct Work wk;
    struct Rbq rbq;
    struct Namespace ns;
+   struct MVM mvm;
 } Ounion;
+
+#define ounion_of(o)  ((Ounion *)o)
+
+/*
+ * ISO C99 says that a pointer to a union object, suitably
+ * converted, points to each of its members, and vice versa.
+ */
+#define o2str(o)   (ma_assert(check_type(v, O_TYPE_STR)), &(ounion_of(o)->str))
+#define o2ar(o)    (ma_assert(check_vartype(v, O_TYPE_ARRAY)), &(ounion_of(o)->ar))
+#define o2map(o)   (ma_assert(check_vartype(v, O_TYPE_MAP)), &(ounion_of(o)->map))
+#define o2fun(o)   (ma_assert(check_vartype(v, O_TYPE_FUN)), &(ounion_of(o)->fun))
+#define o2clo(o)   (ma_assert(check_vartype(v, O_TYPEV_CLOSURE)), &(ounion_of(o)->clo))
+#define o2uv(o)    (ma_assert(check_vartype(v, O_TYPE_UV)), &(ounion_of(o)->uv))
+#define o2cls(o)   (ma_assert(check_type(v, O_TYPE_CLASS)), &(ounion_of(o)->cls))
+#define o2ccls(o)  (ma_assert(check_vartype(v, O_TYPEV_CLASS)), &(ounion_of(o)->ccls))
+#define o2ins(o)   (ma_assert(check_type(v, O_TYPE_INSTANCE)), &(ounion_of(o)->ins))
+#define o2co(o)    (ma_assert(check_vartype(v, O_TYPE_CO)), &(ounion_of(o)->co))
+#define o2ma(o)    (ma_assert(check_vartype(v, O_TYPE_MA)), &(ounion_of(o)->ma))
+#define o2wk(o)    (ma_assert(check_vartype(v, O_TYPE_WORK)), &(ounion_of(o)->wk))
+#define o2rbq(o)   (ma_assert(check_vartype(v, O_TYPE_RBQ)), &(ounion_of(o)->rbq))
+#define o2ns(o)    (ma_assert(check_vartype(v, O_TYPE_NS)), &(ounion_of(o)->ns))
+#define o2mvm(o)   (ma_assert(check_type(v, O_TYPE_MVM)), &(ounion_of(o)->mvm))
+
+/* The other way around */
+#define xo2o(v)  (ma_assert(is_obj(v)), &(ounion_of(o)->obj))
 
 #endif
