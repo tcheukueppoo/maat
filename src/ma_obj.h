@@ -51,7 +51,7 @@
  *   gives us a maximum of 32 objects which suffices.
  *
  * - Bits 5-6:
- *   To represent variants of certain (O_)?TYPE_.* types. You can
+ *   To represent variants of certain (O_)?.* types. You can
  *   have at most 3 variants for each base type which suffices.
  *
  * - Bit 7: Mark bit: if 1 then #val is an object, 0 otherwise.
@@ -68,73 +68,73 @@ typedef struct {
 
 #define set_type(v, t)       ((v)->type = t)
 #define set_val(v, _val, t)  set_type(v, t); ((v)->val = _val);
-#define set_valo(v, o)       set_val(v, o, (o)->type)
+#define set_obj(v, o)        set_val(v, o, (o)->type)
 
 /*
- * For objects, copy by reference 'v2' into 'v1' while for other type
- * of values like numbers, booleans, and function/void pointers, do a
- * copy by value.
+ * For objects, copy by reference 'v2' into 'v1' while for non-objects
+ * like numbers, booleans, and pointers, do a copy by value.
  */
 #define copy(v1, v2)  set_val(v1, v2->val, v2->type)
 
 /*
- * Defines all the possible standard types of a value, V_TYPE_OBJ is
- * also a value. A value 'v' is an object if the MSB of its #type is 1.
+ * Defines all the possible standard types of a value, V_OBJ is
+ * also one of them. A value 'v' is an object if the MSB of its
+ * #type is 1.
  */
-#define V_TYPE_NIL    0
-#define V_TYPE_BOOL   1
-#define V_TYPE_NUM    2
-#define V_TYPE_CFUNC  3
-#define V_TYPE_CDATA  4
+#define V_NIL    0
+#define V_BOOL   1
+#define V_NUM    2
+#define V_CFUNC  3
+#define V_CDATA  4
 
 #define OBJ_BIT  (0b1 << 7)
 
 #define is_obj(v)    ((v) & OBJ_BIT)
-#define is_num(v)    check_type(v, V_TYPE_NUM)
-#define is_nil(v)    check_type(v, V_TYPE_NIL)
-#define is_bool(v)   check_type(v, V_TYPE_BOOL)
-#define is_cfunc(v)  check_type(v, V_TYPE_CFUNC)
-#define is_cdata(v)  check_type(v, V_TYPE_CDATA)
+#define is_num(v)    check_type(v, V_NUM)
+#define is_nil(v)    check_type(v, V_NIL)
+#define is_bool(v)   check_type(v, V_BOOL)
+#define is_cfunc(v)  check_type(v, V_CFUNC)
+#define is_cdata(v)  check_type(v, V_CDATA)
 
-/* Check if value 'v' is collectable */
+/* Checks if value 'v' is collectable */
 #define is_ctb(v)  is_obj(v)
 
-#define as_bool(v)   (is_true(v))
-#define as_num(v)    ((v)->val.n)
-#define as_obj(v)    ((v)->val.obj)
-#define as_cfunc(v)  ((v)->val.f)
-#define as_cdata(v)  ((v)->val.cdata)
+#define as_bool(v)   (ma_assert(is_bool(v)), (is_true(v)))
+#define as_num(v)    (ma_assert(is_num(v)), ((v)->val.n))
+#define as_obj(v)    (ma_assert(is_obj(v)), ((v)->val.obj))
+#define as_cfunc(v)  (ma_assert(is_cfunc(v)), ((v)->val.f))
+#define as_cdata(v)  (ma_assert(is_cdata(v)), ((v)->val.cdata))
 
 /*
  * Define variants of the 'nil' type and its singleton values.
  *
- * V_TYPEV_FREE: This nil variant differentiates a key whose
+ * V_VFREE: This nil variant differentiates a key whose
  * corresponding value is a user-perceived 'nil' from a free
  * position in a map.
  *
- * V_TYPEV_ABSKEY: When indexing a table and key isn't found,
- * return a dummy value of type V_TYPEV_ABSKEY.
+ * V_VABSKEY: When indexing a table and key isn't found,
+ * return a dummy value of type V_VABSKEY.
  */
-#define V_TYPEV_FREE    vary(V_TYPE_NIL, 1)
-#define V_TYPEV_ABSKEY  vary(V_TYPE_NIL, 2)
+#define V_VFREE    vary(V_NIL, 1)
+#define V_VABSKEY  vary(V_NIL, 2)
 
-#define FREE    (Value){ V_TYPEV_FREE,   { 0 } }
-#define ABSKEY  (Value){ V_TYPEV_ABSKEY, { 0 } }
+#define FREE    (Value){ V_VFREE,   { 0 } }
+#define ABSKEY  (Value){ V_VABSKEY, { 0 } }
 
-#define is_strict_nil(v)  check_vartype(v, V_TYPE_NIL)
-#define is_free(v)        check_vartype(v, V_TYPEV_NILKEY)
-#define is_abskey(v)      check_vartype(v, V_TYPEV_ABSKEY)
+#define is_strict_nil(v)  check_vartype(v, V_NIL)
+#define is_free(v)        check_vartype(v, V_VNILKEY)
+#define is_abskey(v)      check_vartype(v, V_VABSKEY)
 
 /* Define boolean type variants with its singleton values */
-#define V_TYPEV_TRUE   vary(V_TYPE_BOOL,1)
-#define V_TYPEV_FALSE  vary(V_TYPE_BOOL,2)
+#define V_VTRUE   vary(V_BOOL,1)
+#define V_VFALSE  vary(V_BOOL,2)
 
-#define BOOL   (Value){ V_TYPE_BOOL,   { 0 } }
-#define TRUE   (Value){ V_TYPEV_TRUE,  { 0 } }
-#define FALSE  (Value){ V_TYPEV_FALSE, { 0 } }
+#define BOOL   (Value){ V_BOOL,   { 0 } }
+#define TRUE   (Value){ V_VTRUE,  { 0 } }
+#define FALSE  (Value){ V_VFALSE, { 0 } }
 
-#define is_false(v)  check_vartype(to_bool(v), V_TYPEV_FALSE)
-#define is_true(v)   check_vartype(to_bool(v), V_TYPEV_TRUE)
+#define is_false(v)  check_vartype(to_bool(v), V_VFALSE)
+#define is_true(v)   check_vartype(to_bool(v), V_VTRUE)
 
 #define to_bool(v)  (ma_likely(is_bool(v)) ? v : coerce_to_bool(v))
 
@@ -167,70 +167,69 @@ typedef struct Object {
 
 /* Here are base objects, some do have variants */
 
-/* O_TYPEV_CCLASS, O_TYPEV_ROLE */
-#define O_TYPE_CLASS     5
+/* O_VCCLASS, O_VROLE */
+#define O_CLASS     5
 
-#define O_TYPE_INSTANCE  6
+#define O_INSTANCE  6
 
-/* O_TYPEV_SHTSTR, O_TYPEV_LNGSTR */
-#define O_TYPE_STR       7
+/* O_VSHTSTR, O_VLNGSTR */
+#define O_STR       7
 
-#define O_TYPE_RANGE     8    
+#define O_RANGE     8    
 
-/* O_TYPEV_SET, O_TYPEV_MSET, O_TYPEV_LIST */
-#define O_TYPE_ARRAY     9
+/* O_VSET, O_VMSET, O_VLIST */
+#define O_ARRAY     9
 
-/* O_TYPEV_BAG, O_TYPEV_MBAG */
-#define O_TYPE_MAP       10
+/* O_VBAG, O_VMBAG */
+#define O_MAP       10
 
-/* O_TYPEV_CLOSURE */
-#define O_TYPE_FUN       11
+/* O_VCHAN, O_VSCHEDQ */
+#define O_RBQ       11
 
-#define O_TYPE_UPVAL     12
+/* O_VCLOSURE */
+#define O_FUN       12
 
-/* O_TYPEV_CO, O_TYPEV_GFUN, O_TYPEV_MA, O_TYPEV_WORK */
-#define O_TYPE_MSTATE    13
+#define O_UPVAL     13
 
-/* O_TYPEV_CHAN, O_TYPEV_SCHEDQ */
-#define O_TYPE_RBQ       14
+/* O_VGFUN, O_VMCO */
+#define O_CO        14
 
-#define O_TYPE_REGEX     15
-#define O_TYPE_SOCKET    16
-#define O_TYPE_PIPE      17
-#define O_TYPE_FILE      18
-#define O_TYPE_DIR       19
-#define O_TYPE_PROC      20
-#define O_TYPE_SYS       21
-#define O_TYPE_DATE      22
-#define O_TYPE_NS        23
-#define O_TYPE_TERM      24
+#define O_MA        15
+#define O_WORK      16
+
+#define O_REGEX     17
+#define O_SOCKET    18
+#define O_PIPE      19
+#define O_FILE      20
+#define O_DIR       21
+#define O_PROC      22
+#define O_SYS       23
+#define O_DATE      24
+#define O_NS        25
+#define O_TERM      26
 
 /* A Check macro on 'v' for each object type */
-#define is_ma(v)      o_check_type(v, O_TYPE_MA)
-#define is_rbq(v)     o_check_type(v, O_TYPE_RBQ)
-#define is_regex(v)   o_check_type(v, O_TYPE_REGEX)
-#define is_socket(v)  o_check_type(v, O_TYPE_SOCKET)
-#define is_pipe(v)    o_check_type(v, O_TYPE_PIPE)
-#define is_file(v)    o_check_type(v, O_TYPE_FILE)
-#define is_dir(v)     o_check_type(v, O_TYPE_DIR)
-#define is_proc(v)    o_check_type(v, O_TYPE_PROC)
-#define is_date(v)    o_check_type(v, O_TYPE_DATE)
-#define is_term(v)    o_check_type(v, O_TYPE_TERM) /* See term.h */
+#define is_ma(v)      o_check_type(v, O_MA)
+#define is_rbq(v)     o_check_type(v, O_RBQ)
+#define is_regex(v)   o_check_type(v, O_REGEX)
+#define is_socket(v)  o_check_type(v, O_SOCKET)
+#define is_pipe(v)    o_check_type(v, O_PIPE)
+#define is_file(v)    o_check_type(v, O_FILE)
+#define is_dir(v)     o_check_type(v, O_DIR)
+#define is_proc(v)    o_check_type(v, O_PROC)
+#define is_date(v)    o_check_type(v, O_DATE)
+#define is_term(v)    o_check_type(v, O_TERM) /* See term.h */
 
 /* Test if the value 'v' is an object variant of variant type 't' */
 #define o_check_vartype(v,t)  is_obj(v) && check_vartype(v,t)
 
 
-/* Two other concurrency models: Coroutine, Work */
-#define O_TYPEV_CO    vary(O_TYPE_CMA, 1)
-#define O_TYPEV_WORK  vary(O_TYPE_CMA, 2)
-
 /* A threadsafe Channel and Scheduler queue */
-#define O_TYPEV_CHAN    vary(O_TYPE_RBQ, 1)
-#define O_TYPEV_SCHEDQ  vary(O_TYPE_RBQ, 2)
+#define O_VCHAN    vary(O_RBQ, 1)
+#define O_VSCHEDQ  vary(O_RBQ, 2)
 
-#define is_chan(v)    o_check_type(v, O_TYPEV_CHAN)
-#define is_schedq(v)  o_check_type(v, O_TYPEV_SCHEDQ)
+#define is_chan(v)    o_check_type(v, O_VCHAN)
+#define is_schedq(v)  o_check_type(v, O_VSCHEDQ)
 
 /*
  * ##String object.
@@ -239,14 +238,15 @@ typedef struct Object {
  * #rlen: Real length of $str.
  * #len: User-percieved length of $str.
  */
-#define O_TYPEV_SHTSTR  vary(O_TYPE_STR, 1)
-#define O_TYPEV_LNGSTR  vary(O_TYPE_STR, 2)
+#define O_VSHTSTR  vary(O_STR, 1)
+#define O_VLNGSTR  vary(O_STR, 2)
 
-#define is_str(v)     o_check_type(v, O_TYPE_STR)
-#define is_shtstr(v)  o_check_type(v, O_TYPEV_SHTSTR)
-#define is_lngstr(v)  o_check_type(v, O_TYPEV_LNGSTR)
+#define iss_str(v)    o_check_vartype(v, O_STR)
+#define is_str(v)     o_check_type(v, O_STR)
+#define is_shtstr(v)  o_check_vartype(v, O_VSHTSTR)
+#define is_lngstr(v)  o_check_vartype(v, O_VLNGSTR)
 
-#define as_str(v)     ((Str *)as_obj(v))
+#define as_str(v)     (ma_assert(is_str(v)), cast(Str *, as_obj(v)))
 #define as_shtstr(v)  as_str(v)
 #define as_lngstr(v)  as_str(v)
 
@@ -263,8 +263,8 @@ typedef struct Str {
  * #x: The start and.
  * #y: The end.
  */
-#define is_range(v)  o_check_type(v, O_TYPE_RANGE)
-#define as_range(v)  ((Range *)as_obj(v))
+#define is_range(v)  o_check_type(v, O_RANGE)
+#define as_range(v)  (ma_assert(is_range(v)), cast(Range *, as_obj(v)))
 
 typedef struct {
    Object obj;
@@ -289,15 +289,15 @@ typedef struct {
  */
 
 /* Variants of a Map: immutable and mutable bags */
-#define O_TYPEV_BAG   vary(O_TYPE_MAP, 1)
-#define O_TYPEV_MBAG  vary(O_TYPE_MAP, 2)
+#define O_VBAG   vary(O_MAP, 1)
+#define O_VMBAG  vary(O_MAP, 2)
 
-#define is_map(v)   o_check_type(v, O_TYPE_MAP)
-#define iss_map(v)  o_check_vartype(v, O_TYPE_MAP)
-#define is_bag(v)   o_check_vartype(v, O_TYPEV_BAG)
-#define is_mbag(v)  o_check_vartype(v, O_TYPEV_MBAG)
+#define iss_map(v)  o_check_vartype(v, O_MAP)
+#define is_map(v)   o_check_type(v, O_MAP)
+#define is_bag(v)   o_check_vartype(v, O_VBAG)
+#define is_mbag(v)  o_check_vartype(v, O_VMBAG)
 
-#define as_map(v)   ((Map *)as_obj(v))
+#define as_map(v)   (ma_assert(is_map(v)), cast(Map *, as_obj(v)))
 #define as_bag(v)   as_map(v)
 #define as_mbag(v)  as_map(v)
 
@@ -321,21 +321,21 @@ typedef struct Map {
  *
  * #array: The array itself.
  * #size: Its size.
- * #capacity: The array's capacity.
+ * #cap: Its capacity.
  */
 
 /* Variants: comma-separated list of values, immutable and mutable sets */
-#define O_TYPEV_LIST  vary(O_TYPE_ARRAY, 1)
-#define O_TYPEV_SET   vary(O_TYPE_ARRAY, 2)
-#define O_TYPEV_MSET  vary(O_TYPE_ARRAY, 3)
+#define O_VLIST  vary(O_ARRAY, 1)
+#define O_VSET   vary(O_ARRAY, 2)
+#define O_VMSET  vary(O_ARRAY, 3)
 
-#define is_array(v)   o_check_type(v, O_TYPE_ARRAY)
-#define iss_array(v)  o_check_vartype(v, O_TYPE_ARRAY)
-#define is_list(v)    o_check_vartype(v, O_TYPEV_LIST)
-#define is_set(v)     o_check_vartype(v, O_TYPEV_SET)
-#define is_mset(v)    o_check_vartype(v, O_TYPEV_MSET)
+#define iss_array(v)  o_check_vartype(v, O_ARRAY)
+#define is_array(v)   o_check_type(v, O_ARRAY)
+#define is_list(v)    o_check_vartype(v, O_VLIST)
+#define is_set(v)     o_check_vartype(v, O_VSET)
+#define is_mset(v)    o_check_vartype(v, O_VMSET)
 
-#define as_array(v)  ((Array *)as_obj(v))
+#define as_array(v)  (ma_assert(is_array(v)), cast(Array *, as_obj(v)))
 #define as_list(v)   as_array(v)
 #define as_set(v)    as_array(v)
 #define as_mset(v)   as_array(v)
@@ -343,7 +343,7 @@ typedef struct Map {
 typedef struct Array {
    Object obj;
    size_t size;
-   size_t capacity;
+   size_t cap;
    Value *array;
 } Array;
 
@@ -353,7 +353,7 @@ typedef struct Array {
  * aren't first class values are probably useless, e.g Upval.
  *
  * #name: The class' name.
- * #methods: Pointer to a map for the class' methods. A value to
+ * #meths: Pointer to a map for the class' methods. A value to
  * a key here is a pointer to a Closure but can later on change
  * to an Array of closures so as to cache super methods, the
  * cache can never be invalidate since c3 linearization is done
@@ -378,13 +378,13 @@ typedef struct Array {
  *  #cdata: A pointer to the raw memory.
  *  #size: The size of the memory pointed by #cdata.
  */
-#define O_TYPEV_ROLE  vary(O_TYPE_CLASS, 1)
+#define O_VROLE  vary(O_CLASS, 1)
 
-#define iss_class(v)  o_check_vartype(v, O_TYPE_CLASS)
-#define is_class(v)   o_check_type(v, O_TYPE_CLASS)
-#define is_role(v)    o_check_vartype(v, O_TYPEV_ROLE)
+#define iss_class(v)  o_check_vartype(v, O_CLASS)
+#define is_class(v)   o_check_type(v, O_CLASS)
+#define is_role(v)    o_check_vartype(v, O_VROLE)
 
-#define as_class(v)  ((Class *)as_obj(v))
+#define as_class(v)  (ma_assert(is_class(v)), cast(Class *, as_obj(v)))
 #define as_role(v)   as_class(v)
 
 typedef struct Class {
@@ -394,20 +394,20 @@ typedef struct Class {
    struct Class *roles;
    struct Class *sups;
    struct Class *c3;
-   Map *methods;
+   Map *meths;
 } Class;
 
-#define O_TYPEV_CCLASS  vary(O_TYPE_CLASS, 2)
+#define O_VCCLASS  vary(O_CLASS, 2)
 
-#define is_cclass(v)  o_check_vartype(v, O_TYPEV_CCLASS)
-#define as_cclass(v)  ((Cclass *)as_obj(v))
+#define is_cclass(v)  o_check_vartype(v, O_VCCLASS)
+#define as_cclass(v)  (ma_assert(is_class(v)), cast(Cclass *, as_obj(v)))
 
 typedef struct Cclass {
    Object obj;
    Str *name;
    Value cdata;
    size_t size;
-   Map *methods;
+   Map *meths;
 } Cclass;
 
 /*
@@ -427,8 +427,8 @@ typedef struct Cclass {
  * that resolves to the next class in the instance's class c3
  * list.
  */
-#define is_instance(v)  o_check_type(v, O_TYPE_INSTANCE)
-#define as_instance(v)  ((Instance *)as_obj(v))
+#define is_instance(v)  o_check_type(v, O_INSTANCE)
+#define as_instance(v)  (ma_assert(is_instance(v)), cast(Instance *, as_obj(v)))
 
 typedef struct Instance {
    Object obj;
@@ -446,6 +446,7 @@ typedef struct Instance {
  * #ours_const: Constant globals of the #ns_val (thread-safe)
  * #ours: Stores writeable globals (not thread-safe, use mutex?)
  *
+ * #mux: mutex to protect write access to #ours.
  * #ours of the package "main::" takes care of the following
  * type I & II special variables:
  *
@@ -469,12 +470,13 @@ typedef struct Instance {
  * 
  * #ns_val: The namespace value, a package/class/role.
  */
-#define is_ns(v)  o_check_type(v, O_TYPE_NS)
-#define as_ns(v)  ((Namespace *)as_obj(v))
+#define is_ns(v)  o_check_type(v, O_NS)
+#define as_ns(v)  (ma_assert(is_ns(v)), cast(Namespace *, as_obj(v)))
 
 typedef struct Namespace {
    Object obj;
    Str *name; 
+   Mutex *mux;
    Map *ours;
    Map *const_ours;
    Value *exports;
@@ -490,8 +492,8 @@ typedef struct Namespace {
  * #constants: The function's contant values.
  * #ns: The function's namespace.
  */
-#define is_fun(v)  o_check_type(v, O_TYPE_FUN)
-#define as_fun(v)  ((Fun *)as_obj(v))
+#define is_fun(v)  o_check_type(v, O_FUN)
+#define as_fun(v)  (ma_assert(is_fun(v)), cast(Fun *, as_obj(v)))
 
 typedef struct Fun {
    Object obj;
@@ -533,10 +535,10 @@ typedef struct Upval {
  * #fun: The closure's function.
  * #upvals: The List of upvalues the function has.
  */
-#define O_TYPEV_CLOSURE  vary(O_TYPE_FUN, 1)
+#define O_VCLOSURE  vary(O_FUN, 1)
 
-#define is_closure(v)  o_check_vartype(v, O_TYPEV_CLOSURE)
-#define as_closure(v)  ((Closure *)as_obj(v))
+#define is_closure(v)  o_check_vartype(v, O_VCLOSURE)
+#define as_closure(v)  (ma_assert(is_closure(v)), cast(Closure *, as_obj(v)))
 
 typedef struct Closure {
    Object obj;
@@ -545,6 +547,33 @@ typedef struct Closure {
 } Closure;
 
 /* ##Union of all collectable objects used for conversion. */
+
+/* Cast 'o' to a pointer to an Ounion struct */
+#define ounion_of(o)  cast(Ounion *, o)
+
+/*
+ * ISO C99 says that a pointer to a union object, suitably
+ * converted, points to each of its members, and vice versa.
+ */
+#define o2str(o)   (ma_assert(check_type(v, O_STR)), &(ounion_of(o)->str))
+#define o2ar(o)    (ma_assert(check_vartype(v, O_ARRAY)), &(ounion_of(o)->ar))
+#define o2map(o)   (ma_assert(check_vartype(v, O_MAP)), &(ounion_of(o)->map))
+#define o2fun(o)   (ma_assert(check_vartype(v, O_FUN)), &(ounion_of(o)->fun))
+#define o2clo(o)   (ma_assert(check_vartype(v, O_VCLOSURE)), &(ounion_of(o)->clo))
+#define o2uv(o)    (ma_assert(check_vartype(v, O_UV)), &(ounion_of(o)->uv))
+#define o2cls(o)   (ma_assert(check_type(v, O_CLASS)), &(ounion_of(o)->cls))
+#define o2ccls(o)  (ma_assert(check_vartype(v, O_VCLASS)), &(ounion_of(o)->ccls))
+#define o2ins(o)   (ma_assert(check_type(v, O_INSTANCE)), &(ounion_of(o)->ins))
+#define o2co(o)    (ma_assert(check_vartype(v, O_CO)), &(ounion_of(o)->co))
+#define o2ma(o)    (ma_assert(check_vartype(v, O_MA)), &(ounion_of(o)->ma))
+#define o2wk(o)    (ma_assert(check_vartype(v, O_WORK)), &(ounion_of(o)->wk))
+#define o2rbq(o)   (ma_assert(check_vartype(v, O_RBQ)), &(ounion_of(o)->rbq))
+#define o2ns(o)    (ma_assert(check_vartype(v, O_NS)), &(ounion_of(o)->ns))
+#define o2mvm(o)   (ma_assert(check_type(v, O_MVM)), &(ounion_of(o)->mvm))
+
+/* The other way around */
+#define xo2o(v)  (ma_assert(is_obj(v)), &(ounion_of(o)->obj))
+
 union Ounion {
    Object obj;
    struct Str str;
@@ -563,30 +592,5 @@ union Ounion {
    struct Namespace ns;
    struct MVM mvm;
 } Ounion;
-
-#define ounion_of(o)  ((Ounion *)o)
-
-/*
- * ISO C99 says that a pointer to a union object, suitably
- * converted, points to each of its members, and vice versa.
- */
-#define o2str(o)   (ma_assert(check_type(v, O_TYPE_STR)), &(ounion_of(o)->str))
-#define o2ar(o)    (ma_assert(check_vartype(v, O_TYPE_ARRAY)), &(ounion_of(o)->ar))
-#define o2map(o)   (ma_assert(check_vartype(v, O_TYPE_MAP)), &(ounion_of(o)->map))
-#define o2fun(o)   (ma_assert(check_vartype(v, O_TYPE_FUN)), &(ounion_of(o)->fun))
-#define o2clo(o)   (ma_assert(check_vartype(v, O_TYPEV_CLOSURE)), &(ounion_of(o)->clo))
-#define o2uv(o)    (ma_assert(check_vartype(v, O_TYPE_UV)), &(ounion_of(o)->uv))
-#define o2cls(o)   (ma_assert(check_type(v, O_TYPE_CLASS)), &(ounion_of(o)->cls))
-#define o2ccls(o)  (ma_assert(check_vartype(v, O_TYPEV_CLASS)), &(ounion_of(o)->ccls))
-#define o2ins(o)   (ma_assert(check_type(v, O_TYPE_INSTANCE)), &(ounion_of(o)->ins))
-#define o2co(o)    (ma_assert(check_vartype(v, O_TYPE_CO)), &(ounion_of(o)->co))
-#define o2ma(o)    (ma_assert(check_vartype(v, O_TYPE_MA)), &(ounion_of(o)->ma))
-#define o2wk(o)    (ma_assert(check_vartype(v, O_TYPE_WORK)), &(ounion_of(o)->wk))
-#define o2rbq(o)   (ma_assert(check_vartype(v, O_TYPE_RBQ)), &(ounion_of(o)->rbq))
-#define o2ns(o)    (ma_assert(check_vartype(v, O_TYPE_NS)), &(ounion_of(o)->ns))
-#define o2mvm(o)   (ma_assert(check_type(v, O_TYPE_MVM)), &(ounion_of(o)->mvm))
-
-/* The other way around */
-#define xo2o(v)  (ma_assert(is_obj(v)), &(ounion_of(o)->obj))
 
 #endif

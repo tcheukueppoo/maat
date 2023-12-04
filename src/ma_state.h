@@ -51,8 +51,10 @@ typedef struct Co {
    Upval *upvals;
    Value *stack;
    Value *top;
-   Ma *ma;
-   struct Co *cc;
+   union {
+      struct Ma *ma;
+      struct Co *co;
+   } cc;
 } Co;
 
 /*
