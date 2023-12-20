@@ -148,18 +148,21 @@ typedef uint64_t Value;
 #endif
 
 /*
- * ##Object-struct inherited by all the below objects.
+ * ##Object struct inherited by all the below objects.
  *
  * #type: Type of the object.
  * #mark: Flag to mark the object during collection.
  * #class: The object's class.
  * #next: Next obj, to keep track of all objects.
+ * #ns_objlist: linkedlist of namespace objects hold by
+ * namespace variables.
  */
 typedef struct Object {
    Ubyte type;
    Ubyte mark;
    struct Class *class;
    struct Object *next;
+   struct Object *ns_objlist;
 } Object;
 
 /* Test if the value 'v' is an object of type 't' */
@@ -273,19 +276,22 @@ typedef struct {
 } Range;
 
 /*
- * ##Representation of a Map(a.k.a Hash table), it has
+ * ##Representation of a Node.
  *
+ * #val: Node's value.
+ * #key: Node's key.
+ *   #_key: The key itself.
+ *   #m_key: When necessary, Maat provides locks for concurrent
+ *   access to variables not values, in the condition where a
+ *   Map stores the #ours variables of a namespace, a mutex
+ *   is allocated for each of these variables.
+ *   #next: Next node in case of collision.
+ *
+ * ##Representation of a Map
  * #lsize:
  * #array:
  * #asize:
  * #node:
- *
- * ##Representation of a node
- *
- * #val: node's value
- * #k:
- *   #key: node's key
- *   #next: next node in case of collision
  */
 
 /* Variants of a Map: immutable and mutable bags */
@@ -303,16 +309,17 @@ typedef struct {
 
 typedef struct Node {
    struct {
-      Value key;
+      Value _key;
+      Mutex *m_key;
       Int next;
-   } k;
+   } key;
    Value val;
 } Node;
 
 typedef struct Map {
    Object obj;
    Value *array;
-   Uint asize;
+   UInt asize;
    Ubyte lsize;
    Node *node;
 } Map;
@@ -320,8 +327,8 @@ typedef struct Map {
 /* ##Representation of an Array object
  *
  * #array: The array itself.
- * #size: Its size.
- * #cap: Its capacity.
+ * #size: The size of the array.
+ * #cap: The capacity of the array.
  */
 
 /* Variants: comma-separated list of values, immutable and mutable sets */
@@ -417,7 +424,7 @@ typedef struct Cclass {
  * field has a unique id which corresponds to an index in #fields.
  * This also holds inherited fields too.
  *
- * #s_level: Keeps track of the level of super calls for each
+ * #slevel: Keeps track of the level of super calls for each
  * method called on the instance, in otherwords it is a list 
  * of indexes to super methods cached at the level of this
  * instance's class, it is set 'NULL' if none of the methods
@@ -433,7 +440,7 @@ typedef struct Cclass {
 typedef struct Instance {
    Object obj;
    Value *fields;
-   Map *s_level;
+   Map *slevel;
 } Instance;
 
 /*
@@ -443,10 +450,8 @@ typedef struct Instance {
  * if ever there is.
  *
  * #name: Namespace's name.
- * #ours_const: Constant globals of the #ns_val (thread-safe)
- * #ours: Stores writeable globals (not thread-safe, use mutex?)
+ * #ours: Stores it globals (uses mutex when required)
  *
- * #mux: mutex to protect write access to #ours.
  * #ours of the package "main::" takes care of the following
  * type I & II special variables:
  *
@@ -457,8 +462,8 @@ typedef struct Instance {
  * necessarily be done using its fully qualified form unless a
  * variables of the same name declared in a scope shields it.
  *
- * #exports: Names of to-be-exported globals when used by another
- * package.
+ * #exports: Names of to-be-exported globals when this namespace
+ * is used by another.
  *
  * NB:
  * - The argument to the "use" statement never translates to a
@@ -468,7 +473,7 @@ typedef struct Instance {
  * - For consistency, you cannot nest namespaces as they don't
  *   really have an identity.
  * 
- * #ns_val: The namespace value, a package/class/role.
+ * #ns_val: The namespace value, a package, class, or role.
  */
 #define is_ns(v)  o_check_type(v, O_NS)
 #define as_ns(v)  (ma_assert(is_ns(v)), cast(Namespace *, as_obj(v)))
@@ -476,9 +481,7 @@ typedef struct Instance {
 typedef struct Namespace {
    Object obj;
    Str *name; 
-   Mutex *mux;
    Map *ours;
-   Map *const_ours;
    Value *exports;
    Value ns_val;
 } Namespace;
@@ -487,21 +490,20 @@ typedef struct Namespace {
  * ##Struct of a Maat function.
  *
  * #arity: The number of arguments the function takes.
- * #up_count: Number of upvals the function has.
  * #code: Its bytecode.
- * #constants: The function's contant values.
- * #ns: The function's namespace.
+ * #constants: The function's constant values.
+ * #ns: Index of the #NSBuf to access the namespace of
+ * this function.
  */
 #define is_fun(v)  o_check_type(v, O_FUN)
 #define as_fun(v)  (ma_assert(is_fun(v)), cast(Fun *, as_obj(v)))
 
 typedef struct Fun {
    Object obj;
-   int up_count;
-   int arity;
+   UByte arity;
+   size_t ns;
    CodeBuf code;
    ValueBuf constants;
-   Namespace *ns;
 } Fun;
 
 /*
@@ -517,8 +519,13 @@ typedef struct Fun {
  * #state.
  *
  * #state: A pointer to the #next open upvalue when this one is
- * still open otherwise it'll contain the register vm value #p
- * pointed to.
+ * still opened otherwise it'll contain the vm register value
+ * #p pointed to.
+ *
+ * #m_uv: Whenever an upval is shared by closures of States
+ * distributed accross maatines, a mutex must be used to manage
+ * it concurrent access. This field is optional as this
+ * condition can only be determined at compile time.
  */
 typedef struct Upval {
    Object obj;
@@ -527,12 +534,14 @@ typedef struct Upval {
       struct Upval *next;
       Value val;
    } state;
+   Mutex *m_uv;
 } Upval;
 
 /* ##A closure is a variant of a function which keep tracks of
  * its upvalues.
  *
- * #fun: The closure's function.
+ * #fun: A pointer to the closure's function.
+ * #nupvals: The number of upvalues.
  * #upvals: The List of upvalues the function has.
  */
 #define O_VCLOSURE  vary(O_FUN, 1)
@@ -543,7 +552,8 @@ typedef struct Upval {
 typedef struct Closure {
    Object obj;
    Fun *fun;
-   Upvalue *upvals;
+   UByte nupvals;
+   Upval *upvals;
 } Closure;
 
 /* ##Union of all collectable objects used for conversion. */
@@ -572,7 +582,7 @@ typedef struct Closure {
 #define o2mvm(o)   (ma_assert(check_type(v, O_MVM)), &(ounion_of(o)->mvm))
 
 /* The other way around */
-#define xo2o(v)  (ma_assert(is_obj(v)), &(ounion_of(o)->obj))
+#define x2o(v)  (ma_assert(is_obj(v)), &(ounion_of(o)->obj))
 
 union Ounion {
    Object obj;
