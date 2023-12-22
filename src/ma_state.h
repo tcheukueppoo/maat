@@ -40,6 +40,7 @@ typedef struct CallFrame {
  * called a coroutine, a generator function or simple the state
  * of a maatine.
  *
+ * #ma: The Maatine of this state or coroutine.
  * #cw: #cw is #wk if this State is that of maatine, #wk as an
  * optional field is a pointer to the Work object that
  * solicited a maatine of this State to run its code(#wk_code).
@@ -51,7 +52,7 @@ typedef struct CallFrame {
  * impossible for a coroutine to yield control back to another
  * coroutine of a different maatine, but that is not a problem
  * as we are implementing asymmetric coroutines.
- * #open_uv: Link list of open upvalues of this state.
+ * #open_uv: Linked list of open upvalues of this state.
  */
 typedef struct State {
    Object obj;
@@ -70,6 +71,20 @@ typedef struct State {
 } State;
 
 /*
+ * ##String Map for short strings, used this to store
+ * short strings for reusage.
+ *
+ * #map: The map itself.
+ * #size: Used size of the Map.
+ * #cap: Capacity of the Map.
+ */
+typedef struct SMap {
+   Int size;
+   Int cap;
+   Str **map;
+} SMap;
+
+/*
  * ##Data common to all Maatines, mutex must be used for some
  * of these variables.
  *
@@ -85,9 +100,9 @@ typedef struct State {
  *   #m: Occasional mutex to be allocated for usage when maat is
  *   concurrently multiple compiling sources at runtime using the
  *   `do' statement.
- * #ns_objlist: List of all objects assigned to namespace
+ * #ns_gco: List of all objects assigned to namespace
  * variables.
- * #m_ns_objlist: Mutex to manage additions to the ns garbage
+ * #m_ns_gco: Mutex to manage additions to the ns garbage
  * collection list since collectors will be concurrently adding
  * objects to this list.
  */
@@ -95,15 +110,15 @@ typedef struct GMa {
    UInt seed;
    Str scache[M_SCACHE][N_SCACHE];
    Mutex m_scache;
-   STab stab;
-   Mutex m_stab;
+   SMap smap;
+   Mutex m_smap;
    struct {
       Map *names;
       NamespaceBuf buf;
       Mutex *m;
    } ns;
-   Object *ns_objlist;
-   Mutex *m_ns_objlist;
+   Object *ns_gco;
+   Mutex *m_ns_gco;
 } GMa;
 
 /*
@@ -112,12 +127,14 @@ typedef struct GMa {
  *
  * #instance: An instance of a Maat VM.
  * #co: List of coroutines of this Maatine.
+ * #cur_state: The currently running state.
  * #mma: Pointer to the main Maatine, #mm is 'NULL' if this
  * maatine is the main one.
  */
 typedef struct Ma {
    Object obj;
    UByte state;
+   State *cur_state;
    State *state;
    State *co;
    struct MVM *instance;
@@ -148,14 +165,5 @@ typedef struct Ma {
    Ma *mma;
    GMa *G;
 } Ma;
-
-typedef struct Work {
-   Object obj;
-   UByte state;
-   size_t then_size;
-   Closure *wk_code;
-   Closure *then;
-   Closure *catch[1];
-} Work;
 
 #endif

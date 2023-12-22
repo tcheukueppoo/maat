@@ -17,11 +17,13 @@
 /* Vary type 't' with variant bits 'v', see Value */
 #define vary(t, v)  ((t) | (v << 5))
 
-#define type(v)              ((v)->type)
+#define type(v)              raw_type(v)
+#define raw_type(v)          ((v)->type)
 #define with_variant(v)      (type(v) & 0x7F)
 #define without_variant(v)   (type(v) & 0x1F)
 #define check_type(v, t)     (without_variant(v) == t)
 #define check_vartype(v, t)  (with_variant(v) == t)
+#define check_rtype(v, t)    (raw_type(v) == t)
 
 #if !defined(MA_NAN_TAGGING)
 
@@ -124,9 +126,9 @@ typedef struct Value {
 #define FREE    (Value){ V_VFREE,   { 0 } }
 #define ABSKEY  (Value){ V_VABSKEY, { 0 } }
 
-#define iss_nil(v)    check_vartype(v, V_NIL)
-#define is_free(v)    check_vartype(v, V_VNILKEY)
-#define is_abskey(v)  check_vartype(v, V_VABSKEY)
+#define iss_nil(v)    check_rtype(v, V_NIL)
+#define is_free(v)    check_rtype(v, V_VNILKEY)
+#define is_abskey(v)  check_rtype(v, V_VABSKEY)
 
 /* Define boolean type variants with its singleton values */
 #define V_VFALSE  vary(V_BOOL, 0)
@@ -135,8 +137,8 @@ typedef struct Value {
 #define FALSE  (Value){ V_VFALSE, { 0 } }
 #define TRUE   (Value){ V_VTRUE,  { 0 } }
 
-#define is_false(v)  check_vartype(to_bool(v), V_VFALSE)
-#define is_true(v)   check_vartype(to_bool(v), V_VTRUE)
+#define is_false(v)  check_rtype(to_bool(v), V_VFALSE)
+#define is_true(v)   check_rtype(to_bool(v), V_VTRUE)
 
 #define to_bool(v)  (ma_likely(is_bool(v)) ? v : coerce_to_bool(v))
 
@@ -193,7 +195,7 @@ typedef struct Object {
 #define O_UPVAL     14
 
 /* O_VGFUN, O_VMCO */
-#define O_CO        15
+#define O_STATE        15
 
 #define O_MA        16
 #define O_WORK      17
@@ -221,8 +223,8 @@ typedef struct Object {
 #define is_date(v)    o_check_type(v, O_DATE)
 #define is_term(v)    o_check_type(v, O_TERM) /* See term.h */
 
-/* Test if the value 'v' is an object variant of variant type 't' */
-#define o_check_vartype(v,t)  is_obj(v) && check_vartype(v,t)
+/* Test if the value 'v' is an object of variant type 't' */
+#define o_check_rtype(v, t)  is_obj(v) && check_rtype(v, t)
 
 
 /* A threadsafe Channel and Scheduler queue */
@@ -250,12 +252,12 @@ typedef struct Object {
  * #ns_objnext: For the linked list of objects hold by
  * namespaces variables (see #ns_gco in 'state.h')
  */
-#define O_VSHTSTR  vary(O_STR, 1)
-#define O_VLNGSTR  vary(O_STR, 2)
+#define O_VSHTSTR  vary(O_STR, 0)
+#define O_VLNGSTR  vary(O_STR, 1)
 
 #define is_str(v)     o_check_type(v, O_STR)
-#define is_shtstr(v)  o_check_vartype(v, O_VSHTSTR)
-#define is_lngstr(v)  o_check_vartype(v, O_VLNGSTR)
+#define is_shtstr(v)  o_check_rtype(v, ctb(O_VSHTSTR))
+#define is_lngstr(v)  o_check_rtype(v, ctb(O_VLNGSTR))
 
 #define as_str(v)     (ma_assert(is_str(v)), cast(Str *, as_obj(v)))
 #define as_shtstr(v)  as_str(v)
@@ -269,7 +271,7 @@ typedef struct Str {
       size_t llen;
       struct {
          UByte slen;
-         struct Str *next;
+         struct Str *snext;
       } s;
    } u;
    UInt hash;
@@ -278,7 +280,7 @@ typedef struct Str {
 } Str;
 
 /* ##Range object(inclusive), #x the start and #y the end */
-#define is_range(v)  o_check_type(v, O_RANGE)
+#define is_range(v)  o_check_rtype(v, O_RANGE)
 #define as_range(v)  (ma_assert(is_range(v)), cast(Range *, as_obj(v)))
 
 typedef struct Range {
@@ -306,7 +308,7 @@ typedef struct Range {
  * #asize:
  * #node:
  */
-#define is_map(v)   o_check_type(v, O_MAP)
+#define is_map(v)   o_check_rtype(v, ctb(O_MAP))
 #define as_map(v)   (ma_assert(is_map(v)), cast(Map *, as_obj(v)))
 
 typedef struct Node {
@@ -327,7 +329,7 @@ typedef struct Map {
    Object *ns_objnext;
 } Map;
 
-/* ##An array object.
+/* ##Representation of an Array object.
  *
  * #array: The array itself.
  * #size: The size of the array.
@@ -337,9 +339,9 @@ typedef struct Map {
 /* Variant: list object: comma-separated list of values */
 #define O_VLIST  vary(O_ARRAY, 1)
 
-#define iss_array(v)  o_check_vartype(v, O_ARRAY)
+#define iss_array(v)  o_check_rtype(v, ctb(O_ARRAY))
 #define is_array(v)   o_check_type(v, O_ARRAY)
-#define is_list(v)    o_check_vartype(v, O_VLIST)
+#define is_list(v)    o_check_rtype(v, ctb(O_VLIST))
 
 #define as_array(v)  (ma_assert(is_array(v)), cast(Array *, as_obj(v)))
 #define as_list(v)   as_array(v)
@@ -385,9 +387,9 @@ typedef struct Array {
  */
 #define O_VROLE  vary(O_CLASS, 1)
 
-#define iss_class(v)  o_check_vartype(v, O_CLASS)
+#define iss_class(v)  o_check_rtype(v, ctb(O_CLASS))
 #define is_class(v)   o_check_type(v, O_CLASS)
-#define is_role(v)    o_check_vartype(v, O_VROLE)
+#define is_role(v)    o_check_rtype(v, ctb(O_VROLE))
 
 #define as_class(v)  (ma_assert(is_class(v)), cast(Class *, as_obj(v)))
 #define as_role(v)   as_class(v)
@@ -405,7 +407,7 @@ typedef struct Class {
 
 #define O_VCCLASS  vary(O_CLASS, 2)
 
-#define is_cclass(v)  o_check_vartype(v, O_VCCLASS)
+#define is_cclass(v)  o_check_rtype(v, ctb(O_VCCLASS))
 #define as_cclass(v)  (ma_assert(is_cclass(v)), cast(Cclass *, as_obj(v)))
 
 typedef struct Cclass {
@@ -433,7 +435,7 @@ typedef struct Cclass {
  * that resolves to the next class in the instance's class c3
  * list.
  */
-#define is_instance(v)  o_check_type(v, O_INSTANCE)
+#define is_instance(v)  o_check_rtype(v, ctb(O_INSTANCE))
 #define as_instance(v)  (ma_assert(is_instance(v)), cast(Instance *, as_obj(v)))
 
 typedef struct Instance {
@@ -475,7 +477,7 @@ typedef struct Instance {
  * 
  * #ns_val: The namespace value, a package, class, or role.
  */
-#define is_ns(v)  o_check_type(v, O_NS)
+#define is_ns(v)  o_check_rtype(v, ctb(O_NS))
 #define as_ns(v)  (ma_assert(is_ns(v)), cast(Namespace *, as_obj(v)))
 
 typedef struct Namespace {
@@ -492,10 +494,10 @@ typedef struct Namespace {
  * #arity: The number of arguments the function takes.
  * #code: Its bytecode.
  * #constants: The function's constant values.
- * #ns: Index of the #NSBuf to access the namespace of
- * this function.
+ * #ns: Index of the #NSBuf to access the namespace of this
+ * function.
  */
-#define is_fun(v)  o_check_type(v, O_FUN)
+#define is_fun(v)  o_check_rtype(v, ctb(O_FUN))
 #define as_fun(v)  (ma_assert(is_fun(v)), cast(Fun *, as_obj(v)))
 
 typedef struct Fun {
@@ -544,7 +546,7 @@ typedef struct Upval {
  */
 #define O_VCLOSURE  vary(O_FUN, 1)
 
-#define is_closure(v)  o_check_vartype(v, O_VCLOSURE)
+#define is_closure(v)  o_check_rtype(v, ctb(O_VCLOSURE))
 #define as_closure(v)  (ma_assert(is_closure(v)), cast(Closure *, as_obj(v)))
 
 typedef struct Closure {
@@ -554,6 +556,27 @@ typedef struct Closure {
    Upval *upvals;
    Object *ns_objnext;
 } Closure;
+
+/* ##The definition of these objects are in 'ma_state.h'  */
+
+/* ##Type operation macros for the State object. */
+
+#define O_VCO  vary(O_STATE, 1)
+
+#define iss_state(v)  o_check_rtype(v, ctb(O_STATE))
+#define is_state(v)   o_check_type(v, O_STATE)
+#define is_co(c)      o_check_rtype(v, ctb(O_VCO))
+
+#define as_state(v)  (ma_assert(is_state(v)), cast(State *, as_obj(v)))
+#define as_co(v)     as_state(v)
+
+/* ##Type operation macros for the Work object. */
+#define is_work(v)  o_check_rtype(v, ctb(O_WORK))
+#define as_work(v)  (ma_assert(is_state(v)), cast(Work *, as_obj(v)))
+
+/* ##Type operation macros for a Maatine object. */
+#define is_ma(v)  o_check_rtype(v, ctb(O_MA))
+#define as_ma(v)  (ma_assert(is_ma(v)), cast(Ma *, as_obj(v)))
 
 /* ##Union of all collectable objects used for conversion. */
 
@@ -570,15 +593,15 @@ typedef struct Closure {
 #define o2fun(o)   (ma_assert(check_vartype(v, O_FUN)), &(ounion_of(o)->fun))
 #define o2clo(o)   (ma_assert(check_vartype(v, O_VCLOSURE)), &(ounion_of(o)->clo))
 #define o2uv(o)    (ma_assert(check_vartype(v, O_UV)), &(ounion_of(o)->uv))
-#define o2cls(o)   (ma_assert(check_type(v, O_CLASS)), &(ounion_of(o)->cls))
-#define o2ccls(o)  (ma_assert(check_vartype(v, O_VCLASS)), &(ounion_of(o)->ccls))
-#define o2ins(o)   (ma_assert(check_type(v, O_INSTANCE)), &(ounion_of(o)->ins))
-#define o2co(o)    (ma_assert(check_vartype(v, O_CO)), &(ounion_of(o)->co))
+#define o2cls(o)   (ma_assert(check_vartype(v, O_CLASS)), &(ounion_of(o)->cls))
+#define o2ccls(o)  (ma_assert(check_vartype(v, O_VCCLASS)), &(ounion_of(o)->ccls))
+#define o2ins(o)   (ma_assert(check_vartype(v, O_INSTANCE)), &(ounion_of(o)->ins))
+#define o2stt(o)   (ma_assert(check_vartype(v, O_STATE)), &(ounion_of(o)->stt))
 #define o2ma(o)    (ma_assert(check_vartype(v, O_MA)), &(ounion_of(o)->ma))
 #define o2wk(o)    (ma_assert(check_vartype(v, O_WORK)), &(ounion_of(o)->wk))
 #define o2rbq(o)   (ma_assert(check_vartype(v, O_RBQ)), &(ounion_of(o)->rbq))
 #define o2ns(o)    (ma_assert(check_vartype(v, O_NS)), &(ounion_of(o)->ns))
-#define o2mvm(o)   (ma_assert(check_type(v, O_MVM)), &(ounion_of(o)->mvm))
+#define o2mvm(o)   (ma_assert(check_vartype(v, O_MVM)), &(ounion_of(o)->mvm))
 
 /* The other way around */
 #define x2o(v)  (ma_assert(is_obj(v)), &(ounion_of(o)->obj))
@@ -594,7 +617,7 @@ union Ounion {
    struct Class cls;
    struct Cclass ccls;
    struct Instance ins;
-   struct Co co;
+   struct State stt;
    struct Ma ma;
    struct Work wk;
    struct Rbq rbq;
