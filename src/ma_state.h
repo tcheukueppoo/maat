@@ -42,7 +42,7 @@ typedef struct CallFrame {
  *
  * #cw: #cw is #wk if this State is that of maatine, #wk as an
  * optional field is a pointer to the Work object that
- * sollicated a maatine of this State to run its code(#wk_code).
+ * solicited a maatine of this State to run its code(#wk_code).
  * If this State is that of a coroutine then #cw is a pointer
  * to its caller coroutine or maatine state #ca.
  * Coroutines as well as generator functions are blocking kind
@@ -77,14 +77,19 @@ typedef struct State {
  * #scache: Caching short strings, has mutex #m_scache.
  * #seed: Random seed for Maps.
  * #ns: Namespaces thingy.
- *   #names: Map of namespaces to check and keep track of
- *   unique indexes corresponding to each namespace.
+ *   #names: Map of namespaces to check and keep track of unique
+ *   indexes corresponding to each namespace.
  *   #buf: A buffer of namespaces since resolution is done at
  *   compile time, each ns is accessible in #buf via a unique
  *   index, this frees use from collisions at execution time.
- *   #m: Occasional mutex to be allocated for used when
- *   concurrently compiling sources at execution time using the
+ *   #m: Occasional mutex to be allocated for usage when maat is
+ *   concurrently multiple compiling sources at runtime using the
  *   `do' statement.
+ * #ns_objlist: List of all objects assigned to namespace
+ * variables.
+ * #m_ns_objlist: Mutex to manage additions to the ns garbage
+ * collection list since collectors will be concurrently adding
+ * objects to this list.
  */
 typedef struct GMa {
    UInt seed;
@@ -97,7 +102,8 @@ typedef struct GMa {
       NamespaceBuf buf;
       Mutex *m;
    } ns;
-   Object *ns_gco;
+   Object *ns_objlist;
+   Mutex *m_ns_objlist;
 } GMa;
 
 /*
@@ -106,8 +112,8 @@ typedef struct GMa {
  *
  * #instance: An instance of a Maat VM.
  * #co: List of coroutines of this Maatine.
- * #mm: Pointer to the main Maatine, #mm is NULL if this Maatine
- * is the main one.
+ * #mma: Pointer to the main Maatine, #mm is 'NULL' if this
+ * maatine is the main one.
  */
 typedef struct Ma {
    Object obj;
@@ -139,7 +145,7 @@ typedef struct Ma {
    Object *fin_old;
    Object *fin_old2;
 
-   Ma *m;
+   Ma *mma;
    GMa *G;
 } Ma;
 
