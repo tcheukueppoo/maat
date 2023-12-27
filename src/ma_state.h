@@ -62,7 +62,7 @@ typedef struct State {
    size_t cs_size;
    Value *top;
    Value *stack;
-   Upval *open_uv;
+   Upval *open_uvs;
    struct Ma *ma;
    union {
       struct State *ca;
@@ -71,13 +71,14 @@ typedef struct State {
 } State;
 
 /*
- * ##String Map for short strings, used this to store
- * short strings for reusage.
+ * ##String Map for short strings, used this to store short
+ * strings for later re-usage.
  *
- * #map: The map itself.
- * #size: Used size of the Map.
- * #cap: Capacity of the Map.
+ * #size: Size of our hash map.
+ * #cap: Its Capacity here.
+ * #map: And the map itself.
  */
+
 typedef struct SMap {
    Int size;
    Int cap;
@@ -95,13 +96,13 @@ typedef struct SMap {
  *   #names: Map of namespaces to check and keep track of unique
  *   indexes corresponding to each namespace.
  *   #buf: A buffer of namespaces since resolution is done at
- *   compile time, each ns is accessible in #buf via a unique
- *   index, this frees use from collisions at execution time.
+ *   compile time, each namespace is accessible in #buf via a
+ *   unique index, this frees use from collisions at execution
+ *   time.
  *   #m: Occasional mutex to be allocated for usage when maat is
- *   concurrently multiple compiling sources at runtime using the
- *   `do' statement.
- * #ns_gco: List of all objects assigned to namespace
- * variables.
+ *   concurrently multiple compiling sources at runtime using
+ *   the `do' statement.
+ * #ns_gco: List of all objects assigned to namespace variables.
  * #m_ns_gco: Mutex to manage additions to the ns garbage
  * collection list since collectors will be concurrently adding
  * objects to this list.
@@ -109,16 +110,16 @@ typedef struct SMap {
 typedef struct GMa {
    UInt seed;
    Str scache[M_SCACHE][N_SCACHE];
-   Mutex m_scache;
+   Mutex scache_m;
    SMap smap;
-   Mutex m_smap;
+   Mutex smap_m;
    struct {
       Map *names;
       NamespaceBuf buf;
       Mutex *m;
    } ns;
-   Object *ns_gco;
-   Mutex *m_ns_gco;
+   Object *ns_objs;
+   Mutex *ns_objs_m;
 } GMa;
 
 /*
@@ -152,7 +153,7 @@ typedef struct Ma {
    UByte gc_major;
    Int ntmps;
    Object *tmproots;
-   Object *gco;
+   Object *objs;
    Object *nursery2;
    Object *old;
    Object *old2;

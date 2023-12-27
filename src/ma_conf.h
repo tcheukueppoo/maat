@@ -1,16 +1,17 @@
 /*
  * Abstract: General configuration file for Maat
- * Licensed under AGL, see LICENSE file for copyright and license details.
+ * Licensed under AGL, see LICENSE file for details.
  */
 
 /*
- * Some definitions here can be changed externally, through the compiler
- * (e.g., with '-D' options): They are commented out or protected
- * by '#if !defined' guards. However, several other definitions
- * should be changed directly here, either because they affect the
- * MAAT ABI (by making the changes here, you ensure that all software
- * connected to MAAT, such as C libraries, will be compiled with the same
- * configuration); or because they are seldom changed.
+ * Some definitions here can be changed externally, through
+ * the compiler (e.g., with '-D' options): They are commented
+ * out or protected by '#if !defined' guards. However, eeveral
+ * other definitions should be changed directly here, either
+ * because they affect the MAAT ABI (by making the changes
+ * here, you ensure that all software connected to MAAT, such as
+ * C libraries, will be compiled with the same configuration);
+ * or because they are seldom changed.
  */
 
 #ifndef ma_conf_h
@@ -154,24 +155,23 @@
 #endif
 
 /*
- * The attribute with visibility type "internal" is an
- * optimization for certain versions of ELF objects where
- * entities are marked local to shared object in which they are
- * defined and cannot be called from another module, thus
- * reduces the number of symbols in the dynamic symbol table.
+ * The attribute with visibility type "internal" is an optimiz-
+ * ation for certain versions of ELF objects where entities
+ * are marked local to shared object in which they are defined
+ * and cannot be called from another module, thus reduces the
+ * number of symbols in the dynamic symbol table.
  *
- * Without this attribute, check with
- * `nm libmaat.so | grep ' T ' | wc -l` to see how the number of
- * dynamic symbols increased.
+ * Without this attribute, check with:
+ *    `nm libmaat.so | grep ' T ' | wc -l`
+ * to see how the number of dynamic symbols increased.
  */
-#if defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 302) && defined(__ELF__)
+#if defined(__ELF__) && defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 302)
 #define MA_IFUNC  __attribute__ ((visibility("internal")))
 #elif
 #define MA_IFUNC  /* extern by default */
 #endif
 
-/*## Configs for inline functions */
-
+/* ##Configs for inline functions. */
 #if defined(__GNUC__)
 #define ma_inline  __inline__
 #else
@@ -180,21 +180,42 @@
 
 #define ma_sinline  static ma_inline
 
-/* ##Data type configuration */
-
-#define Ubyte          unsigned char
-#define Byte           signed char
-#define UInt           unsigned int
-#define Int            signed int
-#define Num            double
-#define ma_number_fmt  "%.14g"
+/* ##Configuration of data types for in-house use. */
+#define Ubyte  unsigned char
+#define Byte   signed char
+#define Uint   unsigned int
+#define Int    signed int
 
 /*
- * ##MA_NAN_TAGGING is an optimization technique for value
- * representation. You either define it here or with the '-D'
- * option during compilation.
+ * ##MA_NAN_TAGGING is an optimization technique for the repre-
+ * sentation of Maat values, it is disabled by default, use the
+ * '-D' option during compilation to enable it.
  */
+#define MA_NAN_TAGGING  0
 
-/*#define MA_NAN_TAGGING */
+/* ##Configuring the representation of a Maat number */
+#if !defined(MA_USE_32BIT)
+#define MA_USE_32BIT  0
+#endif
+
+#if !defined(MA_USE_LDOUBLE)
+#define MA_USE_LDOUBLE 0
+#endif
+
+#if MA_USE_32BIT
+#define Num             float
+#define ma_num_fmt      "%.7g"
+#define str2num(s, i)   strtof(s, i)
+#define MA_NAN_TAGGING  0
+#elif !defined(MA_NAN_TAGGING) && MA_USE_LDOUBLE
+#define Num             long double
+#define ma_num_fmt      "%.19Lg"
+#define str2num(s, i)   strtold(s, i)
+#define MA_NAN_TAGGING  0
+#else
+#define Num            double
+#define ma_num_fmt     "%.14g"
+#define str2num(s, i)  strtod(s, i)
+#endif
 
 #endif
