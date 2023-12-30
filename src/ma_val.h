@@ -1,5 +1,5 @@
 /*
- * ###Definition Maat Values and Objects
+ * $$$Definition Maat Values and Objects
  * License: AGL, see LICENSE file for details.
  */
 
@@ -11,35 +11,36 @@
 
 /*
  * Macros defined below are both used to manipulate objects and non
- * NAN-TAGGING represented values, reason why they aren't specific
- * to `#if` body of the "MA_NAN_TAGGING" conditional test.
+ * nan-tagging represented values, reason why they aren't specific
+ * to `$if' body of the `MA_NAN_TAGGING' conditional test.
  */
 
-/* Vary type 't' with variant bits 'v', see Value */
-#define vary(t, v)  ((t) | (v << 5))
+/* Vary type 't' with variant bits 'v'. */
+#define vary(t, vb)  ((t) | (vb << 5))
 
-#define type(v)              raw_type(v)
-#define raw_type(v)          ((v)->type)
+/* Some utils, 'x' can either be a value or a collectable object. */
+#define type(x)             raw_type(x)
+#define raw_type(x)         ((x)->type)
+#define without_variant(x)  (raw_type(x) & 0x1F)
+#define check_type(x, t)    (without_variant(x) == t)
+#define check_rtype(x, t)   (raw_type(x) == t)
+
 #define with_variant(v)      (raw_type(v) & 0x7F)
-#define without_variant(v)   (raw_type(v) & 0x1F)
-#define check_type(v, t)     (without_variant(v) == t)
 #define check_vartype(v, t)  (with_variant(v) == t)
-#define check_rtype(v, t)    (raw_type(v) == t)
 
 #if !defined(MA_NAN_TAGGING)
 
-/* ##Representation of a Maat value.
+/* $$Representation of a Maat value.
  *
- * #val: The value itself.
- *   #n: Representation of a number (see 'ma_conf.h').
- *   #obj: Pointer to a collectable object which make val
- *         collectable.
- *   #p: Pointer to a memory location representing the data of a
- *       Cclass.
- *   #f: Pointer to a C function, it either represents a cdata's
- *       method or just a standalone function.
+ * $val: The value itself, which is a union of
+ *  $n: Maat's representation of a number (see 'ma_conf.h').
+ *  $gc_obj: Pointer to a collectable object.
+ *  $p: Pointer to a memory location representing the data of a
+ *  Cclass.
+ *  $f: Pointer to a C function, it either represents a cdata's
+ *  method or just a standalone function.
  *
- * #type: Determines $val's type, its bits are segmented into
+ * $type: Determines $val's type, its bits are segmented into
  * three parts. This variable already gots all what is
  * necessary to represent values of the boolean and nil types.
  *
@@ -53,28 +54,31 @@
  *   Represents variants of certain (O_)?.* types. You can have
  *   at most 3 variants for each base type which also suffices.
  *
- * - Bit 7: is 1 if #val stores a collectable object and 0
+ * - Bit 7: is 1 if $val stores a collectable object and 0
  *   otherwise.
  */
+#define Valuefields Ubyte type; _Value val
+
+typedef union _Value {
+   Num n;
+   CFunc f;
+   void *p;
+   struct Object *gc_obj;
+} _Value;
+
 typedef struct Value {
-   Ubyte type;
-   union {
-      Num n;
-      CFunc f;
-      void *p;
-      struct Object *obj;
-   } val;
+   Valuefields;
 } Value;
 
 #define val(v)          ((v)->val)
 #define set_type(v, t)  (type(v) = t)
-#define set_cval(v, o)  { set_type(v, ctb(o->type)); \
-                          (val(v).obj = x2o(o)); }
+#define gco2val(v, o)   set_type(v, ctb(o->type)); \
+                        (val(v).obj = x2gco(o))
 
 /*
- * A value stores an object. Defines all non-collectable objects
- * (or types?). A value 'v' is collectable if the MSB of its
- * #type is 1 which means it stores a collectable object.
+ * Defines types of all non-collectable objects. A value 'v' is
+ * collectable if the MSB of its $type is 1 which means it
+ * stores a collectable object.
  */
 #define V_NIL    0
 #define V_BOOL   1
@@ -88,19 +92,22 @@ typedef struct Value {
 #define is_cfunc(v)  check_type(v, V_CFUNC)
 #define is_cdata(v)  check_type(v, V_CDATA)
 
-#define IS_COLLECTABLE_BIT  (0b1 << 7)
+#define IS_CTB_BIT  (0b1 << 7)
 
-/* Check if value 'v' is collectable, set collectable bit */
-#define is_ctb(v)  (type(v) & IS_COLLECTABLE_BIT)
-#define ctb(v)     (type(v) | IS_COLLECTABLE_BIT)
+/* Check if value 'v' is collectable, set collectable bit. */
+#define is_ctb(v)  (type(v) & IS_CTB_BIT)
+#define ctb(v)     (type(v) | IS_CTB_BIT)
 
 #define as_bool(v)   (ma_assert(is_bool(v)), (is_true(v)))
 #define as_num(v)    (ma_assert(is_num(v)), (val(v).n))
 #define as_cfunc(v)  (ma_assert(is_cfunc(v)), (val(v).f))
 #define as_cdata(v)  (ma_assert(is_cdata(v)), (val(v).p))
 
-/* as_obj() for collectable objects defined below */
-#define as_obj(v)    (ma_assert(is_obj(v)), (val(v).obj))
+/*
+ * 'as_gcobj()' for collectable objects defined below. Things
+ * dealing with collectable objects are preceeded with '[oO]_'.
+ */
+#define as_gcobj(v)    (ma_assert(is_ctb(v)), (val(v).gc_obj))
 
 /*
  * Define variants of the 'nil' type and its singleton values.
@@ -145,32 +152,30 @@ typedef uint64_t Value;
 
 #endif
 
-/* Header common to all Maat objects */
+/* Header common to all collectable Maat objects */
 #define Header  Ubyte type; \
                 Ubyte mark; \
                 struct Class *next; \
                 struct Object *next
 
 /*
- * ##Object struct inherited by all the below objects.
+ * $$Object struct inherited by all the below objects.
  *
- * #type: Type of the object.
- * #mark: Flag to mark the object during collection.
- * #class: The object's class.
- * #next: Next obj, to keep track of all objects.
+ * $type: Type of the object.
+ * $mark: Flag to mark the object during collection.
+ * $class: The object's class.
+ * $next: Next obj, to keep track of all objects.
  */
 typedef struct Object {
    Header;
 } Object;
 
-/* Test if the value 'v' is an object of type 't' */
-#define o_check_type(v, t)  is_ctb(v) && check_type(v, t)
-
 /* Here are base colletable objects, some do have variants */
 
-/* O_VCCLASS, O_VROLE */
+/* O_VCLASS, O_VCCLASS, O_VROLE */
 #define O_CLASS     5
 
+/* O_VINSTANCE */
 #define O_INSTANCE  6
 
 /* O_VSHTSTR, O_VLNGSTR */
@@ -179,46 +184,49 @@ typedef struct Object {
 /* O_VULNGSTR, O_VUSHTSTR */
 #define O_U8STR     8
 
+/* O_VRANGE, O_VSRANGE? */
 #define O_RANGE     9    
 
-/* O_VLIST */
+/* O_VARRAY, O_VLIST */
 #define O_ARRAY     10
 
+/* O_VMAP, O_VNSMAP */
 #define O_MAP       11
 
 /* O_VCHAN, O_VSCHEDQ */
 #define O_RBQ       13
 
-/* O_VCLOSURE */
+/* O_VFUN, O_VCLOSURE */
 #define O_FUN       14
 
+/* O_VUPVAL */
 #define O_UPVAL     15
 
-/* O_VGFUN, O_VCO */
+/* O_VSTATE, O_VCO */
 #define O_STATE     16
 
+/* O_VMA */
 #define O_MA        17
+
+/* O_VWORK */
 #define O_WORK      18
 
+/* O_VNS */
 #define O_NS        19
-#define O_TERM      20
 
-/* Test if the value 'v' is an object of variant type 't' */
-#define o_check_rtype(v, t)  is_obj(v) && check_rtype(v, t)
-
-/* A threadsafe Channel and Scheduler queue */
+/* A thread-safe channel and scheduler queue */
 #define O_VCHAN    vary(O_RBQ, 1)
 #define O_VSCHEDQ  vary(O_RBQ, 2)
 
-#define is_chan(v)    o_check_type(v, O_VCHAN)
-#define is_schedq(v)  o_check_type(v, O_VSCHEDQ)
+#define is_chan(v)    check_type(v, O_VCHAN)
+#define is_schedq(v)  check_type(v, O_VSCHEDQ)
 
-/* ##Representation of a string object. */
-#define Str_Header  Object *next_nsobj;                         \
-                    Ubyte sl;                                   \
-                    union { size_t len; struct Str *snext; } u; \
-                    Uint hash;                                  \
-                    Byte *str
+/* $$Representation of all string objects. */
+#define Str_Header  Object *next_sobj; \
+                    Ubyte sl; \
+                    Uint hash; \
+                    Byte *str; \
+                    union { size_t len; struct Str *snext; } u;
 
 #define O_VLNGSTR   vary(O_STR, 0)
 #define O_VSHTSTR   vary(O_STR, 1)
@@ -226,30 +234,27 @@ typedef struct Object {
 #define O_VULNGSTR  vary(O_U8STR, 1)
 
 #define is_str(v)   (is_astr(v) || is_ustr(v))
-#define is_astr(v)  o_check_type(v, O_STR)
-#define is_ustr(v)  o_check_type(v, O_U8STR)
+#define is_astr(v)  check_type(v, O_STR)
+#define is_ustr(v)  check_type(v, O_U8STR)
 
-#define is_shtstr(v)  (o_check_rtype(v, ctb(O_VSHTSTR)) || \
-                       o_check_rtype(v, ctb(O_VUSHTSTR)))
-#define is_lngstr(v)  (o_check_rtype(v, ctb(O_VLNGSTR)) || \
-                       o_check_rtype(v, ctb(O_VULNGSTR)))
+#define is_shtstr(v)  (check_rtype(v, ctb(O_VSHTSTR)) || \
+                       check_rtype(v, ctb(O_VUSHTSTR)))
+#define is_lngstr(v)  (check_rtype(v, ctb(O_VLNGSTR)) || \
+                       check_rtype(v, ctb(O_VULNGSTR)))
 
-#define as_astr(v)   (ma_assert(is_str(v)), cast(Str *, as_obj(v)))
-#define as_u8str(v)  (ma_assert(is_u8str(v)), cast(U8Str *, as_obj(v)))
+#define as_str(v)    (ma_assert(is_str(v)), cast(Str *, as_gcobj(v)))
+#define as_u8str(v)  (ma_assert(is_u8str(v)), cast(U8Str *, as_gcobj(v)))
 
 /*
- * ##ASCII string struct.
- *
- * #Str_Header:
- *   #str: The string itself.
- *   #sl: Length of #str for short strings with its MSB
- *   determining whether #str is reserved. For long strings, #sl
- *   serves as a boolean value to check if #str already has its
- *   #hash.
- *   #u: For short strings, #u is #snext which is a pointer to
- *   #str's next string in our hash map of short strings
- *   (##SMap). For long strings, #u is the #len of #str.
- *   #hash: Hash value of #str.
+ * Ascii versiong of a Maat string, $str is the string itself
+ * and has hash value $hash.
+ * $sl: For short strings, last 3 bits of $sl is for the length
+ * of $str, its MSB determines whether $str is reserved
+ * meanwhile for long strings, $sl serves as a boolean value to
+ * check if $str already has its $hash.
+ * $u: For short strings, $u is $snext which is a pointer to
+ * $str's next string in our hash map of short strings ($$SMap)
+ * meanwhile for long strings, $u is the $len of $str.
  */
 typedef struct Str {
    Header;
@@ -257,11 +262,9 @@ typedef struct Str {
 } Str;
 
 /*
- * ##UTF8-8 encoded string struct.
- *
- * #Str_Header: The string header explained above.
- * #ngraph: Total size of the subparts of the grapheme clusters
- * of #str.
+ * UTF-8 encoded string object, has $Str_Header plus $ngraph.
+ * $ngraph is the total size of the subparts of the grapheme
+ * clusters of $str.
  */
 typedef struct U8Str {
    Header;
@@ -269,72 +272,104 @@ typedef struct U8Str {
    size_t ngraph;
 } U8Str;
 
-/* ##Range object(inclusive), #x the start and #y the end. */
-#define is_range(v)  o_check_rtype(v, ctb(O_RANGE))
-#define as_range(v)  (ma_assert(is_range(v)), cast(Range *, as_obj(v)))
+/* $$Range object (inclusive).
+ *
+ * $a the start.
+ * $b the end.
+ * $c the step.
+ */
+#define O_VRANGE  vary(O_RANGE, 0)
+
+#define is_range(v)  check_rtype(v, ctb(O_VRANGE))
+#define as_range(v)  (ma_assert(is_range(v)), cast(Range *, as_gcobj(v)))
+
+#define range2v(v, r)  gco2val(v, r)
 
 typedef struct Range {
    Header;
-   Num x;
-   Num y;
+   Num a;
+   Num b;
+   Int c;
 } Range;
 
-/* ##Representation of a Map object. */
+/* $$Representation of Map objects. */
+
+#define O_VMAP    vary(O_MAP, 0)
+#define O_VNSMAP  vary(O_MAP, 1)
+
+#define is_map(v)    check_rtype(v, ctb(O_VMAP))
+#define is_nsmap(v)  check_rtype(v, ctb(O_VNSMAP))
+
+#define as_map(v)    (ma_assert(is_map(v)), cast(Map *, as_gcobj(v)))
+#define as_nsmap(v)  as_map(v)
 
 /* The Node struct.
- * #val: Node's value.
- * #key:
- *   #k: The key itself.
- *   #next: Next node in case of collision.
- *   #m_key: When necessary, Maat provides locks for concurrent
- *   access to variables(not values), in a condition where a
- *   Map is the #ours of a namespace, a mutex is allocated for
- *   each of these variables.
+ *
+ * $val: Direct access to the Node's value.
+ * $k: Node's key.
+ *   $Valuefields: Pieces of $val, don't forget it is a union.
+ *   $vkey: Key's value.
+ *   $tkey: key's type.
+ *   $next: Next node in case of collisions.
  */
-typedef struct Node {
-   struct {
-      Value k;
-      Mutex *m_key;
+typedef union Node {
+   struct Key {
+      Valuefields;
+      Ubyte tkey;
       Int next;
-   } key;
+      _Value vkey;
+   } k;
    Value val;
 } Node;
 
 /*
- * The map itself.
+ * The Node of a global symbol.
  *
- * #lsize:
- * #array:
- * #asize:
- * #node:
+ *
  */
-#define is_map(v)   o_check_rtype(v, ctb(O_MAP))
-#define as_map(v)   (ma_assert(is_map(v)), cast(Map *, as_obj(v)))
+typedef union SNode {
+   struct Sym {
+      Valuefields;
+      Int next;
+      Mutex m;
+      Str *name;
+   } k;
+   Value val;
+} SNode;
 
+/*
+ * $array: Array part of this Map.
+ * $asize: $array size for Map and use-mutex bool val for NSMap.
+ * $node: Hash part of this Map, point to a (S)?Node struct.
+ * $lsize: log2 of the size of #node.
+ */
 typedef struct Map {
    Header;
    Value *array;
    Uint asize;
-   Ubyte lsize;
-   Node *node;
-   Object *next_nsobj;
+   Ubyte lgsize;
+   void *node;
+   Object *next_sobj;
 } Map;
 
-/* ##Representation of an Array object.
+
+/*
+ * $$Representation of an Array object.
  *
- * #array: The array itself.
- * #size: The size of the array.
- * #cap: The capacity of the array.
+ * $array: The array itself.
+ * $size: The size of $array.
+ * $cap: The capacity of $array.
  */
 
 /* Variant: list object: comma-separated list of values */
-#define O_VLIST  vary(O_ARRAY, 1)
+#define O_VARRAY  vary(O_ARRAY, 0)
+#define O_VLIST   vary(O_ARRAY, 1)
 
-#define iss_array(v)  o_check_rtype(v, ctb(O_ARRAY))
-#define is_array(v)   o_check_type(v, O_ARRAY)
-#define is_list(v)    o_check_rtype(v, ctb(O_VLIST))
+#define is_array(v)   check_type(v, O_ARRAY)
+#define iss_array(v)  check_rtype(v, ctb(O_VARRAY))
+#define is_list(v)    check_rtype(v, ctb(O_VLIST))
 
-#define as_array(v)  (ma_assert(is_array(v)), cast(Array *, as_obj(v)))
+#define as_array(v)  (ma_assert(is_array(v)), cast(Array *, as_gcobj(v)))
 #define as_list(v)   as_array(v)
 
 typedef struct Array {
@@ -342,16 +377,16 @@ typedef struct Array {
    size_t size;
    size_t cap;
    Value *array;
-   Object *next_nsobj;
+   Object *next_sobj;
 } Array;
 
 /*
- * ##Representation of a class, every collectable object has a
+ * $$Representation of a class, every collectable object has a
  * class, even the class itself. The Class of objects which
  * aren't first class values are probably useless, e.g Upval.
  *
- * #name: The class' name.
- * #meths: Pointer to a map for the class' methods. A value to
+ * $name: The class' name.
+ * $meths: Pointer to a map for the class' methods. A value to
  * a key here is a pointer to a Closure but can later on change
  * to an Array of closures so as to cache super methods, the
  * cache can never be invalidate since c3 linearization is done
@@ -360,29 +395,30 @@ typedef struct Array {
  * A C class is a class whose implemention is done in foreign
  * languages like C or C++, it is similar to full userdata in Lua.
  *
- * variant, here the object Class defines 2 variants which are
- * Roles and Cclasses.
+ * variant, here the object Class defines 3 variants which are
+ * Class, Role and Cclasse.
  *
  * For a Maat class and a Role we have the following fields:
- *  #c3: List of classes got after c3 linearization was applied.
- *  #fields: Pointer to an array of values, indexes correspond
+ *  $c3: List of classes got after c3 linearization was applied.
+ *  $fields: Pointer to an array of values, indexes correspond
  *  to fields with values holding their defaults.
- *  #roles: Keeps the list of roles that this class ":does".
- *  #sups: Keeps the list of directly inherited superclasses.
- *  #sups exist mainly for introspection since #c3 handles super
+ *  $roles: Keeps the list of roles that this class ":does".
+ *  $sups: Keeps the list of directly inherited superclasses.
+ *  $sups exist mainly for introspection since $c3 handles super
  *  calls.
  *
  * And for a Cclass we have:
- *  #cdata: A pointer to the raw memory.
- *  #size: The size of the memory pointed by #cdata.
+ *  $cdata: A pointer to a raw memory.
+ *  $size: The size of the memory pointed by $cdata.
  */
-#define O_VROLE  vary(O_CLASS, 1)
+#define O_VCLASS  vary(O_CLASS, 0)
+#define O_VROLE   vary(O_CLASS, 1)
 
-#define iss_class(v)  o_check_rtype(v, ctb(O_CLASS))
-#define is_class(v)   o_check_type(v, O_CLASS)
-#define is_role(v)    o_check_rtype(v, ctb(O_VROLE))
+#define is_class(v)   check_type(v, O_CLASS)
+#define iss_class(v)  check_rtype(v, ctb(O_VCLASS))
+#define is_role(v)    check_rtype(v, ctb(O_VROLE))
 
-#define as_class(v)  (ma_assert(is_class(v)), cast(Class *, as_obj(v)))
+#define as_class(v)  (ma_assert(is_class(v)), cast(Class *, as_gcobj(v)))
 #define as_role(v)   as_class(v)
 
 typedef struct Class {
@@ -393,13 +429,13 @@ typedef struct Class {
    struct Class *roles;
    struct Class *sups;
    struct Class *c3;
-   Object *next_nsobj;
+   Object *next_sobj;
 } Class;
 
 #define O_VCCLASS  vary(O_CLASS, 2)
 
-#define is_cclass(v)  o_check_rtype(v, ctb(O_VCCLASS))
-#define as_cclass(v)  (ma_assert(is_cclass(v)), cast(Cclass *, as_obj(v)))
+#define is_cclass(v)  check_rtype(v, ctb(O_VCCLASS))
+#define as_cclass(v)  (ma_assert(is_cclass(v)), cast(Cclass *, as_gcobj(v)))
 
 typedef struct Cclass {
    Header;
@@ -410,13 +446,13 @@ typedef struct Cclass {
 } Cclass;
 
 /*
- * ##Instance of a class.
+ * $$Instance of a class.
  *
- * #fields: A pointer to a to-be-allocated array of values, each
- * field has a unique id which corresponds to an index in #fields.
+ * $fields: A pointer to a to-be-allocated array of values, each
+ * field has a unique id which corresponds to an index in $fields.
  * This also holds inherited fields too.
  *
- * #sup_level: Keeps track of the level of super calls for each
+ * $sup_level: Keeps track of the level of super calls for each
  * method called on the instance, in otherwords it is a list 
  * of indexes to super methods cached at the level of this
  * instance's class, it is set 'NULL' if none of the methods
@@ -426,26 +462,28 @@ typedef struct Cclass {
  * that resolves to the next class in the instance's class c3
  * list.
  */
-#define is_instance(v)  o_check_rtype(v, ctb(O_INSTANCE))
-#define as_instance(v)  (ma_assert(is_instance(v)), cast(Instance *, as_obj(v)))
+#define O_VINSTANCE  vary(O_INSTANCE, 0)
+
+#define is_instance(v)  check_rtype(v, ctb(O_VINSTANCE))
+#define as_instance(v)  (ma_assert(is_instance(v)), cast(Instance *, as_gcobj(v)))
 
 typedef struct Instance {
    Header;
    Value *fields;
    Map *sup_level;
-   Object *next_nsobj;
+   Object *next_sobj;
 } Instance;
 
 /*
- * ##Represents a namespace e.g FOO::BAR. A namespace can either
+ * $$Represents a namespace e.g FOO::BAR. A namespace can either
  * be represented as a package, role or (c)class.
  * "FOO::BAR::x()" is a call to the function "x" in "FOO::BAR"
  * if ever there is.
  *
- * #name: Namespace's name.
- * #ours: Stores it globals (uses mutex when required)
+ * $name: Namespace's name.
+ * $ours: Stores it globals (uses mutex when required)
  *
- * #ours of the package "main::" takes care of the following
+ * $ours of the package "main::" takes care of the following
  * type I & II special variables:
  *
  *   ENV, ARGC, ARGV, INC, PATH, SIG, DATA, $v, $o, $,, $/, $\
@@ -455,7 +493,7 @@ typedef struct Instance {
  * necessarily be done using its fully qualified form unless a
  * variables of the same name declared in a scope shields it.
  *
- * #exports: Names of to-be-exported globals when this namespace
+ * $exports: Names of to-be-exported globals when this namespace
  * is used by another.
  *
  * NB:
@@ -466,10 +504,12 @@ typedef struct Instance {
  * - For consistency, you cannot nest namespaces as they don't
  *   really have an identity.
  * 
- * #ns_val: The namespace value, a package, class, or role.
+ * $ns_val: The namespace value, a package, class, or role.
  */
-#define is_ns(v)  o_check_rtype(v, ctb(O_NS))
-#define as_ns(v)  (ma_assert(is_ns(v)), cast(Namespace *, as_obj(v)))
+#define O_VNS  vary(O_NS, 0)
+
+#define is_ns(v)  check_rtype(v, ctb(O_VNS))
+#define as_ns(v)  (ma_assert(is_ns(v)), cast(Namespace *, as_gcobj(v)))
 
 typedef struct Namespace {
    Header;
@@ -480,16 +520,18 @@ typedef struct Namespace {
 } Namespace;
 
 /*
- * ##Struct of a Maat function.
+ * $$Struct of a Maat function.
  *
- * #arity: The number of arguments the function takes.
- * #code: Its bytecode.
- * #constants: The function's constant values.
- * #ns: Index of the #NSBuf to access the namespace of this
+ * $arity: The number of arguments the function takes.
+ * $code: Its bytecode.
+ * $constants: The function's constant values.
+ * $ns: Index of the $NSBuf to access the namespace of this
  * function.
  */
-#define is_fun(v)  o_check_rtype(v, ctb(O_FUN))
-#define as_fun(v)  (ma_assert(is_fun(v)), cast(Fun *, as_obj(v)))
+#define O_VFUN  vary(O_FUN, 0)
+
+#define is_fun(v)  check_rtype(v, ctb(O_VFUN))
+#define as_fun(v)  (ma_assert(is_fun(v)), cast(Fun *, as_gcobj(v)))
 
 typedef struct Fun {
    Header;
@@ -500,24 +542,27 @@ typedef struct Fun {
 } Fun;
 
 /*
- * ##A function that keeps track of its upvalues is called a
+ * $$A function that keeps track of its upvalues is called a
  * closure, upvalues initially are lexically scoped variables
  * living in vm's registers, they were supposed to stop existing
  * when the program goes out of their scopes of definition but
  * since some functions need them, these lexicals are kept as
  * upvalues.
  *
- * #p: Pointer to upvalue, when an upvalue is opened, it points
+ * $p: Pointer to upvalue, when an upvalue is opened, it points
  * to a value in a vm register but when closed, it points to
- * #state.
- * #state: A pointer to the #next open upvalue when this one is
+ * $state.
+ * $state: A pointer to the $next open upvalue when this one is
  * still opened otherwise it'll contain the vm register value
- * #p pointed to.
- * #m_uv: Whenever an upval is shared by closures of States
+ * $p pointed to.
+ * $m_uv: Whenever an upval is shared by closures of States
  * distributed accross maatines, a mutex must be used to manage
  * it concurrent access. This field is optional as this
  * condition can only be determined at runtime.
  */
+#define O_VUPVAL  vary(O_UPVAL, 0)
+
+/* Upvals aren't first class values, hence no 'is's and 'as's. */
 typedef struct Upval {
    Header;
    Value *p;
@@ -525,86 +570,89 @@ typedef struct Upval {
       Value val;
       struct Upval *next;
    } state;
-   Mutex *m_uv;
+   Mutex m_uv;
 } Upval;
 
-/* ##A closure is a variant of a function which keep tracks of
+/* $$A closure is a variant of a function which keep tracks of
  * its upvalues.
  *
- * #fun: A pointer to the closure's function.
- * #nupvals: The number of upvalues.
- * #upvals: The List of upvalues the function has.
+ * $fun: A pointer to the closure's function.
+ * $nupvals: The number of upvalues.
+ * $upvals: The List of upvalues the function has.
  */
 #define O_VCLOSURE  vary(O_FUN, 1)
 
-#define is_closure(v)  o_check_rtype(v, ctb(O_VCLOSURE))
-#define as_closure(v)  (ma_assert(is_closure(v)), cast(Closure *, as_obj(v)))
+#define is_closure(v)  check_rtype(v, ctb(O_VCLOSURE))
+#define as_closure(v)  (ma_assert(is_closure(v)), cast(Closure *, as_gcobj(v)))
 
 typedef struct Closure {
    Header;
-   Object *next_nsobj;
+   Object *next_sobj;
    Fun *fun;
    Ubyte nupvals;
-   Upval *upvals;
+   Upval **upvals;
 } Closure;
 
-/* ##The definition of these objects are in 'ma_state.h'  */
+/* $$The definition of these objects are in 'ma_state.h'  */
 
-/* ##Type operation macros for the State object. */
+/* $$Macros of the State object. */
+#define O_VSTATE  vary(O_STATE, 0)
+#define O_VCO     vary(O_STATE, 1)
 
-#define O_VCO  vary(O_STATE, 1)
+#define is_state(v)   check_type(v, O_STATE)
+#define iss_state(v)  check_rtype(v, ctb(O_VSTATE))
+#define is_co(c)      check_rtype(v, ctb(O_VCO))
 
-#define iss_state(v)  o_check_rtype(v, ctb(O_STATE))
-#define is_state(v)   o_check_type(v, O_STATE)
-#define is_co(c)      o_check_rtype(v, ctb(O_VCO))
-
-#define as_state(v)  (ma_assert(is_state(v)), cast(State *, as_obj(v)))
+#define as_state(v)  (ma_assert(is_state(v)), cast(State *, as_gcobj(v)))
 #define as_co(v)     as_state(v)
 
-/* ##Type operation macros for the Work object. */
-#define is_work(v)  o_check_rtype(v, ctb(O_WORK))
-#define as_work(v)  (ma_assert(is_state(v)), cast(Work *, as_obj(v)))
+/* $$Macros of the Work object. */
+#define O_VWORK  vary(O_WORK, 0)
 
-/* ##Type operation macros for a Maatine object. */
-#define is_ma(v)  o_check_rtype(v, ctb(O_MA))
-#define as_ma(v)  (ma_assert(is_ma(v)), cast(Ma *, as_obj(v)))
+#define is_work(v)  check_rtype(v, ctb(O_VWORK))
+#define as_work(v)  (ma_assert(is_state(v)), cast(Work *, as_gcobj(v)))
 
-/* ##Union of all collectable objects used for conversion. */
+/* $$Macros of the Maatine object. */
+#define O_VMA  vary(O_MA, 0)
 
-/* Cast 'o' to a pointer to an Ounion struct */
+#define is_ma(v)  check_rtype(v, ctb(O_VMA))
+#define as_ma(v)  (ma_assert(is_ma(v)), cast(Ma *, as_gcobj(v)))
+
+/* $$Union of all collectable objects used for conversion. */
+
+/* Cast 'o' to a pointer to an Ounion struct. */
 #define ounion_of(o)  cast(Ounion *, o)
 
 /*
  * ISO C99 says that a pointer to a union object, suitably
  * converted, points to each of its members, and vice versa.
  */
+#define gco2str(o)   (ma_assert(check_type(o, O_STR) || check_type(v, O_U8STR)), &(ounion_of(o)->str))
+#define gco2ar(o)    (ma_assert(check_type(o, O_ARRAY)), &(ounion_of(o)->ar))
+#define gco2map(o)   (ma_assert(check_type(o, O_MAP)), &(ounion_of(o)->map))
+#define gco2rng(o)   (ma_assert(check_type(o, O_RANGE)), &(ounion_of(o)->rng))
+#define gco2fun(o)   (ma_assert(check_rtype(o, O_VFUN)), &(ounion_of(o)->fun))
+#define gco2clo(o)   (ma_assert(check_rtype(o, O_VCLOSURE)), &(ounion_of(o)->clo))
+#define gco2uv(o)    (ma_assert(check_type(o, O_UPVAL)), &(ounion_of(o)->uv))
+#define gco2cls(o)   (ma_assert(check_rtype(o, O_VCLASS) || check_rtype(o, O_VROLE)), &(ounion_of(o)->cls))
+#define gco2ccls(o)  (ma_assert(check_rtype(o, O_VCCLASS)), &(ounion_of(o)->ccls))
+#define gco2ins(o)   (ma_assert(check_type(o, O_VINSTANCE)), &(ounion_of(o)->ins))
+#define gco2stt(o)   (ma_assert(check_type(o, O_STATE)), &(ounion_of(o)->stt))
+#define gco2ma(o)    (ma_assert(check_type(o, O_MA)), &(ounion_of(o)->ma))
+#define gco2wk(o)    (ma_assert(check_rtype(o, O_VWORK)), &(ounion_of(o)->wk))
+#define gco2rbq(o)   (ma_assert(check_rtype(o, O_VRBQ)), &(ounion_of(o)->rbq))
+#define gco2ns(o)    (ma_assert(check_rtype(o, O_VNS)), &(ounion_of(o)->ns))
 
-#define co_type(o, t)  is_ctb(o) && (type(o) == t)
+/* The other way around. */
+#define x2gco(v)  (ma_assert(is_obj(v)), &(ounion_of(o)->gc_obj))
 
-#define o2str(o)   (ma_assert(co_type(o, O_STR) || co_type(v, O_U8STR)), &(ounion_of(o)->str))
-#define o2ar(o)    (ma_assert(co_type(o, O_ARRAY)), &(ounion_of(o)->ar))
-#define o2map(o)   (ma_assert(co_type(o, O_MAP)), &(ounion_of(o)->map))
-#define o2fun(o)   (ma_assert(co_type(o, O_FUN)), &(ounion_of(o)->fun))
-#define o2clo(o)   (ma_assert(co_type(o, O_VCLOSURE)), &(ounion_of(o)->clo))
-#define o2uv(o)    (ma_assert(co_type(o, O_UV)), &(ounion_of(o)->uv))
-#define o2cls(o)   (ma_assert(co_type(o, O_CLASS)), &(ounion_of(o)->cls))
-#define o2ccls(o)  (ma_assert(co_type(o, O_VCCLASS)), &(ounion_of(o)->ccls))
-#define o2ins(o)   (ma_assert(co_type(o, O_INSTANCE)), &(ounion_of(o)->ins))
-#define o2stt(o)   (ma_assert(co_type(o, O_STATE)), &(ounion_of(o)->stt))
-#define o2ma(o)    (ma_assert(co_type(o, O_MA)), &(ounion_of(o)->ma))
-#define o2wk(o)    (ma_assert(co_type(o, O_WORK)), &(ounion_of(o)->wk))
-#define o2rbq(o)   (ma_assert(co_type(o, O_RBQ)), &(ounion_of(o)->rbq))
-#define o2ns(o)    (ma_assert(co_type(o, O_NS)), &(ounion_of(o)->ns))
-#define o2mvm(o)   (ma_assert(co_type(o, O_MVM)), &(ounion_of(o)->mvm))
-
-/* The other way around */
-#define x2o(v)  (ma_assert(is_obj(v)), &(ounion_of(o)->obj))
-
+/* Union of all collectable objects */
 union Ounion {
-   Object obj;
+   Object gc_obj;
    Str str;
    Array ar;
    Map map;
+   Range rng;
    Fun fun;
    Closure clo;
    Upval uv;
@@ -616,13 +664,12 @@ union Ounion {
    Work wk;
    Rbq rbq;
    Namespace ns;
-   MVM mvm;
 } Ounion;
 
 /* It is on its own as this is needed at 'ma_str.c' */
 #define sunion_of(s)  cast(Sunion *, s)
-#define a2u8(s)       (ma_assert(co_type(s, O_STR)), &(sunion_of(s)->as))
-#define u82a(s)       (ma_assert(co_type(s, O_U6STR)), &(sunion_of(s)->u8s))
+#define a2u8(s)       (ma_assert(check_type(s, O_STR)), &(sunion_of(s)->as))
+#define u82a(s)       (ma_assert(check_type(s, O_U8STR)), &(sunion_of(s)->u8s))
 
 union Sunion {
    Str as;
