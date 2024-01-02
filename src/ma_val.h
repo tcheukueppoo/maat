@@ -173,46 +173,46 @@ typedef struct Object {
 /* Here are base colletable objects, some do have variants */
 
 /* O_VCLASS, O_VCCLASS, O_VROLE */
-#define O_CLASS     5
+#define O_CLASS  5
 
-/* O_VINSTANCE */
-#define O_INSTANCE  6
+/* O_VINST O_VCINST */
+#define O_INST   6
 
 /* O_VSHTSTR, O_VLNGSTR */
-#define O_STR       7
+#define O_STR    7
 
 /* O_VULNGSTR, O_VUSHTSTR */
-#define O_U8STR     8
+#define O_U8STR  8
 
 /* O_VRANGE, O_VSRANGE? */
-#define O_RANGE     9    
+#define O_RANGE  9    
 
 /* O_VARRAY, O_VLIST */
-#define O_ARRAY     10
+#define O_ARRAY  10
 
 /* O_VMAP, O_VNSMAP */
-#define O_MAP       11
+#define O_MAP    11
 
 /* O_VCHAN, O_VSCHEDQ */
-#define O_RBQ       13
+#define O_RBQ    13
 
 /* O_VFUN, O_VCLOSURE */
-#define O_FUN       14
+#define O_FUN    14
 
 /* O_VUPVAL */
-#define O_UPVAL     15
+#define O_UPVAL  15
 
 /* O_VSTATE, O_VCO */
-#define O_STATE     16
+#define O_STATE  16
 
 /* O_VMA */
-#define O_MA        17
+#define O_MA     17
 
 /* O_VWORK */
-#define O_WORK      18
+#define O_WORK   18
 
 /* O_VNS */
-#define O_NS        19
+#define O_NS     19
 
 /* A thread-safe channel and scheduler queue */
 #define O_VCHAN    vary(O_RBQ, 1)
@@ -222,12 +222,6 @@ typedef struct Object {
 #define is_schedq(v)  check_type(v, O_VSCHEDQ)
 
 /* $$Representation of all string objects. */
-#define Str_Header  Object *next_sobj; \
-                    Ubyte sl; \
-                    Uint hash; \
-                    Byte *str; \
-                    union { size_t len; struct Str *snext; } u;
-
 #define O_VLNGSTR   vary(O_STR, 0)
 #define O_VSHTSTR   vary(O_STR, 1)
 #define O_VUSHTSTR  vary(O_U8STR, 0)
@@ -245,12 +239,19 @@ typedef struct Object {
 #define as_str(v)    (ma_assert(is_str(v)), cast(Str *, as_gcobj(v)))
 #define as_u8str(v)  (ma_assert(is_u8str(v)), cast(U8Str *, as_gcobj(v)))
 
+#define Str_Header  Object *next_sobj; \
+                    Ubyte sl; \
+                    Uint hash; \
+                    Byte *str; \
+                    union { size_t len; struct Str *snext; } u;
+
 /*
- * Ascii versiong of a Maat string, $str is the string itself
- * and has hash value $hash.
+ * Ascii version of a Maat string, $str is the ascii string
+ * itself and has hash value $hash.
+ *
  * $sl: For short strings, last 3 bits of $sl is for the length
- * of $str, its MSB determines whether $str is reserved
- * meanwhile for long strings, $sl serves as a boolean value to
+ * of $str whereas its first bit determines whether $str is
+ * reserved. For long strings, $sl serves as a boolean value to
  * check if $str already has its $hash.
  * $u: For short strings, $u is $snext which is a pointer to
  * $str's next string in our hash map of short strings ($$SMap)
@@ -272,7 +273,8 @@ typedef struct U8Str {
    size_t ngraph;
 } U8Str;
 
-/* $$Range object (inclusive).
+/*
+ * $$Range object with each bound inclusive.
  *
  * $a the start.
  * $b the end.
@@ -293,7 +295,6 @@ typedef struct Range {
 } Range;
 
 /* $$Representation of Map objects. */
-
 #define O_VMAP    vary(O_MAP, 0)
 #define O_VNSMAP  vary(O_MAP, 1)
 
@@ -303,41 +304,44 @@ typedef struct Range {
 #define as_map(v)    (ma_assert(is_map(v)), cast(Map *, as_gcobj(v)))
 #define as_nsmap(v)  as_map(v)
 
-/* The Node struct.
+/*
+ * Node of an `O_VMAP' map object.
  *
  * $val: Direct access to the Node's value.
  * $k: Node's key.
- *   $Valuefields: Pieces of $val, don't forget it is a union.
- *   $vkey: Key's value.
- *   $tkey: key's type.
+ *   $Valuefields: Pieces of $val since Node is a union.
+ *   $key_t: key's type.
+ *   $key_v: Key's value.
  *   $next: Next node in case of collisions.
  */
+#define CommonNodefields;  Ubyte key_t; \
+                           Int next; \
+                           _Value key_t
 typedef union Node {
    struct Key {
       Valuefields;
-      Ubyte tkey;
-      Int next;
-      _Value vkey;
+      CommonNodefields;
    } k;
    Value val;
 } Node;
 
-/*
- * The Node of a global symbol.
- *
- *
+/* 
+ * Node of an `O_VNSMAP' map object, has same fields as that of
+ * the
+ *   $m:
  */
 typedef union SNode {
-   struct Sym {
+   struct Key {
       Valuefields;
-      Int next;
+      CommonNodefields;
       Mutex m;
-      Str *name;
    } k;
    Value val;
 } SNode;
 
 /*
+ * The Map object.
+ *
  * $array: Array part of this Map.
  * $asize: $array size for Map and use-mutex bool val for NSMap.
  * $node: Hash part of this Map, point to a (S)?Node struct.
@@ -382,8 +386,9 @@ typedef struct Array {
 
 /*
  * $$Representation of a class, every collectable object has a
- * class, even the class itself. The Class of objects which
- * aren't first class values are probably useless, e.g Upval.
+ * class, even the class object itself. The Class of objects
+ * which aren't first class values are probably useless, we
+ * have for example Upvalues.
  *
  * $name: The class' name.
  * $meths: Pointer to a map for the class' methods. A value to
@@ -393,9 +398,9 @@ typedef struct Array {
  * at compile time.
  *
  * A C class is a class whose implemention is done in foreign
- * languages like C or C++, it is similar to full userdata in Lua.
+ * languages like C or C++.
  *
- * variant, here the object Class defines 3 variants which are
+ * variants, here the object Class defines 3 variants which are
  * Class, Role and Cclasse.
  *
  * For a Maat class and a Role we have the following fields:
@@ -406,11 +411,8 @@ typedef struct Array {
  *  $sups: Keeps the list of directly inherited superclasses.
  *  $sups exist mainly for introspection since $c3 handles super
  *  calls.
- *
- * And for a Cclass we have:
- *  $cdata: A pointer to a raw memory.
- *  $size: The size of the memory pointed by $cdata.
  */
+
 #define O_VCLASS  vary(O_CLASS, 0)
 #define O_VROLE   vary(O_CLASS, 1)
 
@@ -432,6 +434,11 @@ typedef struct Class {
    Object *next_sobj;
 } Class;
 
+/* $$A C class.
+ *
+ * $cdata: A pointer to a raw memory.
+ * $size: The size of the memory pointed by $cdata.
+ */
 #define O_VCCLASS  vary(O_CLASS, 2)
 
 #define is_cclass(v)  check_rtype(v, ctb(O_VCCLASS))
@@ -440,13 +447,20 @@ typedef struct Class {
 typedef struct Cclass {
    Header;
    Str *name;
-   Value cdata;
    size_t size;
    Map *meths;
 } Cclass;
 
+/* $$Instance of a c?class. */
+#define is_inst(v)   check_type(v, O_INST)
+
+#define O_VMINST vary(O_INST, 0)
+
+#define is_minst(v)  check_rtype(v, ctb(O_VMINST))
+#define as_minst(v)  (ma_assert(is_minst(v)), cast(MInst *, as_gcobj(v)))
+
 /*
- * $$Instance of a class.
+ * $$Instance of a Maat class.
  *
  * $fields: A pointer to a to-be-allocated array of values, each
  * field has a unique id which corresponds to an index in $fields.
@@ -458,21 +472,31 @@ typedef struct Cclass {
  * instance's class, it is set 'NULL' if none of the methods
  * of this instance's class does a super call.
  *
- * "self.SUPER::<method_name>(...)" Where SUPER is a pseudo-class
- * that resolves to the next class in the instance's class c3
- * list.
+ * "self.SUPER::<method_name>(...)" Where SUPER is a pseudo
+ * class that resolves to the next class in the instance's class
+ * c3 list.
  */
-#define O_VINSTANCE  vary(O_INSTANCE, 0)
-
-#define is_instance(v)  check_rtype(v, ctb(O_VINSTANCE))
-#define as_instance(v)  (ma_assert(is_instance(v)), cast(Instance *, as_gcobj(v)))
-
-typedef struct Instance {
+typedef struct MInst {
    Header;
    Value *fields;
    Map *sup_level;
    Object *next_sobj;
-} Instance;
+} MInstance;
+
+/*
+ * $$Instance of a Cclass.
+ *
+ * $cdata: Cclass' data.
+ */
+#define O_VCINST vary(O_INST, 1)
+
+#define is_cinst(v)  check_rtype(v, ctb(O_VMINST))
+#define as_cinst(v)  (ma_assert(is_cinst(v)), cast(CInst *, as_gcobj(v)))
+
+typedef struct CInst {
+   Header;
+   void *cdata;
+} CInstance;
 
 /*
  * $$Represents a namespace e.g FOO::BAR. A namespace can either

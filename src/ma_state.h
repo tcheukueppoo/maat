@@ -54,11 +54,17 @@ typedef struct State {
     * $cs_cap: Capacity of $callstack.
     * $cs_size: Number of used callframes.
     */
+
    CallFrame *callstack;
    size_t cs_cap;
    size_t cs_size;
-   Value *top;
+
+   /*
+    * $stack:
+    * $top:
+    */
    Value *stack;
+   Value *top;
 
    /* $open_uv: Linked-list of open upvals of this state. */
    Upval *open_uv;
