@@ -9,16 +9,10 @@
 #include "ma_conf.h"
 #include "ma_limits.h"
 
-/*
- * Macros defined below are both used to manipulate objects and non
- * nan-tagging represented values, reason why they aren't specific
- * to `$if' body of the `MA_NAN_TAGGING' conditional test.
- */
-
 /* Vary type 't' with variant bits 'v'. */
 #define vary(t, vb)  ((t) | (vb << 5))
 
-/* Some utils, 'x' can either be a value or a collectable object. */
+/* 'x' can either be a 'Value' or a collectable 'Object'. */
 #define type(x)             raw_type(x)
 #define raw_type(x)         ((x)->type)
 #define without_variant(x)  (raw_type(x) & 0x1F)
@@ -27,8 +21,6 @@
 
 #define with_variant(v)      (raw_type(v) & 0x7F)
 #define check_vartype(v, t)  (with_variant(v) == t)
-
-#if !defined(MA_NAN_TAGGING)
 
 /* $$Representation of a Maat value.
  *
@@ -57,14 +49,14 @@
  * - Bit 7: is 1 if $val stores a collectable object and 0
  *   otherwise.
  */
-#define Valuefields Ubyte type; _Value val
-
 typedef union _Value {
    Num n;
    CFunc f;
    void *p;
    struct Object *gc_obj;
 } _Value;
+
+#define Valuefields  Ubyte type; _Value val
 
 typedef struct Value {
    Valuefields;
@@ -77,8 +69,8 @@ typedef struct Value {
 
 /*
  * Defines types of all non-collectable objects. A value 'v' is
- * collectable if the MSB of its $type is 1 which means it
- * stores a collectable object.
+ * collectable if the MSB of its $type is 1 meaning it stores
+ * a collectable object.
  */
 #define V_NIL    0
 #define V_BOOL   1
@@ -142,15 +134,6 @@ typedef struct Value {
 #define is_true(v)   check_rtype(to_bool(v), V_VTRUE)
 
 #define to_bool(v)  (ma_likely(is_bool(v)) ? v : coerce_to_bool(v))
-
-#else
-
-/*
- * TODO
- */
-typedef uint64_t Value;
-
-#endif
 
 /* Header common to all collectable Maat objects */
 #define Header  Ubyte type; \
@@ -304,61 +287,76 @@ typedef struct Range {
 #define as_map(v)    (ma_assert(is_map(v)), cast(Map *, as_gcobj(v)))
 #define as_nsmap(v)  as_map(v)
 
+/* */
+#define Nodefields  Ubyte key_t; \
+                    Int next; \
+                    _Value key_v
+
 /*
- * Node of an `O_VMAP' map object.
+ * $$Node of an `O_VMAP' map object.
  *
- * $val: Direct access to the Node's value.
+ * $val:
+ *   Direct access to the Node's value, $val corresponds to
+ *   $Valuefields since Node is a union.
  * $k: Node's key.
- *   $Valuefields: Pieces of $val since Node is a union.
  *   $key_t: key's type.
  *   $key_v: Key's value.
  *   $next: Next node in case of collisions.
  */
-#define CommonNodefields;  Ubyte key_t; \
-                           Int next; \
-                           _Value key_t
 typedef union Node {
-   struct Key {
+   struct {
       Valuefields;
-      CommonNodefields;
+      Nodefields;
    } k;
    Value val;
 } Node;
 
 /* 
- * Node of an `O_VNSMAP' map object, has same fields as that of
- * the
- *   $m:
+ * $$SNode of an `O_VNSMAP' map object, same as $$Node but has
+ * mutex $m to manage concurrent access to entries. `O_VNSMAP'
+ * maps are used by Namespaces to store their global symbols.
  */
 typedef union SNode {
-   struct Key {
+   struct {
       Valuefields;
-      CommonNodefields;
+      Nodefields;
       Mutex m;
    } k;
    Value val;
 } SNode;
 
 /*
- * The Map object.
+ * The Map object. Our map has two parts: an array and a hash
+ * part, its array part is used in an optimized way to store
+ * nodes with non-negative integer keys. This array is used in
+ * such a way that more than half of its slots are in use.
+ * Its hash part stores the rest of the nodes obtained after
+ * we've got our optimized $array.
  *
- * $array: Array part of this Map.
- * $asize: $array size for Map and use-mutex bool val for NSMap.
- * $node: Hash part of this Map, point to a (S)?Node struct.
- * $lsize: log2 of the size of #node.
+ * $array: Array part of the Map.
+ * $asize: Size of the array part of the Map.
+ * $rasize:
+ *  Boolean value to check if $array's size $asize is actually
+ *  its real size.
+ * $node: Hash part of this Map, points to a Node/SNode.
+ * $lnode: The last free node in $node.
+ * $lg2size: log2 of the size of #node.
  */
 typedef struct Map {
    Header;
-   Value *array;
+   Ubyte rasize;
+   Ubyte lg2size;
    Uint asize;
-   Ubyte lgsize;
+   Value *array;
    void *node;
+   void *lnode;
    Object *next_sobj;
 } Map;
 
-
 /*
- * $$Representation of an Array object.
+ * $$Representation of an Array object. Though we got a Map
+ * optimized to be kind-of an array for fast access, Maat still
+ * got a true Array object.
  *
  * $array: The array itself.
  * $size: The size of $array.
@@ -391,11 +389,12 @@ typedef struct Array {
  * have for example Upvalues.
  *
  * $name: The class' name.
- * $meths: Pointer to a map for the class' methods. A value to
- * a key here is a pointer to a Closure but can later on change
- * to an Array of closures so as to cache super methods, the
- * cache can never be invalidate since c3 linearization is done
- * at compile time.
+ * $meths:
+ *   Pointer to a map for the class' methods. A value to a key
+ *   here is a pointer to a Closure but can later on change to
+ *   an Array of closures so as to cache super methods, the
+ *   cache can never be invalidate since c3 linearization is
+ *   done at compile time.
  *
  * A C class is a class whose implemention is done in foreign
  * languages like C or C++.
@@ -405,14 +404,15 @@ typedef struct Array {
  *
  * For a Maat class and a Role we have the following fields:
  *  $c3: List of classes got after c3 linearization was applied.
- *  $fields: Pointer to an array of values, indexes correspond
- *  to fields with values holding their defaults.
+ *  $fields:
+ *    Pointer to an array of values, indexes correspond to
+ *    fields with values holding their defaults.
  *  $roles: Keeps the list of roles that this class ":does".
- *  $sups: Keeps the list of directly inherited superclasses.
- *  $sups exist mainly for introspection since $c3 handles super
- *  calls.
+ *  $sups:
+ *    Keeps the list of directly inherited superclasses. $sups
+ *    exist mainly for introspection since $c3 handles super
+ *    calls.
  */
-
 #define O_VCLASS  vary(O_CLASS, 0)
 #define O_VROLE   vary(O_CLASS, 1)
 
@@ -462,15 +462,16 @@ typedef struct Cclass {
 /*
  * $$Instance of a Maat class.
  *
- * $fields: A pointer to a to-be-allocated array of values, each
- * field has a unique id which corresponds to an index in $fields.
- * This also holds inherited fields too.
- *
- * $sup_level: Keeps track of the level of super calls for each
- * method called on the instance, in otherwords it is a list 
- * of indexes to super methods cached at the level of this
- * instance's class, it is set 'NULL' if none of the methods
- * of this instance's class does a super call.
+ * $fields:
+ *   A pointer to a to-be-allocated array of values, each field
+ *   has a unique id which corresponds to an index in $fields.
+ *   This also holds inherited fields too.
+ * $sup_level:
+ *   Keeps track of the level of super calls for each method
+ *   called on the instance, in otherwords it is a list of
+ *   indexes to super methods cached at the level of this
+ *   instance's class, it is set 'NULL' if none of the methods
+ *   of this instance's class does a super call.
  *
  * "self.SUPER::<method_name>(...)" Where SUPER is a pseudo
  * class that resolves to the next class in the instance's class
@@ -549,8 +550,9 @@ typedef struct Namespace {
  * $arity: The number of arguments the function takes.
  * $code: Its bytecode.
  * $constants: The function's constant values.
- * $ns: Index of the $NSBuf to access the namespace of this
- * function.
+ * $ns:
+ *   Index of the $NSBuf to access the namespace of this
+ *   function.
  */
 #define O_VFUN  vary(O_FUN, 0)
 
@@ -573,20 +575,23 @@ typedef struct Fun {
  * since some functions need them, these lexicals are kept as
  * upvalues.
  *
- * $p: Pointer to upvalue, when an upvalue is opened, it points
- * to a value in a vm register but when closed, it points to
- * $state.
- * $state: A pointer to the $next open upvalue when this one is
- * still opened otherwise it'll contain the vm register value
- * $p pointed to.
- * $m_uv: Whenever an upval is shared by closures of States
- * distributed accross maatines, a mutex must be used to manage
- * it concurrent access. This field is optional as this
- * condition can only be determined at runtime.
+ * $p:
+ *   Pointer to upvalue, when an upvalue is opened, it points
+ *   to a value in a vm register but when closed, it points to
+ *   $state.
+ * $state:
+ *   A pointer to the $next open upvalue when this one is still
+ *   opened otherwise it'll contain the vm register value $p
+ *   pointed to.
+ * $m_uv:
+ *   Whenever an upvalue is shared by closures of States
+ *   distributed across maatines, a mutex must be used to manage
+ *   it concurrent access. This field is optional as this
+ *   condition can only be determined at runtime.
  */
 #define O_VUPVAL  vary(O_UPVAL, 0)
 
-/* Upvals aren't first class values, hence no 'is's and 'as's. */
+/* Upvals aren't first class values. */
 typedef struct Upval {
    Header;
    Value *p;

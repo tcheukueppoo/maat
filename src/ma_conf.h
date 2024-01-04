@@ -186,36 +186,19 @@
 #define Uint   unsigned int
 #define Int    signed int
 
-/*
- * ##MA_NAN_TAGGING is an optimization technique for the repre-
- * sentation of Maat values, it is disabled by default, use the
- * '-D' option during compilation to enable it.
- */
-#define MA_NAN_TAGGING  0
-
-/* ##Configuring the representation of a Maat number */
-#if !defined(MA_USE_32BIT)
-#define MA_USE_32BIT  0
-#endif
-
-#if !defined(MA_USE_LDOUBLE)
-#define MA_USE_LDOUBLE 0
-#endif
-
-#if MA_USE_32BIT
-#define Num             float
-#define ma_num_fmt      "%.7g"
-#define str2num(s, i)   strtof(s, i)
-#define MA_NAN_TAGGING  0
-#elif !defined(MA_NAN_TAGGING) && MA_USE_LDOUBLE
-#define Num             long double
-#define ma_num_fmt      "%.19Lg"
-#define str2num(s, i)   strtold(s, i)
-#define MA_NAN_TAGGING  0
-#else
+/* ##Configuring the representation of a Maat number type. */
+#if MA_USE_DOUBLE
 #define Num            double
 #define ma_num_fmt     "%.14g"
 #define str2num(s, i)  strtod(s, i)
+#elif MA_USE_LDOUBLE
+#define Num             long double
+#define ma_num_fmt      "%.19Lg"
+#define str2num(s, i)   strtold(s, i)
 #endif
+#elif MA_USE_FLOAT
+#define Num             float
+#define ma_num_fmt      "%.7g"
+#define str2num(s, i)   strtof(s, i)
 
 #endif
