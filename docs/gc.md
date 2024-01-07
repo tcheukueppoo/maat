@@ -15,22 +15,67 @@ be considered to assure coherency and synchronization.
 
 Major problems faced during collection are the following:
 
-## Open upvalues scattered accross states own by different maatines.
+## Collection of open upvalues scattered across the states of a Maatine
 
 A Maatine has atleast one state which with the use of its own stack,
 simply has to run a function which is literally just a closure that
 possibly has open upvalues pointing to values living in the stack of
-the state of another maatine, this former maatine can at anytime
-during runtime be destroyed or reused after it has finished what
-it was build for but before this has to happen, its open upvalues
-marked by living objects most be closed and painted black to avoid
-being collected but then it can be too late to do so.
+another state of this same maatine, the latter state may have not
+been marked and ends up collected but before this has to happen, its
+open upvalues that have been marked during the marking phase must be
+closed and painted black so that they cannot longer be collected
+during the sweeping phase.
 
-Though we said a maatine GC run is independent to GC runs from other
-maatines, solving this problem enforces us to do the following in
-each maatine's GC cycle:
+Solving this problem enforces us to do the following in each
+maatine's GC cycle:
 
-1.
+After all gray objects have been processed, all reachable states are
+now marked black, so go through this maatine's list of states with
+still opened upvalues and for each unmarked state, identify all
+its non-white open upvalues to mark the stack values they are pointing
+black, making them now reachable. Unless they'll get reached again
+before the sweeping phase, these unmarked states need to be out of
+the list of states with open upvalues as they are now considered as
+garbage.
+
+## Objects shared accross maatines.
+
+The fact that each maatine runs its garbage collector independently
+poses a real issue on objects shared across Maat's maatines.
+
+Possibly shared objects are:
+
+### Upvalues
+
+The state of a Maatine may have a closure with upvalues pointing to
+values in the stack of the state of another Maatine. Not only we have
+to sync access to this upvalues, we also have to make sure a maatine
+does not collect these values meanwhile some other maatines actually
+used them via closures and stuffs like that.
+
+### Cached Strings
+
+For memory efficiency, we have a global cache of strings and map
+of short strings with access to each of them synchronised. That
+said, a string might have been created by the state from a maatine
+and is later on reused by the state of another maatine.
+
+### Objects assigned to namespaces' global symbols.
+
+Content of global variables are obviously shared accross maatines as
+all states within every maatine can modify globals.
+
+To solve these problems, 
+
+
+
+
+
+
+
+
+
+
 
 # Gen algorithm
 
@@ -62,3 +107,15 @@ gc estimate: it is an estimate of non-garbage memory in use, it is update each t
 gc mul: factor which determines how much work is done in a garbage collection cycle
 gc pause size: it sets the garbage collection debt, it determines how long the program has to wait
 before starting a new cycle
+
+### TODO
+
+- PROBLEMS
+- SOS, MAATINE COLLABORATION
+- GEN MODE, ALGORITHM
+- INC MODE, ALGORITHM
+- INC MODE <-> GEN MODE
+- GC PARAMATERS
+- FINALIZATION
+
+- WEAK REF
