@@ -6,102 +6,107 @@ links to get to know what generational and incremental garbage
 collection are.
 
 We are in a concurrent system where maatines(VM-level non-blocking threads)
-are scheduled by the Maat runtime scheduler to run over
-operating system threads (using libuv). A maatine is basically a
-lightweight thread that has atleast one state with each state owning
-a stack, each maatine performs its collection either incrementally or
-generationally and independently of the other ones. That said, a lot
-must be considered to assure coherency and synchronization.
+are scheduled by the Maat runtime scheduler to run over operating system
+threads (using libuv). A maatine is basically a lightweight thread that has
+atleast one state with each state owning a stack to executing some code, a 
+maatine can switch between any of its states, each maatine performs its
+collection either incrementally or generationally and independently of the
+other ones. That said, a lot must be considered to assure coherency and
+synchronization.
 
-With this design, major problems faced during collection are the
-following:
+Why have we choosen this design?
+
+* Most objects are maatine-local.
+* Only a few number of maatines (a.k.a threads) might need a GC run at the same time.
+* Concurrent collection avoids us from stoping the world, each maatine performs it collection(in gen or inc mode) without annoying other maatines unless necessary.
+
+With this design, major problems faced during collection are the following:
 
 ## Collection of open upvalues scattered across states of a Maatine
 
-A Maatine has atleast one state which with the use of its own stack, simply
-has to run a function which is literally just a closure that possibly
-has open upvalues pointing to values living in the stack of another state
-(if any) of this same maatine, the latter state may have not been marked
-and ends up collected but before this has to happen, its open upvalues
-that have been marked during the marking phase of the maatine GC run must
-be closed and painted black so that they cannot longer be collected during
-the sweeping phase.
+A Maatine has atleast one state which with the use of its own stack, simply has to
+run a function which is literally just a closure that possibly has open upvalues
+pointing to values living in the stack of another state (if any) of this same
+maatine, the latter state may have not been marked and ends up collected but before
+this has to happen, its open upvalues that have been marked during the marking
+phase of the maatine GC run must be closed and painted black so that they cannot
+longer be collected during the sweeping phase.
 
-Solving this problem enforces us to do the following in each maatine's
-GC cycle:
+Solving this problem enforces us to do in each maatine's GC cycle the following:
 
-After all gray objects have been processed, all reachable states are
-now marked black, so go through this maatine's list of states with
-still opened upvalues and for each unmarked state, identify all its
-non-white open upvalues to mark the stack values they are pointing
-to black thus making them reachable. Unless they'll get reached again
-before the sweeping phase, unmarked states we found do not need to be in
-the list of states with open upvalues again as they are now considered
-as garbage.
+After all gray objects have been processed, all reachable states are now marked
+black, so go through this maatine's list of states with still opened upvalues
+and for each unmarked state, identify all its non-white open upvalues to mark
+the stack values they are pointing to to black thus making them reachable. Unless
+they'll get reached again before the sweeping phase, unmarked states we found do
+not need to be in the list-of-states-with-open-upvalues again as they are now
+considered garbage.
 
 ## Objects shared accross maatines
 
-The fact that each maatine runs its garbage collector independently
-of the other ones poses a real issue on objects shared across Maat's
-maatines.
+The fact that each maatine runs its garbage collector independently of the other
+ones poses a real issue on objects shared across Maat's maatines.
 
-Possibly shared objects are:
+### Possibly ways of sharing
 
-### Upvalues
+1. Upvalues
 
-The state of a Maatine may have a closure with open upvalues pointing
-to values in the stack of the state of another Maatine. We not only have
-to synchronize access operations on these upvalues in case maat runs on
-a multithreaded environment but also have to make sure the maatine
-detaining those stack values does not collect them as long as some other
-maatines use them via closures or some other stuffs.
+The state of a Maatine may have a closure with open upvalues pointing to values
+in the stack of the state of another Maatine. We not only have to synchronized
+access operations on these upvalues during runtime in case maat runs on in
+multi-threaded environment but also have to make sure the maatine detaining those
+stack values does not collect them as long as some other maatines use them via
+closures or some other stuffs.
 
-This problem is also encountered in closed upvalues as a maatine might
-want to free unreachable closed upvalues reachable to other maatines.
+This problem is also encountered in closed upvalues as a maatine might want to
+free unreachable closed upvalues reachable to other maatines.
 
-### Cached Strings
+2. Cached Strings
 
-For memory efficiency, we have a global cache of strings and a global map
-of short strings for their re-usage, concurrent access to these
-globals structures must be synchronized. That said, it is sure a running
-program will get to a point where a string will be created by the state of
-one maatine and later on get reused by the state of another maatine and thus
-making that string shared.
+For memory efficiency, we have a global cache of strings and a global Map of short
+strings for re-utilization. Concurrent access to these globals structures must be
+synchronized, that said, it is sure a running program will get to a point where a
+string will be created by the state of one maatine and later on get reused by the
+state of another maatine and thus making that string shared.
 
-### Objects of namespaces' global symbols
+3. Objects of namespaces' global symbols
 
-The way we have designed our garbage collector makes objects of
-namespaces' global symbols pretty hard to manage, In most programming
-languages, these globals form part of the root set but in Maat, it is a
-completely different story. Since each maatine can at anytime perform a
-collection, the color set in one maatine to the collectable value of
-a global symbol might get overridden by another.
+The way we have designed our garbage collector makes objects of namespaces' global
+symbols pretty hard to manage, In most programming languages, these globals form
+part of the root set but it is a completely different story in Maat. A maatine can
+perform a collection at anytime and thus colors can be concurrently set to a
+collectable object leading to data race and lost of references.
 
-To be more clear, let's consider a case where a maatine in the marking
-phase of its collection marks all objects of all global symbols black and
-another maatine which is in the sweeping phase of its collection changes
-the colors of all reachable objects back to white for its next
-collection, at this point even those marked black by the former maatine
-are now white which raises a big problem as they're now set to be freed.
+Let's consider a case where a maatine in the mark phase of its collection marks
+all objects of global symbols black and another maatine which is in the sweep
+phase of its collection changes the colors of all reachable objects back to white
+for its next gc cycle, at this point even objects marked black by the former
+maatine which hasn't even entered its sweep phase are now white which raises
+a big problem as they're now treated as garbage.
 
-### Arguments to Maatine calls
+4. Arguments to Maatine calls
 
-A maatine that is set to run on an OS thread simply has to invoke a
-function with arguments(potentially collectable values) to the function
-call passed by the invoker which is from another maatine thus making
-colletable arguments shared since some live in the constant table of the
-running function of the maatine who started this one.
+A newly started maatine simply invoke a function in a new state with arguments
+(potentially collectable values) gotten from the maatine that started this one.
+Collectable values passed to a function call are passed by reference and thus
+these collectable values become shared.
 
-Channels which are themselves shared objects serve as a mean to safely
-share objects across maatines. A channels can be shared via global symbols
-and upvalues which is very insane as it leads to double synchronization.
-
+Channels which are themselves shared objects serve as a means to thread-safely
+share objects across maatines. A channels can be shared via global symbols, upvals
 or function calls.
 
+### Shared Object List (SOL)
 
+To safely collect objects shared across maatines, maat introduces a linked-list of
+shared objects kept in the global state of each maatine (`GMa` struct) and two
+object colors which are the blue and red.
 
+An object that is shared accross maatines can only
 
+After analysis, we have come up with the following properties
 
+* A shared object can only is considered garbage after a GC tour.
+* 
 
 
 # Gen algorithm
