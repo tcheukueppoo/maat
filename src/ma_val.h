@@ -64,7 +64,7 @@ typedef struct Value {
 
 #define val(v)          ((v)->val)
 #define set_type(v, t)  (type(v) = t)
-#define gco2val(v, o)   set_type(v, ctb(o->type)); \
+#define gco2val(o, v)   set_type(v, ctb(o->type)); \
                         (val(v).obj = x2gco(o))
 
 /*
@@ -99,7 +99,8 @@ typedef struct Value {
  * 'as_gcobj()' for collectable objects defined below. Things
  * dealing with collectable objects are preceeded with '[oO]_'.
  */
-#define as_gcobj(v)    (ma_assert(is_ctb(v)), (val(v).gc_obj))
+#define as_gcobj(v)  (ma_assert(is_ctb(v)), (val(v).gc_obj))
+#define as_gcobj(v)  (val(v).gc_obj)
 
 /*
  * Define variants of the 'nil' type and its singleton values.
@@ -138,7 +139,7 @@ typedef struct Value {
 /* Header common to all collectable Maat objects */
 #define Header  Ubyte type; \
                 Ubyte mark; \
-                struct Class *next; \
+                struct Class *class; \
                 struct Object *next
 
 /*
@@ -182,7 +183,7 @@ typedef struct Object {
 /* O_VFUN, O_VCLOSURE */
 #define O_FUN    14
 
-/* O_VUPVAL */
+/* O_VUPVAL, O_VSUPVAL */
 #define O_UPVAL  15
 
 /* O_VSTATE, O_VCO */
@@ -210,6 +211,8 @@ typedef struct Object {
 #define O_VUSHTSTR  vary(O_U8STR, 0)
 #define O_VULNGSTR  vary(O_U8STR, 1)
 
+#define str2v(s, v)  gco2val(s, v)
+
 #define is_str(v)   (is_astr(v) || is_ustr(v))
 #define is_astr(v)  check_type(v, O_STR)
 #define is_ustr(v)  check_type(v, O_U8STR)
@@ -232,13 +235,16 @@ typedef struct Object {
  * Ascii version of a Maat string, $str is the ascii string
  * itself and has hash value $hash.
  *
- * $sl: For short strings, last 3 bits of $sl is for the length
- * of $str whereas its first bit determines whether $str is
- * reserved. For long strings, $sl serves as a boolean value to
- * check if $str already has its $hash.
- * $u: For short strings, $u is $snext which is a pointer to
- * $str's next string in our hash map of short strings ($$SMap)
- * meanwhile for long strings, $u is the $len of $str.
+ * $sl:
+ *   For short strings, last 3 bits of $sl is for the length of
+ *   $str whereas its first bit determines whether $str is
+ *   reserved. For long strings, $sl serves as a boolean value
+ *   to check if $str already has its $hash.
+ * $u:
+ *   For short strings, $u is $snext which is a pointer to
+ *   $str's next string in our hash map of short strings
+ *   ($$SMap) meanwhile for long strings, $u is the $len of
+ *   $str.
  */
 typedef struct Str {
    Header;
@@ -265,21 +271,26 @@ typedef struct U8Str {
  */
 #define O_VRANGE  vary(O_RANGE, 0)
 
+#define range2v(v, r)  gco2val(v, r)
+#define v2range(v)     (ma_assert(is_range(v)), gco2str((v).gc_obj))
+
 #define is_range(v)  check_rtype(v, ctb(O_VRANGE))
 #define as_range(v)  (ma_assert(is_range(v)), cast(Range *, as_gcobj(v)))
-
-#define range2v(v, r)  gco2val(v, r)
 
 typedef struct Range {
    Header;
    Num a;
    Num b;
    Int c;
+   Object *next_sobj;
 } Range;
 
 /* $$Representation of Map objects. */
 #define O_VMAP    vary(O_MAP, 0)
 #define O_VNSMAP  vary(O_MAP, 1)
+
+#define map2v(v, m)  gco2val(v, m)
+#define v2map2(v, m)  
 
 #define is_map(v)    check_rtype(v, ctb(O_VMAP))
 #define is_nsmap(v)  check_rtype(v, ctb(O_VNSMAP))
@@ -288,7 +299,7 @@ typedef struct Range {
 #define as_nsmap(v)  as_map(v)
 
 /* */
-#define Nodefields  Ubyte key_t; \
+#define NodeKeyfields  Ubyte key_t; \
                     Int next; \
                     _Value key_v
 
@@ -296,8 +307,8 @@ typedef struct Range {
  * $$Node of an `O_VMAP' map object.
  *
  * $val:
- *   Direct access to the Node's value, $val corresponds to
- *   $Valuefields since Node is a union.
+ *   Direct access to the Node's value, $val is $Valuefields
+ *   since Node is a union.
  * $k: Node's key.
  *   $key_t: key's type.
  *   $key_v: Key's value.
@@ -306,22 +317,23 @@ typedef struct Range {
 typedef union Node {
    struct {
       Valuefields;
-      Nodefields;
-   } k;
+      NodeKeyfields;
+   } key;
    Value val;
 } Node;
 
 /* 
- * $$SNode of an `O_VNSMAP' map object, same as $$Node but has
- * mutex $m to manage concurrent access to entries. `O_VNSMAP'
- * maps are used by Namespaces to store their global symbols.
+ * $$SNode is node for an `O_VNSMAP' map object. It is similar
+ * to $$Node but has mutex $m to async access to entries.
+ * `O_VNSMAP' maps are used by Namespaces to store their global
+ * symbols.
  */
 typedef union SNode {
    struct {
       Valuefields;
-      Nodefields;
-      Mutex m;
-   } k;
+      NodeKeyfields;
+      Mutex *m;
+   } key;
    Value val;
 } SNode;
 
@@ -338,9 +350,11 @@ typedef union SNode {
  * $rasize:
  *  Boolean value to check if $array's size $asize is actually
  *  its real size.
- * $node: Hash part of this Map, points to a Node/SNode.
- * $lnode: The last free node in $node.
- * $lg2size: log2 of the size of #node.
+ * $node:
+ *   Hash part of the Map, can later on be casted to an $$SNode
+ *   in case the Map is an `O_VNSMAP' map.
+ * $last: The last free node in $node.
+ * $lg2size: log2 of the size of $node.
  */
 typedef struct Map {
    Header;
@@ -348,8 +362,8 @@ typedef struct Map {
    Ubyte lg2size;
    Uint asize;
    Value *array;
-   void *node;
-   void *lnode;
+   Node *node;
+   Node *last;
    Object *next_sobj;
 } Map;
 
@@ -358,14 +372,13 @@ typedef struct Map {
  * optimized to be kind-of an array for fast access, Maat still
  * got a true Array object.
  *
- * $array: The array itself.
- * $size: The size of $array.
- * $cap: The capacity of $array.
+ * Its variant is the list object, a comma-separated list of
+ * values
  */
-
-/* Variant: list object: comma-separated list of values */
 #define O_VARRAY  vary(O_ARRAY, 0)
 #define O_VLIST   vary(O_ARRAY, 1)
+
+#define array2v(a, v)  gco2val(a, v)
 
 #define is_array(v)   check_type(v, O_ARRAY)
 #define iss_array(v)  check_rtype(v, ctb(O_VARRAY))
@@ -374,12 +387,17 @@ typedef struct Map {
 #define as_array(v)  (ma_assert(is_array(v)), cast(Array *, as_gcobj(v)))
 #define as_list(v)   as_array(v)
 
+/*
+ * $size: The size of $array.
+ * $cap: The capacity of $array.
+ * $array: The array itself.
+ */
 typedef struct Array {
    Header;
+   Object *next_sobj;
    size_t size;
    size_t cap;
    Value *array;
-   Object *next_sobj;
 } Array;
 
 /*
@@ -416,6 +434,8 @@ typedef struct Array {
 #define O_VCLASS  vary(O_CLASS, 0)
 #define O_VROLE   vary(O_CLASS, 1)
 
+#define class2v(a, c)  gco2val(a, c)
+
 #define is_class(v)   check_type(v, O_CLASS)
 #define iss_class(v)  check_rtype(v, ctb(O_VCLASS))
 #define is_role(v)    check_rtype(v, ctb(O_VROLE))
@@ -425,13 +445,13 @@ typedef struct Array {
 
 typedef struct Class {
    Header;
+   Object *next_sobj;
    Str *name;
    Value *fields;
    Map *meths;
    struct Class *roles;
    struct Class *sups;
    struct Class *c3;
-   Object *next_sobj;
 } Class;
 
 /* $$A C class.
@@ -452,9 +472,11 @@ typedef struct Cclass {
 } Cclass;
 
 /* $$Instance of a c?class. */
-#define is_inst(v)   check_type(v, O_INST)
-
 #define O_VMINST vary(O_INST, 0)
+
+#define inst2v(i, v)  gco2val(i, v)
+
+#define is_inst(v)   check_type(v, O_INST)
 
 #define is_minst(v)  check_rtype(v, ctb(O_VMINST))
 #define as_minst(v)  (ma_assert(is_minst(v)), cast(MInst *, as_gcobj(v)))
@@ -479,9 +501,9 @@ typedef struct Cclass {
  */
 typedef struct MInst {
    Header;
+   Object *next_sobj;
    Value *fields;
    Map *sup_level;
-   Object *next_sobj;
 } MInstance;
 
 /*
@@ -489,52 +511,58 @@ typedef struct MInst {
  *
  * $cdata: Cclass' data.
  */
-#define O_VCINST vary(O_INST, 1)
+#define O_VCINST  vary(O_INST, 1)
 
 #define is_cinst(v)  check_rtype(v, ctb(O_VMINST))
 #define as_cinst(v)  (ma_assert(is_cinst(v)), cast(CInst *, as_gcobj(v)))
 
 typedef struct CInst {
    Header;
+   Object *next_sobj;
    void *cdata;
 } CInstance;
 
 /*
  * $$Represents a namespace e.g FOO::BAR. A namespace can either
  * be represented as a package, role or (c)class.
- * "FOO::BAR::x()" is a call to the function "x" in "FOO::BAR"
+ * 'FOO::BAR::x()' is a call to the function 'x' in 'FOO::BAR'
  * if ever there is.
  *
  * $name: Namespace's name.
- * $ours: Stores it globals (uses mutex when required)
+ * $ours: Stores it globals (uses mutex when required).
  *
- * $ours of the package "main::" takes care of the following
+ * $ours of the package 'main::' takes care of the following
  * type I & II special variables:
  *
  *   ENV, ARGC, ARGV, INC, PATH, SIG, DATA, $v, $o, $,, $/, $\
  *   $|, $", $$, $(, $), $<, $>, $f, and $0.
  *
- * Access to one these variables from another package most not
- * necessarily be done using its fully qualified form unless a
- * variables of the same name declared in a scope shields it.
+ * Accessing any of these variables from the main package most
+ * not necessarily be done using a fully qualified form unless
+ * a variable of the same name declared in a scope takes
+ * precedence when the compiler resolves it.
  *
- * $exports: Names of to-be-exported globals when this namespace
- * is used by another.
+ * $exports:
+ *   Names of to-be-exported globals when this namespace
+ *   is used by another.
  *
  * NB:
- * - The argument to the "use" statement never translates to a
+ * - The argument to the 'use' statement never translates to a
  *   namespace.
- * - Not all classes or roles are namespaces, some can be
- *   lexically scoped and thus can never be fully qualified.
- * - For consistency, you cannot nest namespaces as they don't
- *   really have an identity.
+ * - Classes and roles don't always have to give an identity to
+ *   namespaces, some can exist as lexically scoped variables or
+ *   global symbols of a namespace having an identity of a
+ *   package.
+ * - For consistency, you can't nest namespaces, so 'FOO::BAR'
+ *   having identity of a package doesn't imply that 'BAR' is
+ *   another package or a class in 'FOO'.
  * 
- * $ns_val: The namespace value, a package, class, or role.
+ * $ns_val: The namespace value--a package, class, or role.
+ *
+ * A namespace is not a first class value as it can bring
+ * confusion between its global symbols and other namespaces.
  */
 #define O_VNS  vary(O_NS, 0)
-
-#define is_ns(v)  check_rtype(v, ctb(O_VNS))
-#define as_ns(v)  (ma_assert(is_ns(v)), cast(Namespace *, as_gcobj(v)))
 
 typedef struct Namespace {
    Header;
@@ -550,9 +578,7 @@ typedef struct Namespace {
  * $arity: The number of arguments the function takes.
  * $code: Its bytecode.
  * $constants: The function's constant values.
- * $ns:
- *   Index of the $NSBuf to access the namespace of this
- *   function.
+ * $ns: Access index to namespace of the function in $NSBuf.
  */
 #define O_VFUN  vary(O_FUN, 0)
 
@@ -570,11 +596,14 @@ typedef struct Fun {
 /*
  * $$A function that keeps track of its upvalues is called a
  * closure, upvalues initially are lexically scoped variables
- * living in vm's registers, they were supposed to stop existing
- * when the program goes out of their scopes of definition but
- * since some functions need them, these lexicals are kept as
- * upvalues.
+ * with values living in vm's registers, they were supposed to
+ * stop existing when the program goes out of their scopes of
+ * definition but since some functions need them, these lexicals
+ * are kept as upvalues. Upvalues aren't first class values.
  *
+ * $ncl:
+ *   Boolean value, is 0 if only one closure closes over it and
+ *   1 it is more the one.
  * $p:
  *   Pointer to upvalue, when an upvalue is opened, it points
  *   to a value in a vm register but when closed, it points to
@@ -584,29 +613,42 @@ typedef struct Fun {
  *   opened otherwise it'll contain the vm register value $p
  *   pointed to.
  * $m_uv:
- *   Whenever an upvalue is shared by closures of States
- *   distributed across maatines, a mutex must be used to manage
- *   it concurrent access. This field is optional as this
- *   condition can only be determined at runtime.
+ *   Field for an O_VSUPVAL, whenever an upvalue is shared by
+ *   closures of States distributed across maatines, a mutex
+ *   must be used to manage it access. This field is optional as
+ *   this condition can only be determined at runtime.
  */
+#define UVfields  Ubyte ncl; \
+                  Value *p; \
+                  union { Value val; struct Upval *next; } state
+
 #define O_VUPVAL  vary(O_UPVAL, 0)
 
-/* Upvals aren't first class values. */
 typedef struct Upval {
    Header;
-   Value *p;
-   union {
-      Value val;
-      struct Upval *next;
-   } state;
-   Mutex m_uv;
+   UVfields;
 } Upval;
+
+#define O_VSUPVAL  vary(O_UPVAL, 1)
+
+/*
+ * Upvalues aren't first class values, these macros are used to
+ * synchronized access to upvalues shared across maatines.
+ */
+#define is_vsupval(o)  check_rtype(o, O_VSUPVAL)
+#define as_vsupval(o)  cast(SUpval *, o)
+
+typedef struct SUpval {
+   Header;
+   UVfields;
+   Mutex *m_uv;
+} SUpval;
 
 /* $$A closure is a variant of a function which keep tracks of
  * its upvalues.
  *
  * $fun: A pointer to the closure's function.
- * $nupvals: The number of upvalues.
+ * $nuv: The number of upvalues.
  * $upvals: The List of upvalues the function has.
  */
 #define O_VCLOSURE  vary(O_FUN, 1)
@@ -618,11 +660,11 @@ typedef struct Closure {
    Header;
    Object *next_sobj;
    Fun *fun;
-   Ubyte nupvals;
+   Ubyte nuv;
    Upval **upvals;
 } Closure;
 
-/* $$The definition of these objects are in 'ma_state.h'  */
+/* $$The definitions of these objects are in 'ma_state.h'. */
 
 /* $$Macros of the State object. */
 #define O_VSTATE  vary(O_STATE, 0)
