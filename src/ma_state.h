@@ -2,46 +2,77 @@
  * $$$ 
  * License: AGL, see LICENSE file for details.
  */
+
 #ifndef ma_state_h
 #define ma_state_h
 
 #include "ma_conf.h"
 #include "ma_val.h"
 
-/* * $$Struct of a Callframe.
+/*
+ * $$SV is a queue element of $svq queue for special variables.
  *
- * $ip: Instruction pointer which points to the next-to-be
- * executed vm instruction.
- * $closure: The closure associated to that callframe.
- * $stack: The start of the frame, points the function's first
- * argument or local.
- * $temps: For temporarization(the "temp" declarator) of package
- * variables. It is a map with keys corresponding to scope level
- * counts since multiple scopes can temporarize same package
- * variables. We are using a map because it uses its array part
- * when necessary then optimizes into a real map when scope
- * indexes are far apart from each other. $temps lets some
- * in-house methods define the following lexically scoped
- * special variables:
+ * $id: Id of the scope these special variables belongs to.
+ * $sv: Special variables of this scope, keys could be:
  *
- *   $<digit>($1, $2, $3, etc), $., $`, $&, and $'
+ *  $<digit>($1, $2, $3, etc), $., $`, $&, or $'
  *
- * It is internally implemented C codes that have to
- * appropiately set these variables in $temps e.g ".match"
- * Regex method.
+ * It is internally implemented C codes that have to set
+ * these variables in $temps. e.g the ".match" RE method.
  */
+typedef struct SV {
+   Ubyte id;
+   Map *sv;
+} SV;
 
+/* $$Struct of a Callframe */
 typedef struct CallFrame {
-   uint8_t *ip;
-   Map *temps;
-   Value *start;
+
+   /*
+    * $pc: Program counter which points to the next-to-be executed
+    * vm instruction.
+    */
+   uint8_t *pc;
+
+   /*
+    * $stack: The start of the frame, points the function's first
+    * argument or local.
+    */
+   Value *base;
+
+   /* The id of the current scope in this callframe. */
+   Ubyte id;
+
+   /*
+    * $temps: For temporization of package variables, i.e a change on
+    * the contents of package variables made local to the scope from
+    * where the change was made. See doc of 'temp' var specifier.
+    *
+    * Resolution is done at compile time just like with lexicals.
+    */
+   size_t ntemps;
+   ValueBuf *temps;
+
+   /*
+    * $svq: Queue of $$SV elements.
+    * $qsize: Queue size.
+    * $front: Index of the front element to-be dequeued when we go
+    * out-of-scope the SV element belongs to. The front always get
+    * the variable we want to runtime resolve, so it's pretty fast.
+    */
+   SV *sv_queue;
+   Ubyte front;
+   Ubyte qsize;
+
+
+   /* $closure: The closure associated to this callframe. */
    Closure *closure;
+
 } CallFrame;
 
 /*
- * $$A Maat state which can either be a blocking vm-level thread
- * called a coroutine, a generator function or simple the state
- * of a maatine.
+ * $$A state can either be a blocking vm-level thread i.e coroutine
+ * or generator function or simply the state of a Maatine.
  */
 typedef struct State {
    Header;
@@ -54,7 +85,6 @@ typedef struct State {
     * $cs_cap: Capacity of $callstack.
     * $cs_size: Number of used callframes.
     */
-
    CallFrame *callstack;
    size_t cs_cap;
    size_t cs_size;
@@ -69,7 +99,7 @@ typedef struct State {
    /* $open_uv: Linked-list of open upvals of this state. */
    Upval *open_uv;
 
-   /* $ma: The Maatine owning this state/coroutine. */
+   /* $ma: The Maatine owning this state/coroutine/Gfun. */
    struct Ma *ma;
 
    /*
@@ -90,19 +120,5 @@ typedef struct State {
       struct Work *wk;
    } cw;
 } State;
-
-/*
- * $$Map of short strings whether ascii or utf-8 encoded short
- * strings.
- *
- * $size: Size of our hash map.
- * $cap: Its Capacity.
- * $map: And then the map itself.
- */
-typedef struct SMap {
-   Int size;
-   Int cap;
-   Str **map;
-} SMap;
 
 #endif
