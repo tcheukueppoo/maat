@@ -16,9 +16,7 @@ synchronization.
 Why have we choosen this design?
 
 * Most objects are maatine-local.
-
 * Only a few number of maatines (a.k.a threads) might need a GC run at the same time.
-
 * Concurrent collection avoids us from stoping the world, each maatine performs it
   collection(in gen or inc mode) without annoying other maatines unless necessary.
 
@@ -98,7 +96,7 @@ or function calls.
 ### Linked-List of Shared Objects (LSO)
 
 To safely collect objects shared across maatines, maat introduces a linked-list of
-shared objects kept in the global state(`GMa`) accessible to all maatines; three
+shared objects kept in the global state of each maatine (`GMa` struct) and three
 object colors which are the green, red and yellow.
 
 A concurrently running program is said to have done a complete GC round when all
@@ -111,7 +109,7 @@ object is a live shared mutable object, a yellow object is a live shared immutab
 object and finally a red object which is a dead shared object whether mutable or not.
 The reason why we have decided to specially mark mutable shared objects yellow is
 mainly to optimize SET and GET opcode instructions since concurrent operations on
-immutable shared objects do not require [synchronization](./concurrency.md).
+immutable shared objects do not require [synchronization](./synchronization.md).
 Each GC round is associated with a **LSO** and at the end of each round, its
 corresponding **LSO** is swept. A running maat program in a multi-threaded environment
 identifies all the objects sharing points to efficiently mark each top level to-be-shared
@@ -119,20 +117,16 @@ mutable object green and immutable object yellow. A shared object may have links
 other objects making them shared too but we won't go down the tree to mark them blue as
 it'll terribly slow down our running program, marking the roots suffices, however there
 is an exception where upvalues of closures are marked blue to implement built-in
-[synchronization](./concurrency.md).
+[synchronization](./synchronization.md).
 
 The following properties are true:
 
 * The liveness of a shared object can only be determined if that object has gone
   through a complete GC round.
-
 * A maatine can go through multiple GC cycles before a GC round is completed.
-
 * The first maatine of a GC round is the one that has first performed a complete GC cycle.
-
 * In a running program of `n` maatines, `(n - 1)` maatines can perform GC cycles for
   the round following this one and we thus have maximum 2 rounds at a time.
-
 * New shared objects detected when a maatine performs multiple GC cycles before the
   end of the current GC round aren't part of this round but the next one unless it
   happened in the first maatine and no other maatine even started a GC cycle for
@@ -140,7 +134,7 @@ The following properties are true:
 
 When a maatine performs a collection, it additional does the following:
 
-1. In the marking phase, an encountered yellow objects aren't processed
+1. In the marking phase, an encountered yellow objects isn't processed
 2. In the marking phase, an encountered green object is processed with all the subsequent
    objects marked blue.
 3. In the sweeping phase, encountered

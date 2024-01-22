@@ -6,9 +6,8 @@ email: tcheukueppo@yandex.com
 
 # Maat 
 
-`Maat` is a powerful, efficient, lightweight, embeddable multi-paradigm general
-purpose programming language that empowers programmers to easily build fast and
-scalable applications.
+`Maat` is a multi-paradigm general purpose programming language that
+empowers programmers to easily build fast and scalable applications.
 
 Key features of the Maat programming language:
 
@@ -20,8 +19,6 @@ Key features of the Maat programming language:
 - Traits
 - Lazy Evaluation
 - Regular Expressions using PCRE2
-- Coroutines
-- Generator Functions
 - Full Unicode support
 - Phasers
 
@@ -188,8 +185,8 @@ x =~ s<o>«0»
 
 ## Single character delimiter
 
-We also have a restricted set of delimiters for quoted values
-and regular expression operators.
+We also have a restricted set of delimiters for quoted values and regular
+expression operators.
 
 ```
 / | % "  '
@@ -211,33 +208,27 @@ a.grep({|x| x =~ m|o|i }).map(:s|o|0|r).map(:.ucfirst).say
 
 # Variables
 
-`Maat` has four types of variables: package, lexical, temporary
-and static variables.
+`Maat` has four types of variables: package, lexical, temporary and static variables.
 
-A module file has a `.mm` extension, a package is a namespace,
-variables who are fully qualified are known as package
-variables, there is no one-to-one mapping between a namespace
-and module file, therefore multiple namespaces can be define in
-a single module file but this is not a good practice.
+A module file has a `.mm` extension, a package is a namespace, variables who are fully
+qualified are known as package variables, there is no one-to-one mapping between a
+namespace and module file, therefore multiple namespaces can be define in a single
+module file but this is not a good practice.
 
-Package variables can be accessed from other packages using
-their fully qualified name and lexically scoped variables
-cannot be accessed from outside the package in which they
-were declared.
+Package variables can be accessed from other packages using their fully qualified
+name and lexically scoped variables cannot be accessed from outside the package in
+which they were declared.
 
-A temporary variable is a variable that is lexically scoped
-and refers to a package variable declared from another package
-if the name of the temporary variable at declaration is fully
-qualified, otherwise it refers to a package variable of the same
-name declared in its own package. Any modification made to
-temporary variables remains **local** to their scopes of
-declaration, thus, out of these scopes, package variables they
-refer to remain untouched. You cannot temporarize lexically
-scoped variables and all package variables regardless of their
-types can to temporarized.
+A temporary variable is a variable that is lexically scoped and refers to a package
+variable declared from another package if the name of the temporary variable at
+declaration is fully qualified, otherwise it refers to a package variable of the same
+name declared in its own package. Any modification made to temporary variables remains
+**local** to their scopes of declaration, thus, out of these scopes, package variables
+they refer to remain untouched. You cannot temporarize lexically scoped variables and
+all package variables regardless of their types can to temporarize.
 
-We declare package variables with the keyword `our`, lexically
-scoped variables with `let` and temporary variables with `temp`.
+We declare package variables with the keyword `our`, lexically scoped variables
+with `let` and temporary variables with `temp`.
 
 ```
 package One::Two {
@@ -269,9 +260,9 @@ package One::Two::Three {
 }
 ```
 
-Static variables are lexically scoped variables that when defined
-in a function or block, retains their values between recalls and
-jumps. We declare static variables with the `state` keyword.
+Static variables are lexically scoped variables that when defined in a function
+or block, retains their values between recalls and jumps. We declare static
+variables with the `state` keyword.
 
 ```
 fun incr(n) {
@@ -284,8 +275,8 @@ fun incr(n) {
 # output: 9
 say incr(5)
 ```
-A constant variable when declared is lexically scoped by default
-unless you explicitly indicate that it is a package variables.
+A constant variable when declared is lexically scoped by default unless you
+explicitly indicate that it is a package variables.
 
 ```
 # lexically scoped declaration of a constant
@@ -370,9 +361,9 @@ variables can be temporarized.
 
 - `__DATA__`
 
-`__DATA__` is not a variable. Hmm... it is a special token you fit
-into your maat code right at the end so that whatever data following
-it can be obtained via a file handle in the special variable `DATA`.
+`__DATA__` is not a variable. Hmm... it is a special token you fit into your
+maat code right at the end so that whatever data following it can be obtained
+via a file handle in the special variable `DATA`.
 
 ```
 {
@@ -522,7 +513,7 @@ having to explicitly declare it as parameter to each operation.
 An example is using the default topic variable in an anynomous
 function which implicitly means the anonymous function take a single
 parameter and the default topic variable refers to it. Another
-example is using the default topic variable within the block of the
+example is using the default topic variable within the code of the
 `with` construct to implicitly refer to the return value of its
 conditional expression.
 
@@ -935,7 +926,7 @@ hello_world()
 ```
 
 Here we are declaring an anonymous function which takes a single
-parameter and we then call it.
+parameter and then call it.
 
 ```
 let sleep = {|x| x.sleep; say "slept for #x seconds" }
@@ -1225,10 +1216,8 @@ internally as a new or updated Maatine object.
 A Work has three possible state which are the `Do`, `Done` and `Failed` state.
 
 1. In the `Do` state, Work is either not started or on progress.
-2. In the `Done` state, Work is `Done` and has its result saved
-   for latter retrieval.
-3. In the `Failed` state, an exception was thrown when the Work
-   was doing its work and hence `Fail`ed.
+2. In the `Done` state, Work is `Done` and has its result saved for latter retrieval.
+3. In the `Failed` state, an exception was thrown when the Work was doing its work and hence `Fail`ed.
 
 The below code creates a new Work which is initially in the `Do`
 state, completes its work with the `done` method and from there checks
@@ -1261,20 +1250,18 @@ Listen to the story: you first start by creating a work with `Work.does`
 which returns a work object on which you can but not only do either of
 the following:
 
-1. Call the `.catch` method to handle any exception on the created
-   Work, it returns back the same object.
-2. Call the `.then` method to create and return a new Work to be
-   scheduled for execution if Work object invoker is `Done`.
+1. Call the `.catch` method to handle any exception on the created Work, it returns back the same object
+2. Call the `.then` method to create and return a new Work to be scheduled for execution if Work object invoker is `Done`
 
 If the exception of the work created by `.then` is not handled, it inherits
 its exception handler from the highiest top level Work.
 
 ```
 let w = Work.does({ sleep 4; 10 })
-            .catch({|e| say "Catched: #{e}" })
+            .catch({(e) say "Catched: #{e}" })
             .then({ say "My handler is the one above"; _ + 2 })
-            .then({|r| say "Mine is below"; r - 2 })
-            .catch({|e| warn "Couldn't sub 2 from 12? ans: #{e}" })
+            .then({(r) say "Mine is below"; r - 2 })
+            .catch({(e) warn "Couldn't sub 2 from 12? ans: #{e}" })
 
 say abide w # output: 10
 ```
