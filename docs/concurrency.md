@@ -20,14 +20,42 @@
 * Shared memory operations (READ, WRITE, READ-MODIFY-WRITE(RMW))
 * 
 
-Memory shared accross maatines are via global symbols and upvalues, Maat attemps
-to automatically synchronize concurrent access to shared memory either through
-mutexes or atomic operations.
+One of our major challenge is to avoid ruining performance by combining
+bottleneck critical section, lots of processors, and inefficient spin-lock.
+Memory shared accross maatines are via global symbols and upvalues, if
+maatines run in a multi-threaded environment, Maat automatically syncs
+concurrent access to shared memory using fast sync techniques.
 
-Suppose we are in a multi-threaded environment and that variable `x` is accessible
-to all maatines, having more than one threads to execution maat code implies more
-then one maatine, let us determine all the synchronization points in each of the
-operations below.
+We should detect all possible concurrent access to shared memory operations
+and from there determine all synchronization points and apply them
+effectively.
+
+### Shared Objects
+
+Immutable objects like strings, closures, ranges,... are thread-safe and
+thus do not need any synchronization operation in their implementations
+meanwhile mutable objects like Arrays, Maps, Insts need to in their
+implementation detect if their environment is multi-threaded and if yes
+then apply all the necessary synchronizations. This isn't easy at all
+and can significantly affect the performance of our system.
+
+The topic of how to efficiently implement thread-safe Arrays and Maps will
+not be much discussed here though it counts a lot, we will rather focus
+more on how to automatically detect the need to synchronize and perform
+it without hindering the performance of our system.
+
+Given the way we designed our [garbage collector](./gc.md), we can leverage
+the colors set to collection objects during sharing points as a way to
+determine in an object implementation if it's shared and if so then sync
+its ops but this sync ever happens if we are running in a mutli-threaded
+environment (that's at least two threads in the thread pool to schedule
+execution of maatines).
+
+
+
+### Variables
+
+
 
 1. Write operation
 
@@ -35,23 +63,43 @@ operations below.
 x = 20
 ```
 
+WRITE(X, 20)
+
 2. Read operation
 
 ```
 say x + 100
 ```
 
+READ(X)
+
 3. RMW (Read-Modify-Write) operation
 
 ```
-x = x + 1
+let x = 20
+
+ma for ^10 { x = x + 1 }
 ```
+                -----+
+READ(x)              |
+CALL +, ARGS: 1      +-------> No other write/read on 'x' as long 
+WRITE(x, REG)        |         as this still runs. Sync on 'x' has 
+                -----+         nothing todo with sync on the value
+                               stored in 'x' if ever that value is
+                               shared & mutable.
+
+In practice, the computation done between the READ and WRITE operation is
+extremely lengthy so much that busy spin waiting strategies performed by
+other threads trying to access the same critical section can lead to CPU
+overloads.
+
 
 ```
-x = [1, 2]
-
 x.push(3)
 ```
+
+READ(X)
+CALL push, ARGS: 3
 
 
 ## Communicate By Sharing: Channels
