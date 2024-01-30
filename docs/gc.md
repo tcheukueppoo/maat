@@ -1,143 +1,156 @@
 # Maat GC
 
-Maat implements generational and incremental garbage collection. This section
-focuses more on implementation details, check the below links to get to know
-what generational and incremental garbage collection are.
+Maat implements generational and incremental garbage collection. This
+section focuses more on implementation details, check the below links
+to know what generational and incremental garbage collection are.
 
-We are in a concurrent system where maatines(VM-level non-blocking threads)
-are scheduled by the Maat runtime scheduler to run over operating system
-threads (using libuv). A maatine is basically a lightweight thread that has
-at least one state with each state owning a stack to executing some code, a 
-maatine can switch between any of its states, each maatine performs its
-collection either incrementally or generationally and independently of the
-other ones. That said, a lot must be considered to assure coherency and
-synchronization.
+We are in a concurrent system where maatines
+(VM-level non-blocking threads)
+are scheduled by the Maat runtime scheduler to run over operating
+system threads (using libuv). A maatine is basically a lightweight
+thread that has at least one state with each state owning a stack to
+executing some code, a maatine can switch between any of its
+states, each maatine performs its collection either incrementally or
+generationally and independently of the other ones. That said, a lot
+must be considered to assure coherency and synchronization.
 
 Why have we choosen this design?
 
 * Most objects are maatine-local.
-* Only a few number of maatines (a.k.a threads) might need a GC run at the same time.
-* Concurrent collection avoids us from stoping the world, each maatine performs it
-  collection(in gen or inc mode) without annoying other maatines unless necessary.
+* Only a few number of maatines (a.k.a lightweight threads) might need
+  a GC run at the same time.
+* Concurrent collection avoids us from stoping the world, each maatine
+  performs it collection(in gen or inc mode) without annoying other
+  maatines unless necessary.
 
-With this design, major problems faced during collection are the following:
+With this design, major problems faced during collection are the
+following:
 
 ## Collection of open upvalues scattered across states of a Maatine
 
-A Maatine has at least one state which with the use of its own stack, simply has to
-run a function which is literally just a closure that possibly has open upvalues
-pointing to values living in the stack of another state (if any) of this same
-maatine, the latter state may have not been marked and ends up collected but before
-this has to happen, its open upvalues that have been marked during the marking
-phase of the maatine GC run must be closed and painted black so that they cannot
-longer be collected during the sweeping phase.
+A Maatine has at least one state which with the use of its own
+stack, simply has to run a function which is literally just a closure
+that possibly has open upvalues pointing to values living in the stack
+of another state (if any) of this same maatine, the latter state may
+have not been marked and ends up collected but before this has to
+happen, its open upvalues that have been marked during the marking
+phase of the maatine GC run must be closed and painted black so that
+they cannot longer be collected during the sweeping phase.
 
-Solving this problem enforces us to do in each maatine's GC cycle the following:
+Solving this problem enforces us in each maatine's GC cycle to do
+the following:
 
-After all gray objects have been processed, all reachable states are now marked
-black, so go through this maatine's list of states with still opened upvalues
-and for each unmarked state, identify all its non-white open upvalues to mark
-the stack values they are pointing to to black thus making them reachable. Unless
-they'll get reached again before the sweeping phase, unmarked states we found do
-not need to be in the list-of-states-with-open-upvalues again as they are now
+After all gray objects have been processed, all reachable states are
+now marked black, so go through this maatine's list of states with
+still opened upvalues and for each unmarked state, identify all its
+non-white open upvalues to mark the stack values they are pointing to
+to black thus making them reachable. Unless they'll get reached again
+before the sweeping phase, unmarked states we found do not need to be
+in the list-of-states-with-open-upvalues again as they are now
 considered garbage.
 
 ## Objects shared accross maatines
 
-The fact that each maatine runs its garbage collector independently of the other
-ones poses a real issue on objects shared across Maat's maatines.
+The fact that each maatine runs its garbage collector independently of
+the other ones poses a real issue on objects shared across Maat's
+maatines.
 
 ### List of sharing points
 
 1. Upvalues
 
-The state of a Maatine may have a closure with open upvalues pointing to values
-in the stack of the state of another Maatine. We not only have to synchronized
-access operations on these upvalues during runtime in case maat runs on in
-multi-threaded environment but also have to make sure the maatine detaining those
-stack values does not collect them as long as some other maatines use them via
-closures or some other stuffs.
-This problem is also encountered in closed upvalues as a maatine might want to
-free unreachable closed upvalues reachable to other maatines.
+The state of a Maatine may have a closure with open upvalues pointing
+to values in the stack of the state of another Maatine. We not only have
+to synchronized access operations on these upvalues during runtime in
+case maat runs on in multi-threaded environment but also have to make
+sure the maatine detaining those stack values does not collect them as
+long as some other maatines use them via closures or by other means.
+This problem is also encountered in closed upvalues as a maatine might
+want to free unreachable closed upvalues reachable to other maatines.
 
 2. Cached Strings
 
-For memory efficiency, we have a global cache of strings and a global Map of short
-strings for re-utilization. Concurrent access to these globals structures must be
-synchronized, that said, it is sure a running program will get to a point where a
-string will be created by the state of one maatine and later on get reused by the
-state of another maatine and thus making that string shared.
+For memory efficiency, we have a global cache of strings and a global
+Map of short strings for re-utilization. Concurrent access to these
+globals structures must be synchronized, that said, it is sure a running
+program will get to a point where a string will be created by the state
+of one maatine and later on get reused by the state of another maatine
+and thus making that string shared.
 
 3. Objects of namespaces' global symbols
 
-The way we have designed our garbage collector makes objects of namespaces' global
-symbols pretty hard to manage, In most programming languages, these globals form
-part of the root set but it is a completely different story in Maat. A maatine can
-perform a collection at anytime and thus colors can be concurrently set to a
-collectable object leading to data race and lost of references.
-Let's consider a case where a maatine in the mark phase of its collection marks
-all objects of global symbols black and another maatine which is in the sweep
-phase of its collection changes the colors of all reachable objects back to white
-for its next gc cycle, at this point even objects marked black by the former
-maatine which hasn't even entered its sweep phase are now white which raises
-a big problem since they're now treated as garbage.
+The way we have designed our garbage collector makes objects of
+namespaces' global symbols pretty hard to manage, In most programming
+languages, these globals form part of the root set but it is a completely
+different story in Maat. A maatine can perform a collection at anytime
+and thus colors can be concurrently set to a collectable object leading
+to data race and lost of references. Let's consider a case where a
+maatine in the mark phase of its collection marks all objects of global
+symbols black and another maatine which is in the sweep phase of its
+collection changes the colors of all reachable objects back to white for
+its next gc cycle, at this point even objects marked black by the former
+maatine which hasn't even entered its sweep phase are now white which
+raises a big problem since they're now treated as garbage.
 
 4. Arguments to Maatine calls
 
-A newly started maatine simply invoke a function in a new state with arguments
-(potentially collectable values) gotten from the maatine that started this one.
-Collectable values passed to a function call are passed by reference and thus
-these collectable values become shared.
+A newly started maatine simply invoke a function in a new state with
+arguments (potentially collectable values) gotten from the maatine that
+started this one. Collectable values passed to a function call are passed
+by reference and thus these collectable values become shared.
 
-Channels which are themselves shared objects serve as a means to thread-safely
-share objects across maatines. A channel can be shared via global symbols, upvalues
-or function calls.
+Channels which are themselves shared objects serve as a means to
+thread-safely share objects across maatines. A channel can be shared via
+global symbols, upvalues or function calls.
 
 ### Linked-List of Shared Objects (LSO)
 
-To safely collect objects shared across maatines, maat introduces a linked-list of
-shared objects kept in the global state of each maatine (`GMa` struct) and three
-object colors which are the green, red and yellow.
+To safely collect objects shared across maatines, maat introduces a
+linked-list of shared objects kept in the global state
+(i.e in the `GMa` struct).
 
-A concurrently running program is said to have done a complete GC round when all
-its maatines have at least done a single GC cycle whether in incremental or
-generational mode. All unreachable shared objects from our program will be freed
-by performing a **LSO sweep** after every complete GC round.
+A concurrently running program is said to have done a complete GC round
+when all its maatines have at least done a single GC cycle whether in
+incremental or generational mode. All unreachable shared objects from our
+program will be freed by performing a **LSO sweep** after every complete
+GC round.
 
-A shared collectable object can either have a green, red or yellow color. A green
-object is a live shared mutable object, a yellow object is a live shared immutable
-object and finally a red object which is a dead shared object whether mutable or not.
-The reason why we have decided to specially mark mutable shared objects yellow is
-mainly to optimize SET and GET opcode instructions since concurrent operations on
-immutable shared objects do not require [synchronization](./synchronization.md).
-Each GC round is associated with a **LSO** and at the end of each round, its
-corresponding **LSO** is swept. A running maat program in a multi-threaded environment
-identifies all the objects sharing points to efficiently mark each top level to-be-shared
-mutable object green and immutable object yellow. A shared object may have links to
-other objects making them shared too but we won't go down the tree to mark them blue as
-it'll terribly slow down our running program, marking the roots suffices, however there
-is an exception where upvalues of closures are marked blue to implement built-in
-[synchronization](./synchronization.md).
+A running maat program in a multi-threaded environment identifies all the
+GC object sharing points to efficiently mark each top level object as
+**shared**. A shared object may have links to other objects making them
+shared too but we won't go down the tree to mark them, it'll terribly slow
+down our running program, marking the roots suffices, however there is an
+exception where upvalues of closures are marked for the sake of
+implementing built-in [synchronization](./synchronization.md).
+
+Each maatine got its own linked-list of root shared object, after a
+maatine has mark its local objects, it goes through its list of root shared
+object to mark all unreachable shared objects with the color blue. This
+blue mark is recursively propagated on all its incedent node objects to
+avoids their collection since these shared objects might be reachable
+to other maatines.
+
+
+
+
 
 The following properties are true:
 
-* The liveness of a shared object can only be determined if that object has gone
-  through a complete GC round.
+* The liveness of a shared object can only be determined if that object
+  has gone through a complete GC round.
 * A maatine can go through multiple GC cycles before a GC round is completed.
-* The first maatine of a GC round is the one that has first performed a complete GC cycle.
-* In a running program of `n` maatines, `(n - 1)` maatines can perform GC cycles for
-  the round following this one and we thus have maximum 2 rounds at a time.
-* New shared objects detected when a maatine performs multiple GC cycles before the
-  end of the current GC round aren't part of this round but the next one unless it
-  happened in the first maatine and no other maatine even started a GC cycle for
-  this round.
+* The first maatine of a GC round is the one that has first performed a
+  complete GC cycle.
+* In a running program of `n` maatines, while performing the current GC round,
+  `(n - 1)` maatines can perform GC cycles for the round following this one
+  and we thus have maximum 2 rounds at a time.
+* New shared objects detected when a maatine performs multiple GC cycles
+  before the end of the current GC round aren't part of this round but the
+  next one unless it happened in the first maatine and no other maatine even
+  started a GC cycle for this round.
 
-When a maatine performs a collection, it additional does the following:
-
-1. In the marking phase, an encountered yellow objects isn't processed
-2. In the marking phase, an encountered green object is processed with all the subsequent
-   objects marked blue.
-3. In the sweeping phase, encountered
+When a maatine performs a collection, to manage objects it additional does
+the following:
 
 
 #### The Concurrency Invariant
