@@ -122,47 +122,70 @@ A root shared object may have direct/indirect links to other GC objects
 which implies they are shared too but we won't go down the tree to mark them,
 it'll terribly slow down our running program, marking the roots suffices,
 however there is an exception where upvalues of shared closures are also
-marked shared for the sake of implementing [built-in](./concurrency.md)
-auto synchronization.
+marked shared for the sake of implementing
+[built-in auto-synchronization](./concurrency.md).
 
 Some useful properties:
 
 * The liveness of a shared object can only be determined if that object
   has gone through a complete GC round.
-* A maatine can go through multiple GC cycles before a GC round is
-  completed.
-* The first maatine of a GC round is the one that has first performed a
-  complete GC cycle.
+* The first maatine of a GC round is the one who in a set of `n` running
+  maatines detected at the time it started its first GC run, is the first
+  to have performed a complete GC cycle.
+* The last maatine of a GC round is the one in that set to have last
+  performed a complete GC cycle.
+* Maatines eligible for a GC round are the ones who were running when the
+  first maatine of that round started its GC run.
 * In a running program of `n` maatines, while performing the current GC
-  round, `(n - 1)` maatines can perform GC cycles for the round following
+  round, `(n - 1)` maatines can perform GC cycles of the round following
   this one and we thus have maximum 2 rounds at a time.
+* A maatine can go through multiple GC cycles before the current round is done.
 * New shared objects detected when a maatine performs multiple GC cycles
   before the end of the current GC round aren't part of this round but the
-  next one unless it happened in the first maatine and no other maatine
-  even started a GC cycle for this round.
+  next one. These new shared objects are neither directly added to the LSO nor
+  marked **shared** but added in a special pending list, this is to avoid the
+  need to synchronize when propagating marks.
 
+For each maatine part of the current GC round in its GC cycle, encountered
+green/white root shared objects in the mark phase are turned black but this
+black color isn't propagated over incident node objects of these root objects.
+After the sweep phase, the LSO is traversed turning all white root shared
+objects green. In the first GC cycle of the last maatine, after the sweep
+phase, green objects are turned red as they are not reference by any other
+maatine provided that the conversative nature of this GC round is preserved.
 
-Maatines part of a GC round are maatine that were running when the first
-maatine of the round start its GC cycle. For each maatine of a GC round
-performing its GC cycle, encountered shared objects in their sweep phase
-are turned black as any other object, after the sweeping phase, the LSO
-is traversed to turn all white shared objects green, 
+It will be a disaster if mark propagation requires synchronization,
+fortunately we only have to sync when attempting to mark shared objects.
+Checking wether or not an object is shared does not even require sync, it is
+so thanks to our pending list and the concept of GC rounds.
+An object marked **shared** will remain shared till its memory is reclaimed,
+even if it ends up referenced by a single Maatine. This is because turning
+any shared GC object unshared requires expensives synchronization and it
+isn't efficient as it may become shared again. It isn't that inefficient
+to unnecessarily sync operations on a GC object as we will be using an
+appropiate spinlock from `librs`.
 
-Given that multiple maatines can concurrently collect, it appears that
-a root shared object to be or already marked green by a maatine may be
-reachable to other maatines and thus synchronization must be done to make
-sure that in such cases the root shared object in question ends up black.
-While the green mark is propagated on incident node objects, black objects
-could be encountered which is due to the fact that some reachable objects
-local to a maatine have links to this shared space, in such cases it is
-necessary to avoid them, leave them unchanged. Why? after every complete GC
-round, the goal is to traverse green objects and mark the ones unreachable
+At the end of each GC round, the LSO will either have black or red objects
+from its head to a certain limit (this limit is discussed below). The red
+color of these objects is propagated all over their incident node objects
+and memory of these red objects are then reclaimed, this is known as an
+**LSO sweep**.
+
+Given that multiple maatines can concurrently collect, it appears that while
+traversing the LSO, a root shared object to be or already marked green by a
+maatine may be reachable to other maatines and thus synchronization must be
+done to make sure that in such cases the root shared object in question ends
+up black. While the green mark is propagated on incident node objects, black
+objects could be encountered which is due to the fact that some reachable
+objects local to a maatine have links to this shared space, in such cases it
+is necessary to avoid them, leave them unchanged. Why? after every complete
+GC round, the goal is to traverse green objects and mark the ones unreachable
 to all maatines red and later on free all red objects, so we won't want
 to free a green object reference by a reachable object local to a maatine.
 
 Controlling the number of maatines in a running maat program to choose the
 starting and ending point of a complete GC round is extremely hard, here
-are some problems faced and their possible solutions.
+are some problems faced and possible solutions.
 
 1. GC objects held by namespace variables
 
@@ -205,16 +228,16 @@ current GC round deal with this? below are things to consider in order to
 assure coherency and avoid lost of references, bear in mind that most
 collectors are conservative and these techniques aren't far from that.
 
-* All root shared objects shared between maatines pats of the current GC
-  round and the ones not part of it must be marked black. A root shared
-  object that'll definitely ends up blue after the end of the current round
-  should logically never be linked to the object space of new maatines that
-  aren't part of the current round. But because gc execution interleaves with
-  the mutator, an object of a new maatine can be linked to a shared object
-  that later on gets unreachable before the local **LSO sweep** of the
-  maatine the created this one, if all the other maatines part of the current
-  round has lost references to this shared object, then new maatines may
-  lost references to it.
+* All root shared GC objects shared between maatines part of the current
+  GC round and the ones not part of it must be marked black. A root
+  shared object that'll definitely ends up red after the end of the
+  current round should logically never be linked to the object space of
+  maatines that aren't part of the current round. But because gc execution
+  interleaves with the mutator, an object of a new maatine can be linked
+  to a shared object that later on gets unreachable before the
+  **LSO sweep**, if all the maatines part of the current round has lost
+  references to this shared object, then new maatines may lost
+  references to it.
 
 * 
 
