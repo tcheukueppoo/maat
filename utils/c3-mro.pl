@@ -255,10 +255,10 @@ sub test_call {
    ok($expected =~ qr/^\Q$result\E/, "[section $i] is '$class'->$meth() okay given [$resolved_meths->{$class}{$meth}->@*]?");
 }
 
-# This is the entry point our program. It tests with the help of Perl's C3
-# our own c3 implementation, It compares Perl's linearization of a class
-# with our own c3 list of the class, it performs series of method calls
-# to check.
+# This is the entry point of our program. It tests with the help of Perl's
+# C3 our own c3 implementation, It compares Perl's linearization of a class
+# with our own c3 list of the class, it performs series of method calls to
+# check.
 sub test_c3 {
    local $/;
 
@@ -343,3 +343,12 @@ L -> (F I)
 M -> (I J)
 
 N -> (K E L M)
+
+###
+
+A
+B -> (A)
+C -> (A)
+D -> (A)
+E -> (B)
+F -> (E C D)
