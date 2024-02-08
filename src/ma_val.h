@@ -1,6 +1,6 @@
 /*
  * $$$Definition Maat Values and Objects
- * License: AGL, see LICENSE file for details.
+ * License: MAAT, see LICENSE file for details.
  */
 
 #ifndef ma_val_h
@@ -9,7 +9,7 @@
 #include "ma_conf.h"
 #include "ma_limits.h"
 
-/* Vary type 't' with variant bits 'v'. */
+/* Vary type 't' with variant bits 'vb'. */
 #define vary(t, vb)  ((t) | (vb << 5))
 
 /* 'x' can either be a 'Value' or a collectable 'Object'. */
@@ -22,14 +22,14 @@
 #define with_variant(v)      (raw_type(v) & 0x7F)
 #define check_vartype(v, t)  (with_variant(v) == t)
 
-/* $$Representation of a Maat value.
+/* $$Repr of a Maat value.
  *
  * $val: The value itself, which is a union of
  *  $n: Maat's representation of a number (see 'ma_conf.h').
  *  $gc_obj: Pointer to a collectable object.
  *  $p: Pointer to a memory location representing the data of a
- *  Cclass.
- *  $f: Pointer to a C function, it either represents a cdata's
+ *  foreign class.
+ *  $f: Pointer to a C function, it either represents a cvalue's
  *  method or just a standalone function.
  *
  * $type: Determines $val's type, its bits are segmented into
@@ -72,17 +72,17 @@ typedef struct Value {
  * collectable if the MSB of its $type is 1 meaning it stores
  * a collectable object.
  */
-#define V_NIL    0
-#define V_BOOL   1
-#define V_NUM    2
-#define V_CFUNC  3
-#define V_CDATA  4
+#define V_NIL     0
+#define V_BOOL    1
+#define V_NUM     2
+#define V_FFUNC   3
+#define V_FVALUE  4
 
-#define is_num(v)    check_type(v, V_NUM)
-#define is_nil(v)    check_type(v, V_NIL)
-#define is_bool(v)   check_type(v, V_BOOL)
-#define is_cfunc(v)  check_type(v, V_CFUNC)
-#define is_cdata(v)  check_type(v, V_CDATA)
+#define is_num(v)     check_type(v, V_NUM)
+#define is_nil(v)     check_type(v, V_NIL)
+#define is_bool(v)    check_type(v, V_BOOL)
+#define is_ffunc(v)   check_type(v, V_FFUNC)
+#define is_fvalue(v)  check_type(v, V_FVALUE)
 
 #define IS_CTB_BIT  (0b1 << 7)
 
@@ -90,17 +90,16 @@ typedef struct Value {
 #define is_ctb(v)  (type(v) & IS_CTB_BIT)
 #define ctb(v)     (type(v) | IS_CTB_BIT)
 
-#define as_bool(v)   (ma_assert(is_bool(v)), (is_true(v)))
-#define as_num(v)    (ma_assert(is_num(v)), (val(v).n))
-#define as_cfunc(v)  (ma_assert(is_cfunc(v)), (val(v).f))
-#define as_cdata(v)  (ma_assert(is_cdata(v)), (val(v).p))
+#define as_bool(v)    (ma_assert(is_bool(v)), (is_true(v)))
+#define as_num(v)     (ma_assert(is_num(v)), (val(v).n))
+#define as_ffunc(v)   (ma_assert(is_ffunc(v)), (val(v).f))
+#define as_fvalue(v)  (ma_assert(is_fvalue(v)), (val(v).p))
 
 /*
  * 'as_gcobj()' for collectable objects defined below. Stuffs
  * dealing with collectable objects are preceeded with '[oO]_'.
  */
-#define as_gcobj(v)   (ma_assert(is_ctb(v)), (val(v).gc_obj))
-#define as_rgcobj(v)  (val(v).gc_obj)
+#define as_gcobj(v)   (val(v).gc_obj)
 
 /*
  * Define variants of the 'nil' type and its singleton values.
@@ -161,8 +160,8 @@ typedef struct Object {
 /* O_VCLASS, O_VCCLASS, O_VROLE */
 #define O_CLASS  5
 
-/* O_VINST O_VCINST */
-#define O_INST   6
+/* O_VINS O_VCINS */
+#define O_INS    6
 
 /* O_VSHTSTR, O_VLNGSTR */
 #define O_STR    7
@@ -207,13 +206,14 @@ typedef struct Object {
 #define is_chan(v)    check_type(v, O_VCHAN)
 #define is_schedq(v)  check_type(v, O_VSCHEDQ)
 
-/* $$Representation of all string objects. */
+/* $$Repr of all string objects. */
 #define O_VLNGSTR   vary(O_STR, 0)
 #define O_VSHTSTR   vary(O_STR, 1)
 #define O_VUSHTSTR  vary(O_U8STR, 0)
 #define O_VULNGSTR  vary(O_U8STR, 1)
 
 #define str2v(s, v)  gco2val(s, v)
+#define v2str(v)     (ma_assert(is_str(v)), gco2str((v).gc_obj))
 
 #define is_str(v)   (is_astr(v) || is_ustr(v))
 #define is_astr(v)  check_type(v, O_STR)
@@ -227,21 +227,21 @@ typedef struct Object {
 #define as_str(v)    (ma_assert(is_str(v)), cast(Str *, as_gcobj(v)))
 #define as_u8str(v)  (ma_assert(is_u8str(v)), cast(U8Str *, as_gcobj(v)))
 
-#define Str_Header  Object *next_sobj; \
+#define Str_Header  UByte sl; \
+                    Object *next_sobj; \
+                    Byte *str; \
                     union { size_t len; struct Str *snext; } u; \
-                    UInt hash; \
-                    Ubyte sl; \
-                    Byte *str;
+                    UInt hash
 
 /*
  * Ascii version of a Maat string, $str is the ascii string
  * itself and has hash value $hash.
  *
  * $sl:
- *   For short strings, last 3 bits of $sl is for the length of
- *   $str whereas its first bit determines whether $str is
- *   reserved. For long strings, $sl serves as a boolean value
- *   to check if $str already has its $hash.
+ *   For short strings, last 3 bits of $sl are for $str' length
+ *   whereas its first bit determines whether $str is reserved.
+ *   For long strings, $sl serves as a boolean value to check if
+ *   $str already has its $hash.
  * $u:
  *   For short strings, $u is $snext which is a pointer to
  *   $str's next string in our hash map of short strings
@@ -273,11 +273,11 @@ typedef struct U8Str {
  */
 #define O_VRANGE  vary(O_RANGE, 0)
 
-#define range2v(v, r)  gco2val(v, r)
-#define v2range(v)     (ma_assert(is_range(v)), gco2rng((v).gc_obj))
+#define rng2v(r, v)  gco2val(r, v)
+#define v2rng(v)     (ma_assert(is_rng(v)), gco2rng((v).gc_obj))
 
-#define is_range(v)  check_rtype(v, ctb(O_VRANGE))
-#define as_range(v)  (ma_assert(is_range(v)), cast(Range *, as_gcobj(v)))
+#define is_rng(v)  check_rtype(v, ctb(O_VRANGE))
+#define as_rng(v)  (ma_assert(is_rng(v)), cast(Range *, as_gcobj(v)))
 
 typedef struct Range {
    Header;
@@ -287,11 +287,11 @@ typedef struct Range {
    Object *next_sobj;
 } Range;
 
-/* $$Representation of Map objects. */
+/* $$Repr of Map objects. */
 #define O_VMAP   vary(O_MAP, 0)
 #define O_VCMAP  vary(O_MAP, 1)
 
-#define map2v(v, m)   gco2val(v, m)
+#define map2v(m, v)   gco2val(m, v)
 #define v2map2(v, m)  (ma_assert(is_map(v), g))
 
 #define is_map(v)   check_rtype(v, ctb(O_VMAP))
@@ -319,7 +319,7 @@ typedef union Node {
       _Value key_v;
       Int next;
       Int prev;
-      Ubyte key_t;
+      UByte key_t;
    } k;
    Value val;
 } Node;
@@ -343,14 +343,13 @@ typedef union Node {
  * $last: The last free node in $node.
  * $lg2size: log2 of the size of $node.
  */
-
 #define MapPointerFields Value *array; \
                          Node *node; \
                          Node *last; \
                          Object *next_sobj
 
-#define MapUbyteFields  Ubyte rasize; \
-                        Ubyte lg2size
+#define MapUbyteFields  UByte rasize; \
+                        UByte lg2size
 typedef struct Map {
    Header;
    MapPointerFields;
@@ -373,7 +372,7 @@ typedef struct CMap {
 } CMap;
 
 /*
- * $$Representation of an Array object. Though we got a Map
+ * $$Repr of an Array object. Though we got a Map
  * optimized to be kind-of an array for fast access, Maat still
  * got a true Array object.
  *
@@ -384,21 +383,22 @@ typedef struct CMap {
 #define O_VLIST    vary(O_ARRAY, 1)
 #define O_VCARRAY  vary(O_ARRAY, 2)
 
-#define array2v(a, v)  gco2val(a, v)
+#define arr2v(a, v)  gco2val(a, v)
+#define v2arr(v)     (ma_assert(is_arr(v)), gco2arr((v).gc_obj))
 
-#define is_array(v)   check_type(v, O_ARRAY)
-#define is_carray(v)  check_rtype(v, ctb(O_VCARRAY))
-#define iss_array(v)  check_rtype(v, ctb(O_VARRAY))
-#define is_list(v)    check_rtype(v, ctb(O_VLIST))
+#define is_arr(v)   check_type(v, O_ARRAY)
+#define is_carr(v)  check_rtype(v, ctb(O_VCARRAY))
+#define iss_arr(v)  check_rtype(v, ctb(O_VARRAY))
+#define is_list(v)  check_rtype(v, ctb(O_VLIST))
 
-#define as_carray(v)  (ma_assert(is_carray(v)), cast(CArray *, as_gcobj(v)))
-#define as_array(v)   (ma_assert(is_array(v)), cast(Array *, as_gcobj(v)))
-#define as_list(v)    as_array(v)
+#define as_carr(v)  (ma_assert(is_carr(v)), cast(CArray *, as_gcobj(v)))
+#define as_arr(v)   (ma_assert(is_arr(v)), cast(Array *, as_gcobj(v)))
+#define as_list(v)  as_arr(v)
 
 #define ArrayFields  Object *next_sobj; \
+                     Value *array; \
                      size_t size; \
-                     size_t cap; \
-                     Value *array
+                     size_t cap
 /*
  * $size: The size of $array.
  * $cap: The capacity of $array.
@@ -410,7 +410,8 @@ typedef struct Array {
 } Array;
 
 /*
- * CArray is a thread-safe version of the Array object.
+ * CArray is a thread-safe lock-free version of the Array
+ * object.
  *
  * TODO: doc fields.
  */
@@ -421,91 +422,123 @@ typedef struct CArray {
 } CArray;
 
 /*
- * $$Representation of a class, every collectable object has a
- * class, even the class object itself. The Class of objects
- * which aren't first class values are probably useless, we
- * have for example Upvalues.
+ * $$Repr of a different class objects, every collectable object
+ * has a class, even the class object itself. Class header of
+ * objects which aren't first class values are probably useless,
+ * e.g Upvalues.
+ */
+
+/*
+ * Repr of a class' attribute.
+ *
+ * $name: The attribute's name.
+ * $type: '1' if it's a reference attribute; '0' otherwise.
+ * $val:
+ *    Get attribute's value. $p, a pointer to the referenced
+ *    value if the attribute is a reference attribute; $v
+ *    otherwise.
+ */
+#define is_attref(a)      ((a)->type == 1)
+#define attval(a)         ((a)->val.v)
+#define attvalc(a)        (ma_likely(is_attref(a)) ? *((a)->val.p) : attval(a))
+#define set_attref(a, v)  ((a)->val.p = &(v)); \
+                          ((a)->type = 1)
+
+typedef struct Attr {
+   Str *name;
+   union {
+      Value *p;
+      Value v;
+   } val;
+   UByte type;
+} Attr;
+
+/*
+ * Repr of a Maat class with the variant type 'Role'.
  *
  * $name: The class' name.
- * $meths:
- *   Pointer to a map for the class' methods. A value to a key
- *   here is a pointer to a Closure but can later on change to
- *   an Array of closures so as to cache super methods, the
- *   cache can never be invalidate since c3 linearization is
- *   done at compile time.
- *
- * A C class is a class whose implemention is done in foreign
- * languages like C or C++.
- *
- * Object Class defines 3 variants: Class, Cclass, and Role.
- *
- * For a Maat class and Role we have the following fields:
- *  $c3: List of classes got after c3 linearization was applied.
- *  $csize: Size of the c3 list.
- *  $fields:
- *    Pointer to an array of values, indexes correspond to
- *    fields with values holding their defaults.
- *  $roles: Keeps the list of roles that this class ":does".
- *  $rsize: Size of the role list.
- *  $sups:
+ * $attrs:
+ *    A buffer of attributes, holds attributes' default values,
+ *    includes all inherited and roles attributes. Conflicts are
+ *    resolved at class creation. This field is copied into the
+ *    instance object at instanciation.
+ * $c3: List of classes, c3 linearization result.
+ * $csize: Size of the c3 list.
+ * $roles:
+ *    Keeps the list of roles the class ':does' regardless of
+ *    which class variant it is.
+ * $rsize: Size of the role list.
+ * $sups:
  *    Keeps the list of directly inherited superclasses. $sups
- *    exist mainly for introspection since $c3 handles super
- *    calls.
- *  $ssize: Size of the super list.
+ *    exists mainly for class introspection since $c3 handles
+ *    super calls.
+ * $ssize: Size of the super list.
+ * $meths:
+ *    A map to store the class' methods. A value to a key here
+ *    is a pointer to a Closure but can later on change to
+ *    an Array of closures so as to cache super methods, the
+ *    cache can never be invalidate since c3 linearization is
+ *    done at compile time.
  */
 #define O_VCLASS  vary(O_CLASS, 0)
 #define O_VROLE   vary(O_CLASS, 1)
 
-#define class2v(a, c)  gco2val(a, c)
+#define cls2v(a, v)  gco2val(a, v)
+#define v2cls(v)     (ma_assert(iss_cls(v)), gco2cls((v).gc_obj))
 
-#define is_class(v)   check_type(v, O_CLASS)
-#define iss_class(v)  check_rtype(v, ctb(O_VCLASS))
-#define is_role(v)    check_rtype(v, ctb(O_VROLE))
+#define is_cls(v)   check_type(v, O_CLASS)
+#define iss_cls(v)  check_rtype(v, ctb(O_VCLASS))
+#define is_role(v)  check_rtype(v, ctb(O_VROLE))
 
-#define as_class(v)  (ma_assert(is_class(v)), cast(Class *, as_gcobj(v)))
-#define as_role(v)   as_class(v)
+#define as_cls(v)   (ma_assert(is_cls(v)), cast(Class *, as_gcobj(v)))
+#define as_role(v)  as_cls(v)
 
 typedef struct Class {
    Header;
-   Object *next_sobj;
    Str *name;
-   Value *fields;
+   AttrBuf *attrs;
    Map *meths;
    struct Class *roles;
    struct Class *sups;
    struct Class *c3;
+   Object *next_sobj;
    UByte rsize;
    UByte ssize;
    UByte csize;
 } Class;
 
-/* $$A C/C++ class.
+/*
+ * Repr of a foreign class, an Fclass is a class whose
+ * implemention is done in foreign languages like C or C++.
  *
- * $cdata: A pointer to some raw memory.
- * $size: The size of the memory pointed by $cdata.
+ * $name: The foreign class' name
+ * $meths: The foreign class' methods
+ * $size: The size of the memory pointed by $fdata.
  */
-#define O_VCCLASS  vary(O_CLASS, 2)
+#define O_VFCLASS  vary(O_CLASS, 2)
 
-#define is_cclass(v)  check_rtype(v, ctb(O_VCCLASS))
-#define as_cclass(v)  (ma_assert(is_cclass(v)), cast(Cclass *, as_gcobj(v)))
+#define fcls2v(fc, v)  gco2val(fc, v)
+#define v2fcls(v)      (ma_assert(is_fcls(v)), gco2fcls((v).gc_obj))
 
-typedef struct Cclass {
+#define is_fcls(v)  check_rtype(v, ctb(O_VFCLASS))
+#define as_fcls(v)  (ma_assert(is_fcls(v)), cast(FClass *, as_gcobj(v)))
+
+typedef struct FClass {
    Header;
    Str *name;
    size_t size;
    Map *meths;
-} Cclass;
+} FClass;
 
 /*
- * $$Representation of classes' instances, for both Maat and
- * other host languages like C/C++.
+ * $$Repr of classes' instances, for both Maat and other foreign
+ * languages like C/C++.
  */
 
 /* Instance of a Maat Class. */
 
-#define is_inst(v)  check_type(v, O_INST)
-
 #define inst2v(i, v)  gco2val(i, v)
+#define is_inst(v)    check_type(v, O_INST)
 
 /*
  * $$Instance of a Maat class. If this object ends up shared,
@@ -515,55 +548,56 @@ typedef struct Cclass {
  * $fields:
  *   A pointer to a to-be-allocated array of values, each field
  *   has a unique id which corresponds to an index in $fields.
- *   This also holds inherited fields too.
+ *   This too also holds inherited fields.
  * $sup_level:
- *   Keeps track of the level of super calls for each method
- *   called on the instance, in otherwords it is a list of
- *   indexes to super methods cached at the level of this
- *   instance's class, it is set 'NULL' if none of the methods
- *   of this instance's class does a super call.
+ *   Keeps track of super calls levels for each method called on
+ *   the instance, in otherwords it is a list of indexes to
+ *   super methods cached at the level of the instance's class.
+ *   It is `NULL' if none of the methods implemented by the
+ *   instance's class (checked from the class itself and then
+ *   its roles) do a super call.
  *
  * "self.SUPER::<method_name>(...)" Where SUPER is a pseudo
  * class that resolves to the next class in the instance's class
  * c3 list.
  */
-#define O_VMINST  vary(O_INST, 0)
+#define O_VMINS  vary(O_INS, 0)
 
-#define is_minst(v)  check_rtype(v, ctb(O_VMINST))
-#define as_minst(v)  (ma_assert(is_minst(v)), cast(MInst *, as_gcobj(v)))
+#define is_mins(v)  check_rtype(v, ctb(O_VMINS))
+#define as_mins(v)  (ma_assert(is_mins(v)), cast(MIns *, as_gcobj(v)))
 
-#define v2minst(v)  (ma_assert(is_inst(v)), gco2minst((v).gc_obj))
+#define v2mins(v)  (ma_assert(is_ins(v)), gco2mins((v).gc_obj))
 
-typedef struct MInst {
+typedef struct MIns {
    Header;
    Object *next_sobj;
-   Value *fields;
+   AttrBuf *attrs;
    Map *sup_level;
-} MInst;
+} MIns;
 
 /*
  * $$Instance of a Cclass, this object doesn't have a thread-s-
- * afe variant, it's of the responsibility of the host code to
- * provide synchronization is this object has to be concurrently
- * accessed.
+ * afe lock-free variant, it's of the responsibility of the
+ * foreign code to provide synchronization in case cdata has to
+ * be accessed concurrently via its foreign methods.
  *
- * $cdata: Cclass' data.
+ * $cvalue: The foreign class' value.
  */
-#define O_VCINST  vary(O_INST, 1)
+#define O_VCINS  vary(O_INS, 1)
 
-#define is_cinst(v)  check_rtype(v, ctb(O_VMINST))
-#define as_cinst(v)  (ma_assert(is_cinst(v)), cast(CInst *, as_gcobj(v)))
+#define is_cins(v)  check_rtype(v, ctb(O_VCINS))
+#define as_cins(v)  (ma_assert(is_cins(v)), cast(CIns *, as_gcobj(v)))
 
-#define v2cinst(v)  (ma_assert(is_inst(v)), gco2cinst((v).gc_obj))
+#define v2cins(v)  (ma_assert(is_ins(v)), gco2cins((v).gc_obj))
 
-typedef struct CInst {
+typedef struct CIns {
    Header;
    Object *next_sobj;
-   void *cdata;
-} CInst;
+   Value fvalue;
+} CIns;
 
 /*
- * $$Represents a namespace e.g FOO::BAR. A namespace can either
+ * $$Repr of a namespace e.g FOO::BAR. A namespace can either
  * be represented as a package, role or (c)class.
  * 'FOO::BAR::x()' is a call to the function 'x' in 'FOO::BAR'
  * if ever there is.
@@ -611,11 +645,11 @@ typedef struct Namespace {
 } Namespace;
 
 /*
- * $$Struct of a Maat function.
+ * $$Repr of a Maat function object.
  *
  * $arity: The number of arguments the function takes.
  * $code: Its bytecode.
- * $constants: The function's constant values.
+ * $cons: The function's constant values.
  * $ns: Access index to namespace of the function in $NSBuf.
  */
 #define O_VFN  vary(O_FN, 0)
@@ -628,7 +662,7 @@ typedef struct Fn {
    Ubyte arity;
    size_t ns;
    CodeBuf code;
-   ValueBuf constants;
+   ValueBuf cons;
 } Fn;
 
 /*
@@ -738,17 +772,17 @@ typedef struct Closure {
  * ISO C99 says that a pointer to a union object, suitably
  * converted, points to each of its members, and vice versa.
  */
+#define gco2mins(o)  (ma_assert(check_type(o, O_VMINS)), &(ounion_of(o)->mins))
+#define gco2cins(o)  (ma_assert(check_type(o, O_VCINS)), &(ounion_of(o)->cins))
 #define gco2str(o)   (ma_assert(check_type(o, O_STR) || check_type(v, O_U8STR)), &(ounion_of(o)->str))
-#define gco2ar(o)    (ma_assert(check_type(o, O_ARRAY)), &(ounion_of(o)->ar))
+#define gco2arr(o)   (ma_assert(check_type(o, O_ARRAY)), &(ounion_of(o)->ar))
 #define gco2map(o)   (ma_assert(check_type(o, O_MAP)), &(ounion_of(o)->map))
-#define gco2rng(o)   (ma_assert(check_type(o, O_RANGE)), &(ounion_of(o)->rng))
+#define gco2rg(o)    (ma_assert(check_type(o, O_RANGE)), &(ounion_of(o)->rng))
 #define gco2fun(o)   (ma_assert(check_rtype(o, O_VFUN)), &(ounion_of(o)->fun))
 #define gco2clo(o)   (ma_assert(check_rtype(o, O_VCLOSURE)), &(ounion_of(o)->clo))
 #define gco2uv(o)    (ma_assert(check_type(o, O_UPVAL)), &(ounion_of(o)->uv))
 #define gco2cls(o)   (ma_assert(check_rtype(o, O_VCLASS) || check_rtype(o, O_VROLE)), &(ounion_of(o)->cls))
-#define gco2ccls(o)  (ma_assert(check_rtype(o, O_VCCLASS)), &(ounion_of(o)->ccls))
-#define gco2mins(o)  (ma_assert(check_type(o, O_VMINST)), &(ounion_of(o)->mins))
-#define gco2cins(o)  (ma_assert(check_type(o, O_VCINST)), &(ounion_of(o)->cins))
+#define gco2fcls(o)  (ma_assert(check_rtype(o, O_VFCLASS)), &(ounion_of(o)->fcls))
 #define gco2stt(o)   (ma_assert(check_type(o, O_STATE)), &(ounion_of(o)->stt))
 #define gco2ma(o)    (ma_assert(check_type(o, O_MA)), &(ounion_of(o)->ma))
 #define gco2wk(o)    (ma_assert(check_rtype(o, O_VWORK)), &(ounion_of(o)->wk))
@@ -762,16 +796,16 @@ typedef struct Closure {
 union Ounion {
    Object gc_obj;
    Str str;
-   Array ar;
+   Array arr;
    Map map;
    Range rng;
    Fn fn;
    Closure clo;
    Upval uv;
    Class cls;
-   Cclass ccls;
-   MInst mins;
-   CInst cins;
+   FClass fcls;
+   MIns mins;
+   CIns cins;
    State stt;
    Ma ma;
    Work wk;
@@ -779,7 +813,7 @@ union Ounion {
    Namespace ns;
 } Ounion;
 
-/* It is on its own as this is needed at 'ma_str.c' */
+/* It's on its own as it's needed at 'ma_str.c' and elsewhere. */
 #define sunion_of(s)  cast(Sunion *, s)
 #define a2u8(s)       (ma_assert(check_type(s, O_STR)), &(sunion_of(s)->as))
 #define u82a(s)       (ma_assert(check_type(s, O_U8STR)), &(sunion_of(s)->u8s))
