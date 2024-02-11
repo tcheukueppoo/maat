@@ -15,7 +15,7 @@ typedef struct SMap {
  * $$Data common to all Maatines, mutex must be used for some
  * of these variables.
  */
-typedef struct GMa {
+typedef struct GMaa {
    /* $seed: Random seed for Maps. */
    UInt seed;
 
@@ -48,13 +48,13 @@ typedef struct GMa {
    /* Linked-list of shared objects. */
    Object *lso;
 
-} GMa;
+} GMaa;
 
 /*
  * $$The Maatine object, it represents a VM-level thread with its
  * execution scheduled by maat's runtime scheduler.
  */
-typedef struct Ma {
+typedef struct Maa {
    Header;
 
    /* $status: Status of this Maatine. */
@@ -115,6 +115,6 @@ typedef struct Ma {
 
    /* $gma: Points to the data common to all Maatines. */
    GMa *gma;
-} Ma;
+} Maa;
 
 #endif
