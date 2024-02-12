@@ -37,7 +37,7 @@
  *   necessary to represent values of the boolean and nil types.
  *
  * Bits distribution:
- * - Bits 0-4: Represents the different types of types regardless
+ * - Bits 0-4: Represents the different value types regardless
  *   of whether they are collectable or not, here we have maximum
  *   32 objects which suffices.
  *
@@ -45,7 +45,7 @@
  *   can have at most 3 variants for each base type which also
  *   suffices.
  *
- * - Bit 7: is 1 if $val stores a collectable object and 0
+ * - Bit 7: It is '1' if $val stores a collectable object; '0'
  *   otherwise.
  */
 #define Valuefields  _Value val; Ubyte type
@@ -199,8 +199,7 @@ typedef struct Object {
 /* O_VNS */
 #define O_NS     19
 
-
-/* $$Repr of all string objects. */
+/* $$$Repr of all type of string objects. */
 #define O_VLNGSTR   vary(O_STR, 0)
 #define O_VSHTSTR   vary(O_STR, 1)
 #define O_VUSHTSTR  vary(O_U8STR, 0)
@@ -224,7 +223,10 @@ typedef struct Object {
 #define Stringfields  UByte sl; \
                       Object *next_sobj; \
                       Byte *str; \
-                      union { size_t len; struct Str *snext; } u; \
+                      union { \
+                         struct Str *snext; \
+                         size_t len; \
+                      } u; \
                       UInt hash
 
 /*
@@ -401,7 +403,7 @@ typedef struct Array {
 } Array;
 
 /*
- * $$CArray: A thread-safe lock-free version of an Array.
+ * $$CArray: A thread-safe lock-free version of $$Array.
  *
  * TODO: doc fields.
  */
@@ -422,6 +424,7 @@ typedef struct CArray {
 #define O_VFN  vary(O_FN, 0)
 
 #define fn2v(f, v)  gco2val(f, v)
+#define v2fn_rw(v)  gco2fn((v).gc_obj)
 #define v2fn(v)     (ma_assert(is_fn(v)), gco2fn((v).gc_obj))
 
 #define is_fn(v)  check_rtype(v, O_VFN)
@@ -491,6 +494,10 @@ typedef struct SUpval {
  */
 #define O_VCLOSURE  vary(O_FN, 1)
 
+#define clo2v(c, v)  gco2val(c, v)
+#define v2clo(v)     (ma_assert(is_clo(v)), gco2clo((v).gc_obj))
+#define v2clo_rw(v)  gco2clo((v).gc_obj)
+
 #define is_clo(v)  check_rtype(v, ctb(O_VCLOSURE))
 #define as_clo(v)  (ma_assert(is_clo(v)), cast(Closure *, as_gcobj(v)))
 
@@ -506,35 +513,40 @@ typedef struct Closure {
 /*
  * $$Meth: Repr of a class method.
  *
- * - $c: The method's closure.
- * - $aoffset:
- *   since $aoffset naturally does not belong to any closure and
- *   is defined per class, methods should better be objects on
- *   their own. When binding a method, it's only when the
- *   $aoffset of the method for the targeted class
+ * - $clo: The method's closure.
+ * - $offset:
+ *   since $offset naturally does not belong to any closure and
+ *   is defined per-class, methods should better be objects on
+ *   their own. Unfornately, for correct access to attributes,
+ *   binding an inherited or role method requires a copy of the
+ *   to-be-binded method since each $offset is class dependent.
+ * - $cc3: 
  */
 #define O_VMETH  vary(O_FN, 2)
+
+#define meth2v(c, v)  gco2val(c, v)
+#define v2meth(v)     (ma_assert(is_meth(v)), gco2meth((v).gc_obj))
+#define v2meth_rw(v)  gco2meth((v).gc_obj)
 
 #define is_meth(v)  check_rtype(v, ctb(O_VMETH))
 #define as_meth(v)  (ma_assert(is_meth(v)), cast(Meth *, as_gcobj(v)))
 
-typedef union Meth {
+typedef struct Meth {
    Header;
    Closure *clo;
-   UByte aoffset;
+   UByte offset;
+   UByte c3_i;
 } Meth;
 
 /*
- * $$Repr of different class objects, every collectable object
- * has a class, even the class object itself since a class is
- * also collectable. Class header of objects which aren't first
- * class values are probably not useful, e.g Upvalues.
- */
-
-/*
- * Repr of a class attribute.
+ * $$$Repr of various classes, every collectable object has a
+ * class, even the class object itself since a class is also
+ * collectable. Class header of objects that aren't first class
+ * values are probably not useful, e.g Upvalues.
  *
- * - $name: The attribute's name.
+ * $$Attr: Repr of a class attribute.
+ *
+ * - $name: The attribute name.
  * - $type: '1' if it's an attribute reference; '0' otherwise.
  * - $u: To get the attribute's value. It's $delta, the distance
  *   from the attribute reference to the attribute it references
@@ -563,24 +575,27 @@ typedef struct Attr {
 } Attr;
 
 /*
- * Repr of a Maat class with the variant type 'Role'.
+ * $$Class: Repr of a Maat class with the variant type 'Role'.
  *
  * - $name: The class' name.
  * - $attrs: A buffer of attributes, holds attributes' default
  *   values, includes all inherited and roles attributes.
- *   Conflicts are resolved at class class creation. This field
- *   is copied into the instance object at instanciation.
+ *   Conflicts are resolved at class creation. This field is
+ *   copied into the instance object at instanciation.
+ * - $asize: Size of the attribute buffer.
  *
  * - $c3: List of classes, c3 linearization result.
- * - $csize: Size of the c3 list.
+ * - $offsets: 
+ * - $csize: Size of the c3 list and the offset list since they
+ *   both must have the same size.
  *
- * - $roles: Keeps the list of roles the class ':does'
- *   regardless of which class variant it is.
+ * - $roles: Keeps the list of roles the class ':does' regardless
+ *   of which class variant it is.
  * - $rsize: Size of the role list.
  *
  * - $sups: Keeps the list of directly inherited superclasses.
- *   $sups exists mainly for class introspection since $c3
- *   handles super calls.
+ *   $sups exists mainly for the runtime build of the $c3 list
+ *   as it's this list that handles super calls.
  * - $ssize: Size of the super list.
  *
  * - $meths: A map to store the class' methods. A value to a key
@@ -592,8 +607,12 @@ typedef struct Attr {
 #define O_VCLASS  vary(O_CLASS, 0)
 #define O_VROLE   vary(O_CLASS, 1)
 
-#define cls2v(c, v)  gco2val(c, v)
-#define v2cls(v)     (ma_assert(iss_cls(v)), gco2cls((v).gc_obj))
+#define cls2v(c, v)   gco2val(c, v)
+#define role2v(c, v)  gco2val(c, v)
+#define v2cls(v)      (ma_assert(iss_cls(v)), gco2cls((v).gc_obj))
+#define v2role(v)     (ma_assert(is_role(v)), gco2cls((v).gc_obj))
+#define v2cls_rw(v)   gco2cls((v).gc_obj)
+#define v2role_rw(v)  v2cls_rw(v)
 
 #define is_cls(v)   check_type(v, O_CLASS)
 #define iss_cls(v)  check_rtype(v, ctb(O_VCLASS))
@@ -605,7 +624,8 @@ typedef struct Attr {
 typedef struct Class {
    Header;
    Str *name;
-   AttrBuf *attrs;
+   Attr *abuf;
+   UByte *offsets;
    Map *meths;
    struct Class *roles;
    struct Class *sups;
@@ -614,20 +634,22 @@ typedef struct Class {
    UByte rsize;
    UByte ssize;
    UByte csize;
+   UByte asize;
 } Class;
 
 /*
- * Repr of a foreign class, an Fclass is a class whose
- * implemention is done in foreign languages like C or C++.
+ * $$FClass: Repr of a foreign class, an FClass is a class whose
+ * implemention is done in foreign languages like C and C++.
  *
- * - $name: The foreign class' name
- * - $meths: The foreign class' methods
- * - $size: The size of the memory pointed by $fdata.
+ * - $name: Foreign class name.
+ * - $size: Length of the allocated bytes referenced by $fdata.
+ * - $meths: Foreign class methods.
  */
 #define O_VFCLASS  vary(O_CLASS, 2)
 
-#define fcls2v(fc, v)  gco2val(fc, v)
-#define v2fcls(v)      (ma_assert(is_fcls(v)), gco2fcls((v).gc_obj))
+#define fcls2v(f, v)  gco2val(f, v)
+#define v2fcls_rw(v)  gco2fcls((v).gc_obj)
+#define v2fcls(v)     (ma_assert(is_fcls(v)), gco2fcls((v).gc_obj))
 
 #define is_fcls(v)  check_rtype(v, ctb(O_VFCLASS))
 #define as_fcls(v)  (ma_assert(is_fcls(v)), cast(FClass *, as_gcobj(v)))
@@ -635,26 +657,22 @@ typedef struct Class {
 typedef struct FClass {
    Header;
    Str *name;
-   size_t size;
    Map *meths;
+   size_t len;
 } FClass;
 
 /*
- * $$Repr of classes' instances, for both Maat and other foreign
+ * $$$Repr of classes instance, both for Maat and other foreign
  * languages like C/C++.
  */
-
-/* Instance of a Maat Class. */
-
-#define inst2v(i, v)  gco2val(i, v)
-#define is_inst(v)    check_type(v, O_INST)
+#define is_ins(v)  check_type(v, O_INS)
 
 /*
- * $$Instance of a Maat class. If this object ends up shared,
- * attributes themselves are marked shared since they are the
- * only mutable part of this object.
+ * $$MIns: Instance of a Maat class. If this object somehow ends
+ * up shared then attributes themselves are marked shared since
+ * they are the only mutable part of this object.
  *
- * - $attrs:
+ * - $attrs: A copy of the instance's class $attrs.
  * - $sup_level:
  *
  * "self.SUPER::<method_name>(...)" Where SUPER is a pseudo
@@ -663,10 +681,11 @@ typedef struct FClass {
  */
 #define O_VMINS  vary(O_INS, 0)
 
+#define mins2v(i, v)  gco2val(i, v)
+#define v2mins(v)     (ma_assert(is_mins(v)), gco2mins((v).gc_obj))
+
 #define is_mins(v)  check_rtype(v, ctb(O_VMINS))
 #define as_mins(v)  (ma_assert(is_mins(v)), cast(MIns *, as_gcobj(v)))
-
-#define v2mins(v)  (ma_assert(is_ins(v)), gco2mins((v).gc_obj))
 
 typedef struct MIns {
    Header;
@@ -676,39 +695,43 @@ typedef struct MIns {
 } MIns;
 
 /*
- * $$Instance of a Cclass, this object doesn't have a thread-s-
- * afe lock-free variant, it's of the responsibility of the
- * foreign code to provide synchronization in case cdata has to
- * be accessed concurrently via its foreign methods.
+ * $$FIns: Instance of an FClass, this object doesn't have a
+ * thread-safe lock-free variant, it's of the responsibility of
+ * the foreign code to provide synchronization in case $fvalue
+ * has to be concurrently accessed via its foreign methods.
  *
- * - $cvalue: The foreign class' value.
+ * - $fvalue: The foreign class' value.
  */
-#define O_VCINS  vary(O_INS, 1)
+#define O_VFINS  vary(O_INS, 1)
 
-#define is_cins(v)  check_rtype(v, ctb(O_VCINS))
-#define as_cins(v)  (ma_assert(is_cins(v)), cast(CIns *, as_gcobj(v)))
+#define fins2v(i, v)  gco2val(i, v)
+#define v2fins(v)     (ma_assert(is_fins(v)), gco2fins((v).gc_obj))
+#define v2fins_rw(v)  gco2fins((v).gc_obj)
 
-#define v2cins(v)  (ma_assert(is_ins(v)), gco2cins((v).gc_obj))
+#define is_fins(v)  check_rtype(v, ctb(O_VFINS))
+#define as_fins(v)  (ma_assert(is_fins(v)), cast(FIns *, as_gcobj(v)))
 
-typedef struct CIns {
+typedef struct FIns {
    Header;
    Object *next_sobj;
    Value fvalue;
-} CIns;
+} FIns;
 
 /*
- * $$Repr of a namespace e.g FOO::BAR. A namespace can either
- * be represented as a package, role or (c)class.
+ * $$Namespace: Repr of a namespace e.g 'FOO::BAR'. A namespace
+ * can either be represented as a package, role or (c)class.
  * 'FOO::BAR::x()' is a call to the function 'x' in 'FOO::BAR'
  * if ever there is.
  *
- * - $ours: Stores it globals.
+ * - $ours: Stores the namespace' global symbols, 'x' is a
+ *   global symbol in package namespace 'FOO::BAR' and it can
+ *   be fully qualified as in the above call.
  *
  * $ours of the package 'main::' takes care of the following
  * type I & II special variables:
  *
- *   ENV, ARGC, ARGV, INC, PATH, SIG, DATA, $v, $o, $,, $/, $\
- *   $|, $", $$, $(, $), $<, $>, $f, and $0.
+ *   - ENV, ARGC, ARGV, INC, PATH, SIG, DATA
+ *   - $v, $o, $,, $/, $\, $|, $", $$, $(, $), $<, $>, $f, $0
  *
  * Accessing any of these variables from the main package most
  * not necessarily be done using a fully qualified form unless
@@ -743,7 +766,7 @@ typedef struct Namespace {
    Value val;
 } Namespace;
 
-/* $$$Definition of these objects are in their respective header files. */
+/* $$$Definition of bellow objects are in their respective .h files. */
 
 /* A thread-safe channel and scheduler ring buffer queue. */
 #define O_VCHAN    vary(O_RBQ, 1)
@@ -775,33 +798,34 @@ typedef struct Namespace {
 #define is_maa(v)  check_rtype(v, ctb(O_VMAA))
 #define as_maa(v)  (ma_assert(is_maa(v)), cast(Maa *, as_gcobj(v)))
 
-/* $$Union of all collectable objects used for conversion. */
+/* $$$Union of all collectable objects used for conversion. */
 
-#define ounion_of(o)  cast(Ounion *, o)
+#define ounion(o)  cast(Ounion *, o)
 
 /*
  * ISO C99 says that a pointer to a union object, suitably
  * converted, points to each of its members, and vice versa.
  */
-#define gco2mins(o)  (ma_assert(check_type(o, O_VMINS)), &(ounion_of(o)->mins))
-#define gco2cins(o)  (ma_assert(check_type(o, O_VCINS)), &(ounion_of(o)->cins))
-#define gco2str(o)   (ma_assert(check_type(o, O_STR) || check_type(v, O_U8STR)), &(ounion_of(o)->str))
-#define gco2arr(o)   (ma_assert(check_type(o, O_ARRAY)), &(ounion_of(o)->ar))
-#define gco2map(o)   (ma_assert(check_type(o, O_MAP)), &(ounion_of(o)->map))
-#define gco2rg(o)    (ma_assert(check_type(o, O_RANGE)), &(ounion_of(o)->rng))
-#define gco2fun(o)   (ma_assert(check_rtype(o, O_VFUN)), &(ounion_of(o)->fun))
-#define gco2clo(o)   (ma_assert(check_rtype(o, O_VCLOSURE)), &(ounion_of(o)->clo))
-#define gco2uv(o)    (ma_assert(check_type(o, O_UPVAL)), &(ounion_of(o)->uv))
-#define gco2cls(o)   (ma_assert(check_rtype(o, O_VCLASS) || check_rtype(o, O_VROLE)), &(ounion_of(o)->cls))
-#define gco2fcls(o)  (ma_assert(check_rtype(o, O_VFCLASS)), &(ounion_of(o)->fcls))
-#define gco2stt(o)   (ma_assert(check_type(o, O_STATE)), &(ounion_of(o)->stt))
-#define gco2ma(o)    (ma_assert(check_type(o, O_MA)), &(ounion_of(o)->ma))
-#define gco2wk(o)    (ma_assert(check_rtype(o, O_VWORK)), &(ounion_of(o)->wk))
-#define gco2rbq(o)   (ma_assert(check_rtype(o, O_VRBQ)), &(ounion_of(o)->rbq))
-#define gco2ns(o)    (ma_assert(check_rtype(o, O_VNS)), &(ounion_of(o)->ns))
+#define gco2mins(o)  (ma_assert(check_type(o, O_VMINS)), &(ounion(o)->mins))
+#define gco2fins(o)  (ma_assert(check_type(o, O_VFINS)), &(ounion(o)->fins))
+#define gco2str(o)   (ma_assert(check_type(o, O_STR) || check_type(v, O_U8STR)), &(ounion(o)->str))
+#define gco2arr(o)   (ma_assert(check_type(o, O_ARRAY)), &(ounion(o)->ar))
+#define gco2map(o)   (ma_assert(check_type(o, O_MAP)), &(ounion(o)->map))
+#define gco2rg(o)    (ma_assert(check_type(o, O_RANGE)), &(ounion(o)->rng))
+#define gco2fun(o)   (ma_assert(check_rtype(o, O_VFUN)), &(ounion(o)->fun))
+#define gco2clo(o)   (ma_assert(check_rtype(o, O_VCLOSURE)), &(ounion(o)->clo))
+#define gco2meth(o)  (ma_assert(check_rtype(o, O_VMETH)), &(ounion(o)->meth))
+#define gco2uv(o)    (ma_assert(check_type(o, O_UPVAL)), &(ounion(o)->uv))
+#define gco2cls(o)   (ma_assert(check_rtype(o, O_VCLASS) || check_rtype(o, O_VROLE)), &(ounion(o)->cls))
+#define gco2fcls(o)  (ma_assert(check_rtype(o, O_VFCLASS)), &(ounion(o)->fcls))
+#define gco2stt(o)   (ma_assert(check_type(o, O_STATE)), &(ounion(o)->stt))
+#define gco2ma(o)    (ma_assert(check_type(o, O_MA)), &(ounion(o)->ma))
+#define gco2wk(o)    (ma_assert(check_rtype(o, O_VWORK)), &(ounion(o)->wk))
+#define gco2rbq(o)   (ma_assert(check_rtype(o, O_VRBQ)), &(ounion(o)->rbq))
+#define gco2ns(o)    (ma_assert(check_rtype(o, O_VNS)), &(ounion(o)->ns))
 
 /* The other way around. */
-#define x2gco(v)  (ma_assert(is_obj(v)), &(ounion_of(o)->gc_obj))
+#define x2gco(v)  (ma_assert(is_obj(v)), &(ounion(o)->gc_obj))
 
 /* Union of all collectable objects */
 union Ounion {
@@ -812,15 +836,16 @@ union Ounion {
    Range rng;
    Fn fn;
    Closure clo;
+   Meth meth;
    Upval uv;
    Class cls;
    FClass fcls;
    MIns mins;
-   CIns cins;
+   FIns fins;
+   Rbq rbq;
    State stt;
    Ma ma;
    Work wk;
-   Rbq rbq;
    Namespace ns;
 } Ounion;
 
