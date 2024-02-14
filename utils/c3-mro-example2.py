@@ -47,9 +47,9 @@ print()
 """
 Remind yourself!!
 
-If results are different then it implies that every class
-deals with its own c3-list when doing chained super calls
-on a single method.
+If results are different then it implies that every class deals
+with its own c3-list when doing chained super calls on a single
+method.
 """
 
 e = E()
@@ -66,10 +66,9 @@ print()
 """
 Remind yourself!!
 
-If "E::meth2" isn't part of the result, then that implies
-chained super calls with different names do not backtrack
-to the start of the c3-list, it just continues from where
-it lefts off.
+If "E::meth2" isn't part of the result, then that implies chained
+super calls with different names do not backtrack to the start of
+the c3-list, it just continues from where it lefts off.
 """
 
 e.meth1()
