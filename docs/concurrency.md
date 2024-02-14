@@ -2,27 +2,35 @@
 
 ## Safe Points
 
-* Creation of shared upvalues
-* Marking a collectable object shared
-* 
+1. Creation of shared objects from upvalues
 
+2. Marking a GC object shared
+
+
+Sweeping the LSO is done in a single atomic step, so GC objects newly
+marked **shared** from a maatine that has run its GC cycle atleast once
+will
+be part of the second round or 
+
+Newly GC objects marked shared will not be part of the current GC round
+as the maatine associated to it has yet been set
 
 ## Synchronization Points
 
 (if more than one thread to execute Maat code)
 
 * Check environment type(single or multi-threaded?)
-* Shared short strings
-* Cached strings
-* Int -> Str cache
-* Propagating over shared collectable objects.
-* Insertion of shared objects into LSOs
-* Shared memory operations (READ, WRITE, READ-MODIFY-WRITE(RMW))
-* 
+* Shared short strings from Map of short strings.
+* String Caching system 
+* Integer to strings caching system
+* Propagating mark over shared GC objects.
+* Insertion of shared GC objects into LSOs
+* Shared variables (READ, WRITE, NON-ATOMIC READ-MODIFY-WRITE)
+* Shared objects
 
 One of our major challenge is to avoid ruining performance by combining
 bottleneck critical section, lots of processors, and inefficient spin-lock.
-Memory shared accross maatines are via global symbols and upvalues, if
+Memory are shared accross maatines via global symbols and upvalues, if
 maatines run in a multi-threaded environment, Maat automatically syncs
 concurrent access to shared memory using fast sync techniques.
 
@@ -45,17 +53,14 @@ more on how to automatically detect the need to synchronize and perform
 it without hindering the performance of our system.
 
 Given the way we designed our [garbage collector](./gc.md), we can leverage
-the colors set to collection objects during sharing points as a way to
+the colors set to GC objects during sharing points as a way to
 determine in an object implementation if it's shared and if so then sync
 its ops but this sync ever happens if we are running in a mutli-threaded
 environment (that's at least two threads in the thread pool to schedule
 execution of maatines).
 
 
-
-### Variables
-
-
+### Shared Variables
 
 1. Write operation
 
