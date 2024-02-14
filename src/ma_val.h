@@ -268,6 +268,7 @@ typedef struct U8Str {
 
 #define rng2v(r, v)  gco2val(r, v)
 #define v2rng(v)     (ma_assert(is_rng(v)), gco2rng((v).gc_obj))
+#define v2rng_rw(v)  gco2rng((v).gc_obj)
 
 #define is_rng(v)  check_rtype(v, ctb(O_VRANGE))
 #define as_rng(v)  (ma_assert(is_rng(v)), cast(Range *, as_gcobj(v)))
@@ -284,8 +285,9 @@ typedef struct Range {
 #define O_VMAP   vary(O_MAP, 0)
 #define O_VCMAP  vary(O_MAP, 1)
 
-#define map2v(m, v)   gco2val(m, v)
-#define v2map2(v, m)  (ma_assert(is_map(v), g))
+#define map2v(m, v)      gco2val(m, v)
+#define v2map2(v, m)     (ma_assert(is_map(v)), gco2map((v).gc_obj))
+#define v2map2_rw(v, m)  gco2map((v).gc_obj)
 
 #define is_map(v)   check_rtype(v, ctb(O_VMAP))
 #define is_cmap(v)  check_rtype(v, ctb(O_VCMAP))
@@ -296,14 +298,14 @@ typedef struct Range {
 /*
  * $$Node: Node of a map object.
  *
- * - $val: Direct access to the Node's value, $val is
- *   $Valuefields.
- * - $k: The node's key.
- *   - $key_t and $key_v are the key's type and value
- *     respectively.
- *   - $next: Offset to next node in case of collisions.
+ * - $val: Direct access to the node value from $k.
+ * - $k: The node key with other searching parameters.
+ *   - $key_t: The node key type.
+ *   - $key_v: The node key value.
+ *   - $next: Offset to next node in case of collision.
  *   - $prev: Offset to the previous node, used for tracking back
- *     to the first entry.
+ *     to the first entry, it's indispensable for synced access
+ *     operations if ever the map eventually ends up shared.
  */
 typedef union Node {
    struct {

@@ -4,8 +4,6 @@
 #include "ma_val.h"
 #include "ma_state.h"
 
-
-
 /* ##The Work object.
  *
  * #state: State of the work.
@@ -14,7 +12,7 @@
  * #catch: Exception handler if an exception is thrown;
  */
 typedef struct Work {
-   Object obj;
+   Header;
    UByte state;
    UByte then_size;
    Closure *wk_code;
