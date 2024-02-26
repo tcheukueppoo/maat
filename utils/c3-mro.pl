@@ -2,10 +2,10 @@
 
 # License: MAATL, see LICENSE file for copyright and license details.
 #
-# Test if c3 algorithm works. To do that we define the general structure of a small
-# DSL for defining classes with their methods and inheritance relationships. This
-# program parses the DSL following __DATA__ to perform c3 linearization and method
-# call tests.
+# Test if c3 mro works, to do that we define the general structure
+# of a small DSL for defining classes with their methods and
+# inheritance relationships. This program parses the DSL following
+# __DATA__ to perform c3 linearization and method # call tests.
 #
 # Syntax of the DSL:
 #
@@ -24,11 +24,12 @@
 #   (Line above is a section separator)
 #   (Define another section here below)
 #
-# Sections are separated by '-'s. We test each section independently of the other
-# ones. The optional '@' following a method name implies that in its code the
-# method unconditionally calls its super method. A perl code is generated for each
-# section and our own implementation which is proven to be totally valid is used
-# to the validity of that of perl.
+# Sections are separated by '-'s. We test each section independently
+# of the other ones. The optional '@' following a method name implies
+# that in its code the method unconditionally calls its super method.
+# A perl code is generated for each section and our own implementation
+# which is proven to be totally valid is used to the validity of that
+# of Perl.
 
 use strict;
 use warnings;
@@ -38,9 +39,9 @@ use builtin qw( indexed true false );
 
 no warnings 'experimental';
 
+use Test::More;
 use Getopt::Std;
 use List::Util qw( uniq );
-use Test::More;
 
 use Data::Dumper;
 
@@ -60,7 +61,6 @@ my $data_re = qr/
 
 my $section_re = qr/
    \G
-   (?(DEFINE) (?<i> ))                      # Identifier
    (\w+)                                    # Class name
    (?:
      \h* -> \h*
@@ -76,24 +76,24 @@ my $section_re = qr/
    \s*? \n \s*                              # At least a newline!
 /x;
 
-my $meth_re = qr/^ ( [^@] ) ( \@ )? $/x;
+my $meth_re = qr/^ ( [^@]+ ) ( \@ )? $/x;
 
-my $config = {lang => 'perl', secs => undef, action => 'test', nsecs => false};
+my $config = {lang => 'perl', secs => undef, action => 'test', nsecs => false, mro => true, call => undef};
 
 sub main () {
   parse_args();
 
   # Output the number of sections.
   if ($config->{nsecs}) {
-     get_n_sections();
-     exit 0;
+    display_n_sections();
+    exit 0;
   }
 
-  for ($config->{actions}) {
-     done_testing(test_c3_mro()), last if /test/;
-     display_lang_scode(),        last if /gen/;
-     display_sections(),          last if /secs/
-     display_class_diag(),        last if /diag/;
+  foreach ($config->{action}) {
+    display_lang_scode(), last if /lang/;
+    display_sections(),   last if /sec/;
+    display_class_diag(), last if /diag/;
+    done_testing(test_c3_mro()), last if /test/;
   }
 }
 
@@ -103,7 +103,7 @@ A c3 method resolution order (MRO) test Perl script. When this script
 is simply invoked with no arguments, it performs a series c3-mro tests
 on all sections foind in the script.
 
-Usage: $0 [-hn] [ -l LANG ] [ -a ACTION ] [ -s ID, ... ]
+Usage: $0 [-hnm] [ -l LANG ] [ -a ACTION ] [ -s ID, ... ] [ -c CLASS:METH ]
 
  -h           Display this help message and exit.
  -n           Display the number of sections in the script.
@@ -128,59 +128,25 @@ EOH
   die "$help\n"           if defined $args{h};
   $config->{nsecs} = true if defined $args{n};
 
+  my $try = "try `-h' option for more info.\n";
   if (defined $args{l}) {
-    die "supported arguments to `-l' are perl/raku/python.\n" unless $args{s} =~ /^(?:perl|raku|python)$/i;
+    die $try unless $args{l} =~ /^(?:perl|raku|python)$/i;
     $config->{lang} = lc $args{l};
   }
 
   if (defined $args{s}) {
-    die "invalid argument to `-s'.\n" unless $arg{s} =~ /\d+(?:(?>,+)(?>\d+))*/a;
-    @{$config->{secs}} = map { $_ => 1 } split /,+/, $args{s};
+    die $try unless $args{s} =~ /\d+(?:(?>,+)(?>\d+))*/a;
+    @{$config->{secs}} = split /,+/, $args{s};
   }
 
   if (defined $args{a}) {
-    die "use `-h' for more info.\n" unless $args{a} =~ /^(?:diag|test|gen|lang|sec)$/i;
+    die $try unless $args{a} =~ /^(?:diag|test|lang|sec)$/i;
     $config->{action} = $args{a};
   }
-}
 
-# Get the number of sections under __DATA__.
-sub get_n_sections () {
-  return scalar parse_sections()->@*;
-}
-
-sub display_lang_scode () {
-  my $sections = parse_sections();
-
-  foreach my $i (@{$config->{secs} // [0..$#$sections]}) {
-     warn "no section with id $i\n" unless 0 <= $i < @$sections;
-
-     print <<"MARK" . gen_lang_scode($sections->[$i]);
->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> section $i
-MARK
+  if (defined $args{c}) {
   }
 }
-
-sub display_sections () {
-   my $sections = parse_sections();
-
-   foreach my $i (@{$config->{secs} // [0..$#$sections]}) {
-     warn "no section with id $i\n" unless 0 <= $i < @$sections;
-
-     my $section = $sections->[$i];
-     print <<"MARK"
->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> section $i
-MARK
-     foreach my $class (@{$section->[0]}) {
-       print "$class";
-       print " -> ($section->[1]{s}->@*)" if exists $section->[1]{s};
-       print " : $section->[1]{m}->@*" if exists $section->[1]{m};
-       print "\n";
-     }
-   }
-}
-
-sub display_class_diag () {}
 
 # With certainty that our own c3 implementation works, let's test Perl's
 # implementation and perform series of method calls to see if chained
@@ -191,7 +157,7 @@ sub test_c3_mro () {
   my @codes    = map gen_lang_scode($_), @$sections;
 
   local $" = ', ';
-section: foreach my $i (@{$config->{secs} // [0..$#$sections]}) {
+section: foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
     warn "no section with id $i\n" unless 0 <= $i < @$sections;
 
     my $c3s = {};
@@ -202,7 +168,7 @@ section: foreach my $i (@{$config->{secs} // [0..$#$sections]}) {
 
       # Test C3 linearization.
       my $langc3 = lang_run(lang_c3_linearize_class($class, $codes[$i]));
-      c3_linearize_class($section, $class, $c3s);
+      c3_linearize_class($sections->[$i], $class, $c3s);
 
       if (ref $c3s->{$class}) {
         my $expected = join ' ', @{$c3s->{$class}};
@@ -217,7 +183,7 @@ section: foreach my $i (@{$config->{secs} // [0..$#$sections]}) {
     }
 
     # Test method calls.
-    my $rmeths = resolve_methods($section, $c3s);
+    my $rmeths = resolve_methods($sections->[$i], $c3s);
     foreach my $class (@$classes) {
       next unless my $meths = $rmeths->{$class};
       test_call($rmeths, $class, $_, $codes[$i], $i), $t++ foreach keys %$meths, '__should_fail__';
@@ -226,6 +192,37 @@ section: foreach my $i (@{$config->{secs} // [0..$#$sections]}) {
 
   return $t;
 }
+
+# Get the number of sections under __DATA__.
+sub display_n_sections () { return scalar parse_sections()->@*; }
+
+sub display_lang_scode () {
+  my $sections = parse_sections();
+
+  foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
+    warn "no section with id '$i'\n" unless 0 <= $i < @$sections;
+    print "####### section $i\n" . gen_lang_scode($sections->[$i]);
+  }
+}
+
+sub display_sections () {
+  my $sections = parse_sections();
+
+  foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
+    warn "no section with id '$i'\n" unless 0 <= $i < @$sections;
+
+    my $section = $sections->[$i];
+    print "####### section $i\n";
+    foreach my $class (@{$section->[0]}) {
+      print "$class";
+      print " -> ($section->[1]{$class}{s}->@*)" if exists $section->[1]{$class}{s};
+      print " : $section->[1]{$class}{m}->@*"    if exists $section->[1]{$class}{m};
+      print "\n";
+    }
+  }
+}
+
+sub display_class_diag () { }
 
 sub cmp_val ($val) {
   return lc $val =~ s/["',]//gr =~ s/\s+//gr;
@@ -262,7 +259,6 @@ sub parse_section ($data, $section_str, $offset, $n) {
 
     # Could use auto-vivification but we've empty classes.
     $section->[1]{$1} = {};
-
     push $section->[1]{$1}{m}->@*, split ' ', $3 if defined $3;
 
     next unless defined $2;
@@ -270,8 +266,8 @@ sub parse_section ($data, $section_str, $offset, $n) {
     my %defined;
     foreach my $super (split ' ', $2) {
       die "[section $n]: Class '$1' can't inherit himself.\n" if $1 eq $super;
-      die "[section $n]: Class '$super' is undefined.\n" unless exists $section->[1]{$super};
-      die "[section $n]: '$super' is a duplicated class.\n" if exists $defined{$super};
+      die "[section $n]: Class '$super' is undefined.\n"      if not exists $section->[1]{$super};
+      die "[section $n]: '$super' is a duplicated class.\n"   if exists $defined{$super};
 
       $defined{$super} = 1;
       push $section->[1]{$1}{s}->@*, $super;
@@ -279,6 +275,7 @@ sub parse_section ($data, $section_str, $offset, $n) {
   }
 
   syntax_error($data, pos $section_str, $offset) if pos $section_str != length $section_str;
+
   return $section;
 }
 
@@ -310,11 +307,11 @@ sub gen_perl_scode ($section) {
     my $classdef = $section->[1]{$class};
 
     # Class defintion
-    $code = "package $class {";
+    $code .= "package $class {";
 
     # Superclasses.
     if (exists $classdef->{s}) {
-      $code .= exists $classdef->{m} ? "\n " : '';
+      $code .= exists $classdef->{m} ? "\n " : ' ';
       $code .= "use parent -norequire, qw(@{$classdef->{s}});";
     }
 
@@ -323,7 +320,7 @@ sub gen_perl_scode ($section) {
 
     # Methods.
     my $delim  = @{$classdef->{m}} > 1 || exists $classdef->{s} ? "\n" : ' ';
-    my $indent = $delim eq ' '                                  ? ''   : $delim;
+    my $indent = $delim eq ' '                                  ? ''   : ' ';
     foreach my $meth (@{$classdef->{m}}) {
       my ($name, $next) = $meth =~ $meth_re;
 
@@ -346,23 +343,25 @@ sub gen_raku_scode ($section) {
     my $classdef = $section->[1]{$class};
 
     # Class definition.
-    $code .= "class $class";
+    $code .= "class $class ";
 
     # Superclasses.
-    $code .= ' is' . join('is ', @{$classdef->{s}}) if exists $classdef->{s};
-    $code .= ' {';
+    $code .= 'is ' . join(' is ', @{$classdef->{s}}) if exists $classdef->{s};
+    $code .= exists $classdef->{s} ? ' {' : '{';
 
     # Move on to the next class if this one has no methods.
     $code .= " }\n" and next unless exists $classdef->{m};
 
     # Methods.
     my $delim  = @{$classdef->{m}} > 1 || exists $classdef->{s} ? "\n" : ' ';
-    my $indent = $delim eq ' '                                  ? ''   : $delim;
+    my $indent = $delim eq ' '                                  ? ''   : ' ';
     foreach my $meth (@{$classdef->{m}}) {
       my ($name, $next) = $meth =~ $meth_re;
 
       $code .= qq/${delim}${indent}method $name { say "${class}::$name"/;
-      $code .= '; nextsame' if defined $next;
+      chomp($code .= <<~'NEXT') if defined $next;
+      ; die "No next method" unless self.^can("nextsame"); callsame;
+      NEXT
       $code .= ' }';
     }
 
@@ -383,17 +382,17 @@ sub gen_python_scode ($section) {
     $code .= "class $class(";
 
     # Superclasses.
-    $code .= join(', ', @{$classdef->{s} // []}) . "):\n\t";
+    $code .= join(', ', @{$classdef->{s} // []}) . "):\n";
 
     # Move on to the next class if this one has no methods.
-    $code .= "pass\n" and next unless exists $classdef->{m};
+    $code .= "  pass\n" and next unless exists $classdef->{m};
 
     # Methods.
     foreach my $meth (@{$classdef->{m}}) {
       my ($name, $next) = $meth =~ $meth_re;
 
-      $code .= qq/def $name(self):\n\t\tprint("${class}::$name" end = "")\n/;
-      $code .= "\t\tsuper().$name()\n" if defined $next;
+      $code .= qq/  def $name(self):\n    print("${class}::$name", end = "")\n/;
+      $code .= "    super().$name()\n" if defined $next;
     }
   }
 
@@ -427,6 +426,7 @@ sub c3_linearize_class ($section, $class, $c3s) {
   my $sub_sol = $c3s->{$supers->[0]};
   my %merged  = ($supers->[0] => 0);
 
+  # The c3 of '$class' is '$class' plus the merged results of the c3 of its supers.
 MERGE: foreach my $s (1 .. $#$supers) {
     my $start     = 0;
     my $super     = $supers->[$s];
@@ -474,6 +474,7 @@ MERGE: foreach my $s (1 .. $#$supers) {
   push @{$c3s->{$class}}, @$sub_sol;
 }
 
+# Get the c3 of the language to be tested.
 sub lang_c3_linearize_class ($class, $code) {
   my $getc3l;
 
@@ -561,7 +562,7 @@ main();
 __DATA__
 
 ;
-; Class diagram for visual testing
+; Class relationship diagram for visual comprehension 
 ;
  ;
  ;
@@ -588,6 +589,19 @@ A -> ()
 
  ----------------------------------------------------------------------------------------------
 
+ ;
+ ;   A
+ ;   ^
+ ;   |
+ ;   |
+ ;   B
+ ;
+
+ A: meth
+ B -> (A) : meth@
+
+ ------------- 
+
 A
 
 B -> (A)
@@ -607,7 +621,7 @@ E -> (B)
 F -> (C)
 G -> (C)
 H -> (C)
-I -> (C)
+I ->(C)
 J -> (D)
 
 K -> (E)
