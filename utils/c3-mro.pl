@@ -10,14 +10,14 @@
 # Syntax of the DSL:
 #
 # ;
-# ; (Above comment)
+# ; (Above comments)
 # ;
 #
 # CLASS_NAME [ '->' '(' SUPERCLASS_NAME ... ')' ] [ ':' METHOD_NAME[@] ... ]
 # ...
 #
 # ;
-# ; (Below comment)
+# ; (Below comments)
 # ;
 #
 # -------------------------------------------
@@ -72,64 +72,87 @@ my $section_re = qr/
       (?: (?>\h+) (?>\w+) (?>\@?) )*
      )
    )?
-   \s*? \n \s*                              # At least a newline!
+   \s*?\n \s*                               # At least a newline!
 /x;
 
 my $meth_re = qr/^ ( [^@]+ ) ( \@ )? $/x;
 
-my $config = {lang => 'perl', secs => undef, action => 'test', nsecs => false, mro => true, call => undef};
+my $config = {
+              lang   => 'perl',
+              secs   => undef,
+              action => 'test',
+              nsecs  => false,
+              mro    => true,
+              call   => undef
+             };
 
 sub main () {
-  parse_args();
+  get_opts();
 
   # Output the number of sections.
   if ($config->{nsecs}) {
-    display_n_sections();
+    dump_nsecs();
     exit 0;
   }
 
   foreach ($config->{action}) {
-    display_lang_scode(), last if /dump_code/;
-    display_sections(),   last if /dump_sec/;
-    display_class_diag(), last if /dump_diag/;
+    dump_code(),      last if /dump_code/;
+    dump_sections(),  last if /dump_sec/;
+    dump_classdiag(), last if /dump_diag/;
     done_testing(test_c3_mro()), last if /test/;
   }
 }
 
-sub parse_args () {
-
-  my $help = <<"HELP";
-A c3 method resolution order (MRO) test Perl script. When this script is
-simply invoked with no arguments, it performs a series c3-mro tests on all
-sections foind in the script.
-
-Usage: $0 [-hnm] [ -l LANG ] [ -a ACTION ] [ -s ID, ... ] [ -c CLASS:METH ]
-
- -h           Display this help message and exit.
- -n           Display the number of sections in the script.
- -s ID, ...   A Comma separated list of IDs of sections to operate on, it
-              defaults to all the sections in the script.
- -l LANG      The name of the programming language to test c3-mro.
-              LANG can either be "perl", "raku", and "python".
- -a ACTION    Specify what the script does, *ACTION* can either be:
-               - "dump_sec", to output the sections themselves.
-               - "dump_diag", display for each section its class
-                 relationship diagram.
-               - "dump_code", to output in the specified programming
-                 language the code of the specified sections.
-               - "test", this is the default action, it does c3 mro tests
-                 on the specified section(s).
-HELP
-
+sub get_opts () {
   my %args;
+
   getopts('hnl:a:s:c:', \%args) or exit 1;
 
-  # Process arguments.
-  die "$help\n"           if defined $args{h};
+  my @options = (
+      h => 'Display this help message and exit.',
+      n => 'Dump the number of sections in the script and exit.',
+      c => ["For the 'dump_code' action, add code for the METH call on an instance of CLASS.",               'CLASS:METH'],
+      s => ['A comma separated list of the IDs of sections to operate on, it uses all sections by default.', 'ID, ...'],
+      3 => ["For the 'dump_code' action, add code that prints the c3 is CLASS.",                             'CLASS'],
+      l => ["The language we want to test c3 or dump code, defaults to 'perl'. We have perl/raku/python.",   'LANG'],
+      a => [
+        "Specify what the script does, defaults to 'test'. ACTION can either be:",
+        'ACTION',
+        {
+
+          test      => "In LANG, do c3-mro tests on each section.",
+          dump_sec  => "Dump sections themselves.",
+          dump_diag => "Dump the class relationship diagram of each section.",
+          dump_code => "Dump in the indicated LANG the code of each section.",
+        }
+      ]
+  );
+
+  if (defined $args{h}) {
+
+    print STDERR <<~"HELP";
+      A c3 method resolution order (MRO) test Perl script. When this script is
+      simply invoked with no arguments, it performs a series of c3-mro tests on
+      all sections parsed in the script.
+
+      Usage: $0 [-hnsm] [ -l LANG ] [ -a ACTION ] [ -s ID, ... ] [ -c CLASS:METH ]
+
+      HELP
+
+    my $break = 20;
+    foreach my ($k, $v) (@options) {
+      my $opt = "   -$k ";
+
+      state $tab = ' ' x 11 + length $opt;
+      say "", next unless ref $v;
+    }
+
+    exit 0;
+  }
+
   $config->{nsecs} = true if defined $args{n};
 
   my $try = "$0: invalid argument to '-%s', try `$0 -h' for more info.\n";
-
   if (defined $args{l}) {
     die sprintf($try, 'l') unless $args{l} =~ /^(?:perl|raku|python)$/i;
     $config->{lang} = lc $args{l};
@@ -145,30 +168,30 @@ HELP
     $config->{action} = $args{a};
   }
 
-  if (defined $args{c}) {
+  if (defined $args{c}) { }
+  if (defined $args{3}) { }
+}
+
+# Get the number of sections under '__DATA__'.
+sub dump_nsecs () { return scalar parse_data()->@*; }
+
+sub dump_code () {
+  my $sections = parse_data();
+
+  foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
+    warn "No section with id '$i'.\n" and next unless 0 <= $i < @$sections;
+    say "## section $i\n" . gen_lang_scode($sections->[$i]);
   }
 }
 
-# Get the number of sections under __DATA__.
-sub display_n_sections () { return scalar parse_sections()->@*; }
-
-sub display_lang_scode () {
-  my $sections = parse_sections();
+sub dump_sections () {
+  my $sections = parse_data();
 
   foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
-    warn "no section with id '$i'\n" and next unless 0 <= $i < @$sections;
-    print "####### section $i\n" . gen_lang_scode($sections->[$i]);
-  }
-}
-
-sub display_sections () {
-  my $sections = parse_sections();
-
-  foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
-    warn "no section with id '$i'\n" and next unless 0 <= $i < @$sections;
+    warn "No section with id '$i'.\n" and next unless 0 <= $i < @$sections;
 
     my $section = $sections->[$i];
-    print "####### section $i\n";
+    print "## section $i\n";
     foreach my $class (@{$section->[0]}) {
       print "$class";
       print " -> ($section->[1]{$class}{s}->@*)" if exists $section->[1]{$class}{s};
@@ -183,44 +206,49 @@ sub display_sections () {
 # calls resolve correctly.
 sub test_c3_mro () {
   my $t        = 0;
-  my $sections = parse_sections();
+  my $sections = parse_data();
   my @codes    = map gen_lang_scode($_), @$sections;
 
   local $" = ', ';
 section: foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
-    warn "no section with id $i\n" and next unless 0 <= $i < @$sections;
+    warn "No section with id $i.\n" and next unless 0 <= $i < @$sections;
 
-    my $c3s = {};
+    my %c3s;
     my ($classes, $defs) = @{$sections->[$i]};
 
-    # Linearize everything first because python will fail severely when there is incosistency.
-    c3_linearize_class($sections->[$i], $_, $c3s) foreach @$classes;
+    # Linearize everything first because Raku and Python fail severely
+    # when there is inconsistency in the class heirachy.
+    foreach my $class (@$classes) {
+      c3_linearize_class($sections->[$i], $class, \%c3s);
+      last if !ref $c3s{$class} or exists $c3s{_fail};
+    }
 
     foreach my $class (@$classes) {
       $t++;
 
-      # Test C3 linearization.
+      # Test c3 linearization.
       my $langc3 = lang_run(lang_c3_linearize_class($class, $codes[$i]));
 
-      if (!exists $c3s->{__failed__} and ref $c3s->{$class}) {
-        my $expected = join ' ', @{$c3s->{$class}};
-        is($langc3, $expected, "[section $i]: is c3 of '$class' = [@{$c3s->{$class}}]?");
+      if (!exists $c3s{_fail} and ref $c3s{$class}) {
+        my $expected = join ' ', @{$c3s{$class}};
+        is($langc3, $expected, "[section $i]: is c3 of '$class' = [@{$c3s{$class}}]?");
       }
       else {
-        my $fclass = $c3s->{__failed__} // $class;
+        my $fclass = $c3s{_fail} // $class;
 
-        ($c3s->{$class}, $langc3) = (cmp_val($c3s->{$fclass}), cmp_val($langc3));
-        ok($langc3 =~ /\Q$c3s->{$class}\E/, "[section $i]: failed to find c3 of '$fclass'?");
+        say Dumper [$c3s{$fclass}, $langc3];
+        ($c3s{$class}, $langc3) = (safe_cmp($c3s{$fclass}), safe_cmp($langc3));
+        ok($langc3 =~ /\Q$c3s{$class}\E/, "[section $i]: failed to find c3 of '$fclass'?");
         next section;
       }
     }
 
     # Test method calls, also test calls which are expected to fail.
-    my $rmeths = resolve_methods($sections->[$i], $c3s);
+    my $rmeths = resolve_methods($sections->[$i], \%c3s);
     foreach my $class (@$classes) {
       next unless my $class_rmeths = $rmeths->{$class};
       test_call($rmeths, $class, $_, $codes[$i], $i), $t++
-        foreach keys %$class_rmeths, '_fail_',
+        foreach keys %$class_rmeths, '_notexist',
         grep { not exists $class_rmeths->{$_} } uniq map { map s/\@?$//r, @{$_->{m}} } values %$defs;
     }
   }
@@ -228,15 +256,14 @@ section: foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
   return $t;
 }
 
+sub dump_classdiag () { }
 
-sub display_class_diag () { }
-
-sub cmp_val ($val) {
+sub safe_cmp ($val) {
   return lc $val =~ s/["',]//gr =~ s/\s+//gr;
 }
 
-# Parse each section and return the result.
-sub parse_sections () {
+# Parse what's under '__DATA__' and return the sections founds.
+sub parse_data () {
   my $sections;
 
   local $/;
@@ -255,16 +282,15 @@ sub parse_sections () {
 
 # Parse a section and return the result.
 sub parse_section ($data, $section_str, $offset, $n) {
-
-  # 2 dim array containing the list of parsed classes names and the parsed result.
   my $section;
 
+  # 2 dim array containing the list of parsed classes names and the parsed result.
   while ($section_str =~ /$section_re/gc) {
     die "[section $n]: already defined class '$1'\n" if exists $section->[1]{$1};
 
     push @{$section->[0]}, $1;
 
-    # Could use auto-vivification but we've empty classes.
+    # Could use auto-vivification but we can have empty classes.
     $section->[1]{$1} = {};
     push $section->[1]{$1}{m}->@*, split ' ', $3 if defined $3;
 
@@ -274,7 +300,7 @@ sub parse_section ($data, $section_str, $offset, $n) {
     foreach my $super (split ' ', $2) {
       die "[section $n]: Class '$1' can't inherit himself.\n" if $1 eq $super;
       die "[section $n]: Class '$super' is undefined.\n"      if not exists $section->[1]{$super};
-      die "[section $n]: '$super' is a duplicated class.\n"   if exists $defined{$super};
+      die "[section $n]: '$super' is already defined.\n"      if exists $defined{$super};
 
       $defined{$super} = 1;
       push $section->[1]{$1}{s}->@*, $super;
@@ -282,7 +308,6 @@ sub parse_section ($data, $section_str, $offset, $n) {
   }
 
   syntax_error($data, pos $section_str, $offset) if pos $section_str != length $section_str;
-
   return $section;
 }
 
@@ -350,6 +375,7 @@ sub gen_raku_scode ($section) {
   state $flush_on = <<~'RAKU';
   $*OUT.autoflush = True;
   $*ERR.autoflush = True;
+
   RAKU
 
   my $code = $flush_on;
@@ -401,6 +427,7 @@ class FlushedStream:
 
 sys.stdout = FlushedStream(sys.stdout)
 sys.stderr = FlushedStream(sys.stderr)
+
 PYTHON
 
   my $code = $flush_on;
@@ -413,7 +440,7 @@ PYTHON
     # Superclasses.
     $code .= join(', ', @{$classdef->{s} // []}) . "):\n";
 
-    # Move on to the next class if this one has no methods.
+    # Move on to the next class if this one has no method.
     $code .= "  pass\n" and next unless exists $classdef->{m};
 
     # Methods.
@@ -431,35 +458,19 @@ PYTHON
 # Compute the C3 linearization of a section's class. $c3s keeps track
 # of all c3 results of classes defined in the section of concern.
 sub c3_linearize_class ($section, $class, $c3s) {
-
-  # As python fails severely in case of inconsistency
-  return if $config->{lang} eq 'python' and exists $c3s->{$class};
-
   $c3s->{$class} = [$class];
 
   # Has no superclass? probably the first class.
   return unless my $supers = $section->[1]{$class}{s};
 
   # Single inheritance? simply push.
-  if (@$supers == 1) {
-    push @{$c3s->{$class}}, $c3s->{$supers->[0]}->@*;
-    return;
-  }
-
-  state $error = {
-    python => "TypeError: Cannot create a consistent method resolution order (MRO) for bases %s",
-    raku   => "Could not build C3 linearization: ambiguous hierarchy at",
-    perl   => <<~'ERROR',
-               Inconsistent hierarchy during C3 merge of class %s: current merge results
-               [ %s, %s ] merging failed on %s at,
-              ERROR
-  };
+  push(@{$c3s->{$class}}, $c3s->{$supers->[0]}->@*), return if @$supers == 1;
 
   my $prev_sol;
   my $sub_sol = $c3s->{$supers->[0]};
   my %merged  = ($supers->[0] => 0);
 
-  # The c3 of '$class' is '$class' plus the merged results of the c3 of its supers.
+  # The c3 of '$class' is '$class' plus the merged result of the c3s of its supers.
 MERGE: foreach my $s (1 .. $#$supers) {
     my $start     = 0;
     my $super     = $supers->[$s];
@@ -471,22 +482,35 @@ MERGE: foreach my $s (1 .. $#$supers) {
   INSERT: foreach my ($i, $prev) (indexed @$prev_sol) {
       foreach my ($j, $insert) (indexed @$to_insert) {
 
-        # Detected an inconsistent hierarchy.
+        # Detected an inconsistent hierarchy? note that error messages
+        # of each language might change in their future versions, for
+        # Perl '-e', is true by default to avoid regular updates.
         if (exists $merged{$insert}) {
-          $c3s->{$class} = do {
-            local $_ = $config->{lang};
+          local $_ = $config->{lang};
 
-                /perl/ ? sprintf($error->{perl}, $class, $class, join(' ', @$supers[0 .. $merged{$insert} - 1]), $insert)
-              : /raku/ ? $error->{raku}
-              :          sprintf($error->{python}, join ', ', @$supers[$s..$#$supers]);
-          };
+          if (/perl/) {
+            $c3s->{$class} = <<~"ERR";
+             Inconsistent hierarchy during C3 merge of class '$class':
+             current merge results [ %s ] merging failed on '$insert' at
+             ERR
+          }
+          elsif (/raku/) {
+            $c3s->{$class} = 'Could not build C3 linearization: ambiguous hierarchy at';
+          }
+          else {
+            my @from = @$supers[$merged{$insert} .. $#$supers];
+            $c3s->{$class} = <<~"ERR";
+            TypeError: Cannot create a consistent method resolution
+            order (MRO) for bases @from
+            ERR
+          }
 
-          # Python fails severely.
-          $c3s->{__failed__} = $class if $config->{lang} eq 'python';
+          # Perl linearizes on demand.
+          $c3s->{_fail} = $class unless /perl/;
           last MERGE;
         }
 
-        # Insert '$insert' and safe-to-insert classes encountered since the '$start'
+        # Insert valid-for-insertion classes found since the '$start'
         if ($prev eq $insert) {
           push @$sub_sol, $to_insert->@[$start .. $j];
           $start = $j + 1;
@@ -494,12 +518,12 @@ MERGE: foreach my $s (1 .. $#$supers) {
         }
       }
 
-      # Safe to insert '$prev' as heirachy is consistent.
+      # Insert '$prev' as hierachy is consistent.
       push @$sub_sol, $prev;
     }
 
-    # To detect inconsistency.
-    $merged{$super} = 1;
+    # To detect inconsistency and for Python we track of where the inconsistency arised.
+    $merged{$super} = $s;
   }
 
   # Failed to linearize.
@@ -522,8 +546,8 @@ sub lang_c3_linearize_class ($class, $code) {
   return $code . "\n$getc3l\n";
 }
 
-# For each class in a section, deduce all the possible method calls and
-# directly bind these methods to their respective classes.
+# For each class in a section, deduce all the possible method calls
+# and directly bind these methods to their respective classes.
 sub resolve_methods ($section, $c3s) {
   my $rmeths;
 
@@ -599,15 +623,6 @@ __DATA__
 ;
 ; Class relationship diagram for visual comprehension 
 ;
-;
-;
-;
-;
-;
-;
-;
-;
-;
 
 A
 B -> (A)
@@ -657,6 +672,17 @@ C -> (A)
 D -> (A B C)
 
 ------------------------------------------------------------------------------------------------
+
+A
+B -> (A)
+C -> (A)
+D -> (A)
+E -> (B C D)
+F -> (E)
+G -> (B F)
+H -> (G D)
+
+---------------------------------------------------------
 
 A : meth1 meth2 meth3
 
