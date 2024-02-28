@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
-class Type(type):
-    def __repr__(cls):
-        return cls.__name__
-
-class A(object, metaclass=Type):
+class A(object):
     def meth1(self):
         print("A::meth1")
     def meth2(self):
@@ -35,11 +31,11 @@ class K(E): pass
 class L(F,I): pass
 class M(I,J): pass
 
-class N(A,E,L,M): pass
+#class N(A,E,L,M): pass
 
-print(N.mro())
+print(' '.join(map(lambda m: m.__name__, M.__mro__[0:-1])), end = '')
 
 k = M()
 k.meth2()
-f = N()
-f.meth1()
+#f = N()
+#f.meth1()
