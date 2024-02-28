@@ -26,7 +26,7 @@
 --extended-continuation-indentation
 --add-newlines
 
---indent-columns=3
+--indent-columns=2
 
 --maximum-line-length=127
 --break-at-old-method-breakpoints
