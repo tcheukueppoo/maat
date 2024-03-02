@@ -48,7 +48,7 @@
  * - Bit 7: It is '1' if $val stores a collectable object; '0'
  *   otherwise.
  */
-#define Valuefields  _Value val; Ubyte type
+#define Valuefields  _Value val; UByte type
 
 typedef union _Value {
    Num n;
@@ -61,16 +61,17 @@ typedef struct Value {
    Valuefields;
 } Value;
 
-#define val(v)          ((v)->val)
-#define set_type(v, t)  (type(v) = t)
-#define gco2val(o, v)   set_type(v, ctb(o->type)); \
-                        (val(v).gc_obj = x2gco(o))
+#define val(v)           ((v)->val)
+#define cmp_val(v1, v2)  (type(v2) == type(v2))
+#define set_type(v, t)   (type(v) = t)
+#define gco2val(o, v)    set_type(v, ctb(o->type)); \
+                         (val(v).gc_obj = x2gco(o))
 
 /*
- * Defines types of all non-collectable objects.
+ * Define types of all non-collectable objects.
  *
- * A value 'v' is collectable if the MSB of its $type is '1'
- * meaning it stores a collectable object.
+ * A value 'v' is collectable if the MSB of its $type is '1' in
+ * otherwords, it stores a collectable object.
  */
 #define V_NIL     0
 #define V_BOOL    1
@@ -497,8 +498,8 @@ typedef struct SUpval {
 #define O_VCLOSURE  vary(O_FN, 1)
 
 #define clo2v(c, v)  gco2val(c, v)
-#define v2clo(v)     (ma_assert(is_clo(v)), gco2clo((v).gc_obj))
 #define v2clo_rw(v)  gco2clo((v).gc_obj)
+#define v2clo(v)     (ma_assert(is_clo(v)), gco2clo((v).gc_obj))
 
 #define is_clo(v)  check_rtype(v, ctb(O_VCLOSURE))
 #define as_clo(v)  (ma_assert(is_clo(v)), cast(Closure *, as_gcobj(v)))
@@ -550,10 +551,10 @@ typedef struct Meth {
  *
  * - $name: The attribute name.
  * - $type: '1' if it's an attribute reference; '0' otherwise.
- * - $u: To get the attribute's value. It's $delta, the distance
- *   from the attribute reference to the attribute it references
- *   when $type is '1', its sign depends on opcode; on the other
- *   hand it's $v, the attribute's value itself.
+ * - $u: To get the attribute's value. When $type is '1', $u is
+ *   $delta which is the distance from the attribute reference
+ *   to the attribute it references, its sign depends on opcode;
+ *   When $type is '0' $u is $v, the attribute's value itself.
  */
 #define is_attref(a)     ((a)->type == 1)
 #define is_nulattref(a)  (ma_likely(is_attref(a) && (a)->u.delta == 0))
@@ -827,7 +828,7 @@ typedef struct Namespace {
 #define gco2ns(o)    (ma_assert(check_rtype(o, O_VNS)), &(ounion(o)->ns))
 
 /* The other way around. */
-#define x2gco(v)  (ma_assert(is_obj(v)), &(ounion(o)->gc_obj))
+#define x2gco(x)  (ma_assert(is_ctb(x)), &(ounion(x)->gc_obj))
 
 /* Union of all collectable objects */
 union Ounion {
