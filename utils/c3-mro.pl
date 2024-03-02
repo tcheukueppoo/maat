@@ -236,7 +236,7 @@ section: foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
       else {
         my $fclass = $c3s{_fail} // $class;
 
-        say Dumper [$c3s{$fclass}, $langc3];
+        #say Dumper [$c3s{$fclass}, $langc3];
         ($c3s{$class}, $langc3) = (safe_cmp($c3s{$fclass}), safe_cmp($langc3));
         ok($langc3 =~ /\Q$c3s{$class}\E/, "[section $i]: failed to find c3 of '$fclass'?");
         next section;
@@ -312,7 +312,8 @@ sub parse_section ($data, $section_str, $offset, $n) {
 }
 
 # Report a syntax error at a point in the dsl.
-sub syntax_error ($data, $pos //= pos $$data, $offset //= 0) {
+#sub syntax_error ($data, $pos //= pos $$data, $offset //= 0) {
+sub syntax_error ($data, $pos = pos $$data, $offset = 0) {
   my $start      = rindex($$data, "\n", $offset + $pos);
   my $error_line = (split(/\R/, substr($$data, $start, $offset + $pos - $start)))[0];
 
@@ -466,39 +467,43 @@ sub c3_linearize_class ($section, $class, $c3s) {
   # Single inheritance? simply push.
   push(@{$c3s->{$class}}, $c3s->{$supers->[0]}->@*), return if @$supers == 1;
 
-  my $prev_sol;
-  my $sub_sol = $c3s->{$supers->[0]};
-  my %merged  = ($supers->[0] => 0);
+  my $prev;
+  my $subsol = $c3s->{$supers->[0]};
+  my %root  = ($supers->[0] => 0);
 
   # The c3 of '$class' is '$class' plus the merged result of the c3s of its supers.
-MERGE: foreach my $s (1 .. $#$supers) {
-    my $start     = 0;
-    my $super     = $supers->[$s];
-    my $to_insert = $c3s->{$super};
+C3: foreach my $s (1 .. $#$supers) {
+    my $start = 0;
+    my $super = $supers->[$s];
+    my $next  = $c3s->{$super};
 
-    $prev_sol = $sub_sol;
-    $sub_sol  = [];
+    $prev   = $subsol;
+    $subsol = [];
 
-  INSERT: foreach my ($i, $prev) (indexed @$prev_sol) {
-      foreach my ($j, $insert) (indexed @$to_insert) {
+    # Join $prev with $next.
+  JOIN: foreach my ($i, $p) (indexed @$prev) {
+      foreach my ($j, $n) (indexed @$next) {
 
-        # Detected an inconsistent hierarchy? note that error messages
-        # of each language might change in their future versions, for
-        # Perl '-e', is true by default to avoid regular updates.
-        if (exists $merged{$insert}) {
+        # Note that error messages of each language might change in
+        # their future versions, to avoid regular updates for 'perl'
+        # LANG, the '-i' is true by default.
+        if (exists $root{$n}) {
+
           local $_ = $config->{lang};
-
           if (/perl/) {
-            $c3s->{$class} = <<~"ERR";
-             Inconsistent hierarchy during C3 merge of class '$class':
-             current merge results [ %s ] merging failed on '$insert' at
+             my $cur_res = join ', ', $class, join(', ', @$prev) =~ /^(.+?)(?=, $n)/;
+
+            $c3s->{$class} = sprintf(<<~"ERR", $class, $cur_res, $n);
+             Inconsistent hierarchy during C3 merge of class '%s':
+             current merge results [ %s ] merging failed on '%s' at
              ERR
           }
           elsif (/raku/) {
-            $c3s->{$class} = 'Could not build C3 linearization: ambiguous hierarchy at';
+            $c3s->{$class} = 'Could not build C3 linearization: ambiguous hierarchy';
           }
           else {
-            my @from = @$supers[$merged{$insert} .. $#$supers];
+            my @from = @$supers[$root{$n} .. $#$supers];
+
             $c3s->{$class} = <<~"ERR";
             TypeError: Cannot create a consistent method resolution
             order (MRO) for bases @from
@@ -507,30 +512,31 @@ MERGE: foreach my $s (1 .. $#$supers) {
 
           # Perl linearizes on demand.
           $c3s->{_fail} = $class unless /perl/;
-          last MERGE;
+          last C3;
         }
 
-        # Insert valid-for-insertion classes found since the '$start'
-        if ($prev eq $insert) {
-          push @$sub_sol, $to_insert->@[$start .. $j];
+        # Push valid-to-add classes of '$next' found since the '$start'.
+        if ($p eq $n) {
+          push @$subsol, $next->@[$start .. $j];
           $start = $j + 1;
-          next INSERT;
+          next JOIN;
         }
       }
 
-      # Insert '$prev' as hierachy is consistent.
-      push @$sub_sol, $prev;
+      # Push '$p' as hierachy is consistent.
+      push @$subsol, $p;
     }
 
-    # To detect inconsistency and for Python we track of where the inconsistency arised.
-    $merged{$super} = $s;
+    # To detect inconsistency and for Python's error message we track where the
+    # inconsistency arised.
+    $root{$super} = $s;
   }
 
   # Failed to linearize.
   return unless ref $c3s->{$class};
 
-  # At the end '$sub_sol' gets the merged result.
-  push @{$c3s->{$class}}, @$sub_sol;
+  # At the end '$subsol' has the c3 of '$class'.
+  push @{$c3s->{$class}}, @$subsol;
 }
 
 # Get the c3 of the language to be tested.
