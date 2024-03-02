@@ -22,7 +22,7 @@
  */
 typedef struct SV {
    Map *sv;
-   UByte id;
+   UByte sc_id;
 } SV;
 
 /* $$CallFrame: Just a callframe. */
@@ -59,8 +59,7 @@ typedef struct CallFrame {
     * - $qsize: Queue size.
     * - $front: Index of the front element to-be dequeued when we
     *   go out-of-scope the SV element belongs to. The front always
-    *   get the variable we want to runtime resolve, so it's pretty
-    *   fast.
+    *   get the variable we want to runtime resolve, so it's fast.
     */
    SV *svq;
    UByte front;
@@ -68,10 +67,10 @@ typedef struct CallFrame {
 
    /*
     * $id: The id of the current scope in this callframe. Sadly,
-    * we will have to check at each scope pop if the front to dequeue
-    * its $$SV element.
+    * we will have to check at each scope pop if the front to
+    * dequeue its $$SV element.
     */
-   UByte id;
+   UByte sc_id;
 
    /*
     * - $a_offset: Class' role or inherited methods need specific
@@ -96,11 +95,11 @@ typedef struct State {
    UByte state;
 
    /*
-    * - $callstack: A stack of callframes.
+    * - $cstck: A stack of callframes.
     * - $cs_cap: Capacity of the $callstack.
     * - $cs_size: Number of used frames.
     */
-   CallFrame *callstack;
+   CallFrame *cstk;
    size_t cs_cap;
    size_t cs_size;
 
