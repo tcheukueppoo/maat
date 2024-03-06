@@ -514,16 +514,28 @@ typedef struct Closure {
 } Closure;
 
 /*
- * $$Meth: Repr of a class method.
+ * $$Meth: Repr of a class method. Since $offset/$c3i naturally
+ * does not belong to any closure and is defined per class, this
+ * implies methods should better be objects on their own.
+ * Unfornately, for correct access to attributes, binding an
+ * inherited or role method to a class requires a copy of the
+ * to-be-binded method since $offset/$c3i is class dependent.
  *
  * - $clo: The method's closure.
- * - $offset:
- *   since $offset naturally does not belong to any closure and
- *   is defined per-class, methods should better be objects on
- *   their own. Unfornately, for correct access to attributes,
- *   binding an inherited or role method requires a copy of the
- *   to-be-binded method since each $offset is class dependent.
- * - $cc3: 
+ * - $u: For a given class method that was initially a method
+ *   defined in a Role, $u is $offset which is the offset used
+ *   by the method when binded to a class so as to correctly
+ *   refer to the attributes it uses from that class' instance
+ *   attribute buffer; on the other side, if it's an inherited
+ *   method, $u is $c3i which is the index to access its offset
+ *   in the $offsets field of its base class where $offsets is
+ *   gotten after that based class' attribute linearization.
+ *   In other words if a supercall of that class resolves to
+ *   this method, the method uses its $c3i (the index to the
+ *   class c3 list where we found the method) to index its
+ *   offset in that class. "c3i" because each class in a c3list
+ *   of a class has its offset at the $offsets field of that
+ *   class.
  */
 #define O_VMETH  vary(O_FN, 2)
 
@@ -537,8 +549,10 @@ typedef struct Closure {
 typedef struct Meth {
    Header;
    Closure *clo;
-   UByte offset;
-   UByte c3_i;
+   union {
+      UByte c3i;
+      UByte offset;
+   } u;
 } Meth;
 
 /*
@@ -557,16 +571,16 @@ typedef struct Meth {
  *   When $type is '0' $u is $v, the attribute's value itself.
  */
 #define is_attref(a)     ((a)->type == 1)
-#define is_nulattref(a)  (ma_likely(is_attref(a) && (a)->u.delta == 0))
+#define is_nilattref(a)  (ma_likely(is_attref(a) && (a)->u.delta == 0))
 #define attval(a)        ((a)->u.val)
-#define attvalc(a, op)   (ma_likely(is_attref(a)) ? ((a) op (a)->u.delta)->u.val : attval(a))
+#define attvalc(a, op)   (ma_assert(is_attref(a)), ((a) op (a)->u.delta)->u.val)
 #define attvalf(a)       attvalc(a, +)
 #define attvalb(a)       attvalc(a, -)
 
-#define setattref(a, d)   _setattref(a, d)
-#define setnulattref(a)   _setattref(a, 0)
-#define _setattref(a, d)  ((a)->u.delta = d); \
-                          ((a)->type = 1)
+#define attref(a, d)       _set_attref(a, d)
+#define nilattref(a)       _set_attref(a, 0)
+#define _set_attref(a, d)  ((a)->u.delta = d); \
+                           ((a)->type = 1)
 
 typedef struct Attr {
    Str *name;
@@ -588,7 +602,11 @@ typedef struct Attr {
  * - $asize: Size of the attribute buffer.
  *
  * - $c3: List of classes, c3 linearization result.
- * - $offsets: 
+ * - $offsets: The attribute buffer offset of each class in the
+ *   c3 list. A method found in a class of the c3 list at an
+ *   index `i' uses the offset at index `i' in $offsets to
+ *   properly access its attributes from the instance attribute
+ *   buffer.
  * - $csize: Size of the c3 list and the offset list since they
  *   both must have the same size.
  *
@@ -600,12 +618,10 @@ typedef struct Attr {
  *   $sups exists mainly for the runtime build of the $c3 list
  *   as it's this list that handles super calls.
  * - $ssize: Size of the super list.
+ * - $meths: A map to store the class' methods (not the inherited
+ *   ones). A value to a key here is a pointer to a Meth.
  *
- * - $meths: A map to store the class' methods. A value to a key
- *   here is a pointer to a Closure but can later on change to
- *   an array of closures so as to cache super methods, the
- *   cache can never be invalidate since c3 linearization is
- *   done at compile time.
+ * - $mro_cache:
  */
 #define O_VCLASS  vary(O_CLASS, 0)
 #define O_VROLE   vary(O_CLASS, 1)
@@ -630,6 +646,7 @@ typedef struct Class {
    Attr *abuf;
    UByte *offsets;
    Map *meths;
+   Map *mro_cache;
    struct Class *roles;
    struct Class *sups;
    struct Class *c3;
