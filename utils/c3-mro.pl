@@ -5,30 +5,7 @@
 # Test if c3 mro works, to do that we define the general structure of a small
 # DSL for defining classes with their methods and inheritance relationships.
 # This program parses the DSL following __DATA__ to perform c3 linearization
-# and method # call tests.
-#
-# Syntax of the DSL:
-#
-# ;
-# ; (Above comments)
-# ;
-#
-# CLASS_NAME [ '->' '(' SUPERCLASS_NAME ... ')' ] [ ':' METHOD_NAME[@] ... ]
-# ...
-#
-# ;
-# ; (Below comments)
-# ;
-#
-# -------------------------------------------
-#   (Line above is a section separator)
-#   (Define another section here below)
-#
-# Sections are separated by '-'s. We test each section independently of the
-# other ones. The optional '@' following a method name implies that in its
-# code the method unconditionally calls its super method. A perl code is
-# generated for each section and our own implementation which is proven to be
-# totally valid is used to the validity of that of Perl.
+# and method call tests.
 
 use strict;
 use warnings;
@@ -38,15 +15,14 @@ use builtin qw( indexed true false );
 
 no warnings 'experimental';
 
-use Test::More;
 use Getopt::Std;
-use List::Util qw( uniq );
-
+use Test::More;
+use List::Util qw( uniq first );
 use Data::Dumper;
 
 my $data_re = qr/
-   \G
    (?(DEFINE) (?<c> \s* (?m: ; (?>.*) $ (?>\s*) )* ) )  # Comment RE
+   \G
    (?:
      (?:
        (?&c)                                            # Above comment
@@ -72,18 +48,16 @@ my $section_re = qr/
       (?: (?>\h+) (?>\w+) (?>\@?) )*
      )
    )?
-   \s*?\n \s*                               # At least a newline!
+   \s*?\n\s*                                # At least a newline!
 /x;
 
 my $meth_re = qr/^ ( [^@]+ ) ( \@ )? $/x;
 
 my $config = {
               lang   => 'perl',
-              secs   => undef,
               action => 'test',
               nsecs  => false,
               mro    => true,
-              call   => undef
              };
 
 sub main () {
@@ -98,7 +72,6 @@ sub main () {
   foreach ($config->{action}) {
     dump_code(),      last if /dump_code/;
     dump_sections(),  last if /dump_sec/;
-    dump_classdiag(), last if /dump_diag/;
     done_testing(test_c3_mro()), last if /test/;
   }
 }
@@ -106,81 +79,96 @@ sub main () {
 sub get_opts () {
   my %args;
 
-  getopts('hnl:a:s:c:', \%args) or exit 1;
-
-  my @options = (
-      h => 'Display this help message and exit.',
-      n => 'Dump the number of sections in the script and exit.',
-      c => ["For the 'dump_code' action, add code for the METH call on an instance of CLASS.",               'CLASS:METH'],
-      s => ['A comma separated list of the IDs of sections to operate on, it uses all sections by default.', 'ID, ...'],
-      3 => ["For the 'dump_code' action, add code that prints the c3 is CLASS.",                             'CLASS'],
-      l => ["The language we want to test c3 or dump code, defaults to 'perl'. We have perl/raku/python.",   'LANG'],
-      a => [
-        "Specify what the script does, defaults to 'test'. ACTION can either be:",
-        'ACTION',
-        {
-
-          test      => "In LANG, do c3-mro tests on each section.",
-          dump_sec  => "Dump sections themselves.",
-          dump_diag => "Dump the class relationship diagram of each section.",
-          dump_code => "Dump in the indicated LANG the code of each section.",
-        }
-      ]
-  );
+  getopts('hnl:a:s:3:c:', \%args) or exit 1;
 
   if (defined $args{h}) {
 
     print STDERR <<~"HELP";
-      A c3 method resolution order (MRO) test Perl script. When this script is
-      simply invoked with no arguments, it performs a series of c3-mro tests on
-      all sections parsed in the script.
+      A c3 method resolution order (MRO) test Perl script. When this script is simply
+      invoked with no arguments, it performs a series of c3-mro tests on parsed
+      sections under '__DATA__'.
 
-      Usage: $0 [-hnsm] [ -l LANG ] [ -a ACTION ] [ -s ID, ... ] [ -c CLASS:METH ]
+      Usage: $0 [-hnsm] [ -l LANG ] [ -a ACTION ] [ -s ID, ... ] [ -3 CLASS, ... ] [ -c CLASS:METH, ... ]
 
+        -h                   Display this help message and exit.
+        -n                   Dump the number of sections in the script and exit.
+        -l  LANG             The language we want to test c3 or dump code, defaults to
+                             'perl'. Supported langs are 'perl', 'raku', and 'python'.
+        -s  ID, ...          A comma separated list of the IDs of sections to operate
+                             on, it uses all sections by default.
+        -3  CLASS, ...       For the 'dump_code' action, add code that prints the c3
+                             of CLASS.
+        -c  CLASS:METH, ...  For the 'dump_code' action, add code for the METH call on
+                             an instance of CLASS.
+        -a  ACTION           Specify what the script does, defaults to 'test'. ACTION
+                             can either be:
+                              test: In LANG, do c3-mro tests on each section.
+                              dump_sec: Dump sections themselves.
+                              dump_code: Dump in the indicated LANG the code of each
+                              section.
       HELP
-
-    my $break = 20;
-    foreach my ($k, $v) (@options) {
-      my $opt = "   -$k ";
-
-      state $tab = ' ' x 11 + length $opt;
-      say "", next unless ref $v;
-    }
 
     exit 0;
   }
 
   $config->{nsecs} = true if defined $args{n};
 
-  my $try = "$0: invalid argument to '-%s', try `$0 -h' for more info.\n";
+  my $e = "$0: invalid argument to '-%s', try `$0 -h' for more info.\n";
+
   if (defined $args{l}) {
-    die sprintf($try, 'l') unless $args{l} =~ /^(?:perl|raku|python)$/i;
+    die sprintf($e, 'l') unless $args{l} =~ /^(?:perl|raku|python)$/i;
     $config->{lang} = lc $args{l};
   }
 
   if (defined $args{s}) {
-    die sprintf($try, 's') unless $args{s} =~ /\d+(?:(?>,+)(?>\d+))*/a;
+    die sprintf($e, 's') unless $args{s} =~ /\d+(?:(?>,+)(?>\d+))*/a;
     @{$config->{secs}} = split /,+/, $args{s};
   }
 
   if (defined $args{a}) {
-    die sprintf($try, 'a') unless $args{a} =~ /^(?:test|dump_(?:diag|code|sec))$/i;
+    die sprintf($e, 'a') unless $args{a} =~ /^(?:test|dump_(?:code|sec))$/i;
     $config->{action} = $args{a};
   }
 
-  if (defined $args{c}) { }
-  if (defined $args{3}) { }
+  if (defined $args{3}) {
+    die sprintf($e, '3') unless $args{3} =~ /^(?<c>(?>\w+))(?:(?>,)+(?&c))*$/;
+    @{$config->{getc3}} = split /,+/, $args{3};
+  }
+
+  if (defined $args{c}) {
+    die sprintf($e, 'c') unless $args{c} =~ /^(?<c>(?>\w+):(?>\w+))(?:(?>,)+(?&c))*$/;
+    push @{$config->{call}}, [split /:/] foreach split /,/, $args{c};
+  }
 }
 
 # Get the number of sections under '__DATA__'.
-sub dump_nsecs () { return scalar parse_data()->@*; }
+sub dump_nsecs () {
+   return scalar parse_data()->@*;
+}
 
 sub dump_code () {
   my $sections = parse_data();
 
   foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
     warn "No section with id '$i'.\n" and next unless 0 <= $i < @$sections;
-    say "## section $i\n" . gen_lang_scode($sections->[$i]);
+
+    say "## section '$i'.\n";
+    print gen_lang_scode($sections->[$i]);
+
+    if (exists $config->{getc3}) {
+      print "\n";
+      foreach my $class (@{$config->{getc3}}) {
+         say lang_c3_linearize_class($class) and next if exists $sections->[$i][1]{$class};
+         say "## ERR: class '$class' does not exist.";
+      }
+    }
+
+    next unless exists $config->{call};
+    print "\n";
+    foreach my $call (@{$config->{call}}) {
+      say lang_call_method(@$call) and next if exists $sections->[$i][1]{$call->[0]};
+      say "## ERR: class '$call->[0]' does not exist.";
+    }
   }
 }
 
@@ -201,7 +189,7 @@ sub dump_sections () {
   }
 }
 
-# With certainty that our own c3 implementation works, let's test Perl's
+# With certainty that our own c3 implementation works, let's test LANG's
 # implementation and perform series of method calls to see if chained super
 # calls resolve correctly.
 sub test_c3_mro () {
@@ -211,7 +199,7 @@ sub test_c3_mro () {
 
   local $" = ', ';
 section: foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
-    warn "No section with id $i.\n" and next unless 0 <= $i < @$sections;
+    warn "No section with id '$i'.\n" and next unless 0 <= $i < @$sections;
 
     my %c3s;
     my ($classes, $defs) = @{$sections->[$i]};
@@ -227,7 +215,7 @@ section: foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
       $t++;
 
       # Test c3 linearization.
-      my $langc3 = lang_run(lang_c3_linearize_class($class, $codes[$i]));
+      my $langc3 = lang_run($codes[$i] . lang_c3_linearize_class($class));
 
       if (!exists $c3s{_fail} and ref $c3s{$class}) {
         my $expected = join ' ', @{$c3s{$class}};
@@ -255,8 +243,6 @@ section: foreach my $i (@{$config->{secs} // [0 .. $#$sections]}) {
 
   return $t;
 }
-
-sub dump_classdiag () { }
 
 sub safe_cmp ($val) {
   return lc $val =~ s/["',]//gr =~ s/\s+//gr;
@@ -312,7 +298,6 @@ sub parse_section ($data, $section_str, $offset, $n) {
 }
 
 # Report a syntax error at a point in the dsl.
-#sub syntax_error ($data, $pos //= pos $$data, $offset //= 0) {
 sub syntax_error ($data, $pos = pos $$data, $offset = 0) {
   my $start      = rindex($$data, "\n", $offset + $pos);
   my $error_line = (split(/\R/, substr($$data, $start, $offset + $pos - $start)))[0];
@@ -332,8 +317,7 @@ sub gen_perl_scode ($section) {
   state $uses = <<~'PERL';
      use strict;
      use warnings;
-     use feature qw( say );
-     use mro "c3";
+     use feature qw(say);
 
      $| = 1;
      PERL
@@ -346,26 +330,27 @@ sub gen_perl_scode ($section) {
     $code .= "package $class {";
 
     # Superclasses.
+    my $delim = ' ';
     if (exists $classdef->{s}) {
-      $code .= exists $classdef->{m} ? "\n " : ' ';
-      $code .= "use parent -norequire, qw(@{$classdef->{s}});";
+      $delim = "\n";
+      $code .= "\n use parent -norequire, qw(@{$classdef->{s}});";
     }
 
+    $code .= (exists $classdef->{m} || $delim ne ' ' ? "\n" : '') . ' use mro q(c3);';
+
     # Move on to the next class if this one has no methods.
-    $code .= " }\n" and next unless exists $classdef->{m};
+    $code .= "$delim}\n" and next unless exists $classdef->{m};
 
     # Methods.
-    my $delim  = @{$classdef->{m}} > 1 || exists $classdef->{s} ? "\n" : ' ';
-    my $indent = $delim eq ' '                                  ? ''   : ' ';
     foreach my $meth (@{$classdef->{m}}) {
       my ($name, $next) = $meth =~ $meth_re;
 
-      $code .= qq/${delim}${indent}sub $name { say "${class}::$name"/;
+      $code .= qq/\n sub $name { say "${class}::$name"/;
       $code .= '; $_[0]->next::method()' if defined $next;
       $code .= ' }';
     }
 
-    $code .= "$delim}\n";
+    $code .= "\n}\n";
   }
 
   return $code;
@@ -539,8 +524,8 @@ C3: foreach my $s (1 .. $#$supers) {
   push @{$c3s->{$class}}, @$subsol;
 }
 
-# Get the c3 of the language to be tested.
-sub lang_c3_linearize_class ($class, $code) {
+# Get the c3 call code of the language to be tested.
+sub lang_c3_linearize_class ($class) {
   my $getc3l;
 
   for ($config->{lang}) {
@@ -549,7 +534,7 @@ sub lang_c3_linearize_class ($class, $code) {
     $getc3l = qq/print(" ".join(map(lambda m: m.__name__, $class.__mro__[0:-1])), end = "")/, last if /python/;
   }
 
-  return $code . "\n$getc3l\n";
+  return "$getc3l\n";
 }
 
 # For each class in a section, deduce all the possible method calls
@@ -569,17 +554,16 @@ sub resolve_methods ($section, $c3s) {
 }
 
 sub test_call ($rmeths, $class, $meth, $code, $id) {
-  my $result   = join '->', split "\n", lang_run(lang_call_method($class, $meth, $code));
+  my $result   = join '->', split "\n", lang_run($code . lang_call_method($class, $meth));
   my $expected = join '->', call_method($rmeths, $class, $meth);
 
   ok($result =~ /^\Q$expected\E/, "[section $id] '$class'->$meth(): '$result' ~ '$expected'?");
 }
 
-sub lang_call_method ($class, $meth, $code) {
+sub lang_call_method ($class, $meth) {
   local $_ = $config->{lang};
-  my $meth_call = /perl/ ? "$class->$meth();" : /raku/ ? "$class.new.$meth();" : "$class().$meth()";
 
-  return $code . "\n$meth_call\n";
+  return (/perl/ ? "$class->$meth();" : /raku/ ? "$class.new.$meth();" : "$class().$meth()") . "\n";
 }
 
 # Run the given `$code' and return its stdout + stderr
@@ -625,6 +609,31 @@ sub call_method ($rmeths, $object, $meth) {
 main();
 
 __DATA__
+
+;
+; Syntax of the DSL:
+;
+; ;
+; ; (Above comments)
+; ;
+;
+; CLASS_NAME [ '->' '(' SUPERCLASS_NAME ... ')' ] [ ':' METHOD_NAME[@] ... ]
+; ...
+;
+; ;
+; ; (Below comments)
+; ;
+;
+; -------------------------------------------
+;   (Line above is a section separator)
+;   (Define another section here below)
+;
+; Sections are separated by hyphens. We test each section independently of
+; the other ones. The optional '@' following a method name implies that in
+; its code the method unconditionally calls its super method. A perl code is
+; generated for each section and our own implementation which is proven to
+; be totally valid is used to the validity of that of Perl.
+
 
 ;
 ; Class relationship diagram for visual comprehension 
@@ -717,3 +726,16 @@ C -> (A)
 D -> (A)
 E -> (B)
 F -> (E C D)
+
+--------------------------------------------------------------------------------
+
+; Test if dfs linearization is done first before c3
+
+A : meth
+B -> (A) : meth@
+C -> (A)
+D -> (A)
+E -> (B)
+F -> (B C) : meth@
+G -> (D)
+H -> (E F G)
