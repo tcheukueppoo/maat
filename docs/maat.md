@@ -32,7 +32,7 @@ written as a guidance for its implementation.
 > - `*` implies the previous entity be it optional or not, can occur 0 or many times
 > - `*` implies the previous entity be it optional or not, can occur 1 or many times
 > - Words written in capital letter are self-documentary, for example `CODE`
-> - Lowercase words are keywords, for example `fun`
+> - Lowercase words are keywords, for example `fn`
 
 # Operators
 
@@ -265,7 +265,7 @@ or block, retains their values between recalls and jumps. We declare static
 variables with the `state` keyword.
 
 ```
-fun incr(n) {
+fn incr(n) {
    state k = n
 
    return k if ++k == 9
@@ -299,7 +299,7 @@ It is prohibited to declare a variable with a sigil, regardless of
 whether or not it corresponds to any of the following.
 
 ```
-say "Running #{$0} on #$OS"
+say "Running $0 on $OS"
 ```
 - `v`: **(r,p)** Maat version
 - `o`: **(r,p)** OS on which `Maat` was build
@@ -392,14 +392,14 @@ are some examples which are self-documentary.
 let (a, b, c, d, e, f)
 let array = [1, 2, 3, 4, 5]
 
-(a, b, c)    = 2, 10, -1, 5 # a: 2, b: 10, c: -1
-(a, b, c)    = array        # a: [1, 2, 3, 4, 5], b: nil, c: nil
-(a, b, c)    = [2, 4, 5]... # a: 2, b: 4, c: 5
-(a, b, ...c) = array..., 10 # a: 1, b: 2, c: [3, 4, 5, 10]
-(a,,b)       = array...     # a: 1, b: 3
+(a, b, c)  = 2, 10, -1, 5 # a: 2, b: 10, c: -1
+(a, b, c)  = array        # a: [1, 2, 3, 4, 5], b: nil, c: nil
+(a, b, c)  = [2, 4, 5]*   # a: 2, b: 4, c: 5
+(a, b, *c) = array*, 10   # a: 1, b: 2, c: [3, 4, 5, 10]
+(a,,b)     = array*       # a: 1, b: 3
 
 # fails during compilation, only use '...' at the end
-(a, ...b, c) = 2, 4, 5
+(a, *b, c) = 2, 4, 5
 
 (e, f) = (10, -1) # e: 10, f: -1
 (e, f) = (f, e)   # e: -1, f: 10
@@ -786,9 +786,7 @@ do { CODE } until COND
 let k = Set.new(2, 4, 5)
 let b = [2, 7, 3]
 
-do {
-    k.push(b.pop)
-} while [2, 7] ∉ k
+do k.push(b.pop) while [2, 7] ∉ k
 
 do {
     say "forever"
@@ -837,7 +835,7 @@ TWO: {
 ```
 
 ```
-fun do_sleep(n) {
+fn do_sleep(n) {
     LOOP: for ^10 {
         break LOOP when n
         .sleep
@@ -887,7 +885,7 @@ to function calls, it runs the function in a new lightweight thread known
 as a Maatine.
 
 ```
-fun just_sleep(n) { n.sleep }
+fn just_sleep(n) { n.sleep }
 
 for 10..20 -> time {
     ma just_sleep(time)
@@ -905,7 +903,7 @@ ma for ^10 { .sleep }
 # Functions
 
 ```
-[ mul ] fun NAME [ ( [  [ PARAM [ = DEFAULT_VALUE ] ] [, PARAM [ = DEFAULT_VALUE ] ]* ] ) ] { CODE }
+[ mul ] fn NAME [ ( [  [ PARAM [ = DEFAULT_VALUE ] ] [, PARAM [ = DEFAULT_VALUE ] ]* ] ) ] { CODE }
 
 { [ | PARAM [ = DEFAULT_VALUE ] [, PARAM [ = DEFAULT_VALUE ] ]* | ] CODE }
 
@@ -918,7 +916,7 @@ while its usage in a function definition is mandatory if and only if
 that function takes arguments.
 
 ```
-fun hello_world {
+fn hello_world {
     say "Hello, World!"
 }
 
@@ -962,7 +960,7 @@ anony.call("tanzania")
 anony.call("a", "b")
 
 # .ucfirst is the same as _.ucfirst
-let ar = {qw<tcheukam madjou monthe>}
+let ar = @h(tcheukam madjou monthe)
 say ar.map(:.ucfirst)
 ```
 
@@ -983,14 +981,14 @@ arguments with unnamed ones brings a lot of confusion in your code and hence
 either you name all your arguments or you don't name anything at all.
 
 ```
-fun call(c, n) { c.call(_) for ^n }
+fn call(c, n) { c.call(_) for ^n }
 call({ .say }, 5)
 
-mul fun who(name, age) {
+mul fn who(name, age) {
     say "Hello, my name is #name, I'm #{age}yo"
 }
 
-mul fun who(name) {
+mul fn who(name) {
     say "Hello, my name is #name!"
 }
 
@@ -1001,8 +999,8 @@ who(age => 5, name => liza)
 # no candidates for this and thus fails at compile time
 who(age => 10)
 
-fun mul(s, k) { s * k }
-fun mul(s)    { s * 2 }
+fn mul(s, k) { s * k }
+fn mul(s)    { s * 2 }
 
 mul("one").say    # output: oneone
 mul("two", 5).say # output: twotwotwotwo
@@ -1017,26 +1015,27 @@ definition.
 
 ```
 # using the array accumulator operator for variadic arguments
-fun count(name, …counts) {
+fn count(name, *counts) {
     printf "You have %d %ss\n", counts.len > 0 ? counts.sum : 0, name
 }
 
 count("pineaple", 2, 4, 10) # output: You have 16 pineaples
 count("orange")             # output: You have 0 oranges
 
-fun sum(...ar) { ar.sum }
+fn sum(*ar) { ar.sum }
 
 # they don't make sense at all! fail at compilation
-fun bad_func1(a, ...b, c)    { ... }
-fun bad_func2(...a, b, c)    { ... }
-fun bad_func3(...a, b, ...c) { ... }
-fun bad_func4(a, ...b, ...c) { ... }
+fn bad_func1(a, *b, c)  { ... }
+fn bad_func2(*a, b, c)  { ... }
+fn bad_func3(*a, b, *c) { ... }
+fn bad_func4(a, *b, *c) { ... }
 ```
 
-The reason why `fun` optionally precedes `{ ... }` when defining
+The reason why `fun` optionally precedes `{}` when defining
 anonymous functions is mainly for syntatic sugar and so to avoid
 confusion with blocks, it is prohibited to declare an anonymous
-function as a value the following way
+function as a value the following way as it may add much work
+to the compiler.
 
 ```
 # fails at compile time
@@ -1046,9 +1045,9 @@ function as a value the following way
 But this works
 
 ```
-Fun.new({ .say }).call(20)
+Fn.new({ .say }).call(20)
 (:.say).call(20)
-fun { .say }.call(20)
+fn { .say }.call(20)
 ```
 
 ## Traits
@@ -1059,7 +1058,7 @@ same function call when doing recursive calls. This trait can help you do
 dynamic programming with less overhead.
 
 ```
-fun fib(n) :save {
+fn fib(n) :save {
     n < 2 ? n : __FUN__(n - 1) + __FUN__(n - 2)
 }
 ```
@@ -1071,7 +1070,7 @@ is an iterable object where each iteration resumes from where the generator
 function was paused by a `take` call.
 
 ```
-fun factors(n) {
+fn factors(n) {
     let k = 1
 
     while k ** 2 < n {
@@ -1258,10 +1257,10 @@ its exception handler from the highiest top level Work.
 
 ```
 let w = Work.does({ sleep 4; 10 })
-            .catch({(e) say "Catched: #{e}" })
+            .catch({|e| say "Catched: #{e}" })
             .then({ say "My handler is the one above"; _ + 2 })
-            .then({(r) say "Mine is below"; r - 2 })
-            .catch({(e) warn "Couldn't sub 2 from 12? ans: #{e}" })
+            .then({(|r| say "Mine is below"; r - 2 })
+            .catch({|e| warn "Couldn't sub 2 from 12? ans: #{e}" })
 
 say abide w # output: 10
 ```

@@ -137,11 +137,11 @@ typedef struct Value {
 #define to_bool(v)  (ma_likely(is_bool(v)) ? v : coerce_to_bool(v))
 
 /* Header common to all collectable Maat objects. */
-#define Header  struct Class *class; \
-                struct Object *next; \
-                UInt mid; \
-                Ubyte type; \
-                Ubyte mark
+#define Header  struct Class *class;  \
+                struct Object *next;   \
+                UInt mid;               \
+                UByte type;              \
+                UByte mark
 
 /*
  * $$Object struct inherited by all collectable objects.
@@ -221,13 +221,13 @@ typedef struct Object {
 #define as_str(v)    (ma_assert(is_str(v)), cast(Str *, as_gcobj(v)))
 #define as_u8str(v)  (ma_assert(is_u8str(v)), cast(U8Str *, as_gcobj(v)))
 
-#define Stringfields  UByte sl; \
-                      Object *next_sobj; \
-                      Byte *str; \
-                      union { \
-                         struct Str *snext; \
-                         size_t len; \
-                      } u; \
+#define Stringfields  UByte sl;            \
+                      Object *next_sobj;    \
+                      Byte *str;             \
+                      union {                 \
+                         struct Str *snext;    \
+                         size_t len;            \
+                      } u;                       \
                       UInt hash
 
 /*
@@ -338,9 +338,9 @@ typedef union Node {
  * - $last: The last free node in $node.
  * - $lg2size: log2 of the size of $node.
  */
-#define MapPointerFields Value *array; \
-                         Node *node; \
-                         Node *last; \
+#define MapPointerFields Value *array;     \
+                         Node *node;        \
+                         Node *last;         \
                          Object *next_sobj
 
 #define MapUbyteFields  UByte rasize; \
@@ -390,8 +390,8 @@ typedef struct CMap {
 #define as_list(v)  as_arr(v)
 
 #define Arrayfields  Object *next_sobj; \
-                     Value *array; \
-                     size_t cap; \
+                     Value *array;       \
+                     size_t cap;          \
                      size_t size
 /*
  * $$Array: Repr of an Array object.
@@ -461,11 +461,11 @@ typedef struct Fn {
  */
 #define O_VUPVAL  vary(O_UPVAL, 0)
 
-#define Upvalfields  Ubyte ncl; \
-                     Value *p; \
-                     union { \
-                        struct Upval *next; \
-                        Value val; \
+#define Upvalfields  Ubyte ncl;           \
+                     Value *p;             \
+                     union {                \
+                        struct Upval *next;  \
+                        Value val;            \
                      } state
 
 typedef struct Upval {
@@ -491,7 +491,7 @@ typedef struct SUpval {
  * tracks of its upvalues, functions are never used directly.
  *
  * - $fn: A pointer to the closure's function.
- * - $state: Buffer to keep values of static lexicals.
+ * - $state: Value buffer to keep values of static lexicals.
  * - $upvals: The List of upvalues the function has.
  * - $nuv: The number of upvalues.
  */
@@ -506,11 +506,11 @@ typedef struct SUpval {
 
 typedef struct Closure {
    Header;
-   Object *next_sobj;
-   Fn *fn;
-   ValueBuf state;
-   Upval **upvals;
    UByte nuv;
+   Fn *fn;
+   Object *next_sobj;
+   ValueBuf state;
+   Upval *upvals[flex];
 } Closure;
 
 /*
@@ -601,7 +601,7 @@ typedef struct Attr {
  *   copied into the instance object at instanciation.
  * - $asize: Size of the attribute buffer.
  *
- * - $c3: List of classes, c3 linearization result.
+ * - $c3: Buffer of classes, the class' c3 linearization.
  * - $offsets: The attribute buffer offset of each class in the
  *   c3 list. A method found in a class of the c3 list at an
  *   index `i' uses the offset at index `i' in $offsets to
@@ -611,12 +611,12 @@ typedef struct Attr {
  *   both must have the same size.
  *
  * - $roles: Keeps the list of roles the class ':does' regardless
- *   of which class variant it is.
+ *   of which class variant the class is.
  * - $rsize: Size of the role list.
  *
  * - $sups: Keeps the list of directly inherited superclasses.
  *   $sups exists mainly for the runtime build of the $c3 list
- *   as it's this list that handles super calls.
+ *   as it's $c3 that handles super calls.
  * - $ssize: Size of the super list.
  * - $meths: A map to store the class' methods (not the inherited
  *   ones). A value to a key here is a pointer to a Meth.
@@ -786,7 +786,7 @@ typedef struct Namespace {
    Value val;
 } Namespace;
 
-/* $$$Definition of bellow objects are in their respective .h files. */
+/* $$$Definition of below objects are in their respective '.h' files. */
 
 /* A thread-safe channel and scheduler ring buffer queue. */
 #define O_VCHAN    vary(O_RBQ, 1)
@@ -812,7 +812,7 @@ typedef struct Namespace {
 #define is_work(v)  check_rtype(v, ctb(O_VWORK))
 #define as_work(v)  (ma_assert(is_state(v)), cast(Work *, as_gcobj(v)))
 
-/* $$Maatine object, see 'ma_maa.h' */
+/* $$Maatine object, see 'ma_maa.h'. */
 #define O_VMAA  vary(O_MAA, 0)
 
 #define is_maa(v)  check_rtype(v, ctb(O_VMAA))
@@ -820,7 +820,7 @@ typedef struct Namespace {
 
 /* $$$Union of all collectable objects used for conversion. */
 
-#define ounion(o)  cast(Ounion *, o)
+#define ounion(o)  cast(OUnion *, o)
 
 /*
  * ISO C99 says that a pointer to a union object, suitably
@@ -848,7 +848,7 @@ typedef struct Namespace {
 #define x2gco(x)  (ma_assert(is_ctb(x)), &(ounion(x)->gc_obj))
 
 /* Union of all collectable objects */
-union Ounion {
+union OUnion {
    Object gc_obj;
    Str str;
    Array arr;
@@ -867,7 +867,7 @@ union Ounion {
    Ma ma;
    Work wk;
    Namespace ns;
-} Ounion;
+} OUnion;
 
 /* It's on its own as it's needed at 'ma_str.c' and elsewhere. */
 #define sunion_of(s)  cast(Sunion *, s)
