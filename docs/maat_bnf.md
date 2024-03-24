@@ -8,60 +8,77 @@
 ```
 <block> ::= '{' {<stat>} '}'
 
-<stat> ::=    ';'
-            | <expr_list>                         # An expression is a special case of statement returning a value
+<stat> ::=    <sep>
+            | <exp_list>
             | <label_name> ':'
-            | <loop_control> [<label_name> | <number>]
+            | (break | next | redo | goto) [<label_name> | <loop_number>]
+            | <package_def>
+            | <lex_vars_def>
+            | <package_vars_def>
+            | <package_def>
             | <func_def>
             | <class_def>
             | <role_def>
-            | <package_def>
-            | <vars_def>
             | <stat_modifier>
             | <vars_assign>
-            | <loop_stat>
-            | <flow_control>
+            | <loops>
+            | <flows>
+            | use <ns_name> ['(' [<symbol>] {',' <symbol>} ')']
+            | load <string_literal>
             | try <block> {catch <> <block>} [finally <block>]
-              defer <expr_or_block>
+            | defer (<exp_list> | <block>)
 
-<expr_list> ::= <expr> {, <expr>}
+<sep> ::= ';' | <new_line> | <generic_new_line>
+
+<exp_list> ::= <exp> {<comma> <exp> <comma>}
+
+<comma> ::= ','
 
 <label_name> ::= <name>
 
-<loop_control> ::= break | next | redo | goto
+<package_def> :: package <ns_name> [<block>]
 
-<expr_or_block> ::= <expr> | <block>
+<package_vars_def> ::= our 
+<lex_vars_def>     ::= let
 
-<flow_control> ::=   if <expr> [<topic_var>] <block> {elsif <expr> [<topic_var>] <block>} [else <block>]
-                   | with <expr> [<topic_var>] <block> {orwith <expr> [<topic_var>] <block>} [else <block>]
-                   | given <expr> [<topic_var>] <block>
+<flows> ::=   if <exp_list> [<topic_var>] <block> {elseif <exp_list> [<topic_var>] <block>} [else <block>]
+            | with <exp_list> [<topic_var>] <block> {orwith <exp_list> [<topic_var>] <block>} [else <block>]
+            | given <exp_list> [<topic_var>] <block>
 
 <topic_var> ::= '->' <var>
 
 <var> ::= <name>
 
-<loop> ::=   loop <expr> <block> 
-           | for <expr> [<topic_vars>] <block>
-           | while <expr> <block>
-           | until <expr> <block>
+<stat_modifier> ::= <exp_list> (if | unless | when | given | for | until | while) <exp_list>
 
-<topic_vars> ::= <topic_var> {, <var>}
+<loops> ::=   loop [[<exp_list>] ';' [<exp_list>] ';' [<exp_list>]] <block> 
+            | for <exp_list> [<topic_vars>] <block>
+            | while <exp_list> <block>
+            | until <exp_list> <block>
 
-<stat_modifier> ::= <expr> <stat_kind> <expr>
+<topic_vars> ::= '->' <var> {'=' <exp>} {',' <var> {'=' <exp>}}
 
-<stat_kind> ::= if | unless | given | when | until | when
+<func_def> ::= fn <name> ['(' {<func_args>} ')'] [':' (save | gen)] <func_body>
 
-<func_def> ::= fn <name> ['(' ')'] [':' <func_trait>] <block>
+<func_args> ::= <func_arg> {',' <func_arg>} ['*' <var>]
+<func_arg>  ::= <var> [('=' | '=//') <exp>]
+<func_body> ::= <block>
 
-<func_trait> ::= save | gen
+<package_def> ::= package <ns_name> <block>
 
-<class_def> ::= class <name> <class_link> <class_body>
+<class_def> ::= <scope> class <name> [':' (is | does) <rel_args>] [<capture_trait>] <class_body>
 
-<role_def> ::= role <name> <role_link> <class_body>
+<class_body> ::= '{' '}'
 
-<class_body> ::=
+<capture_trait> ::= ':' p
 
-<expr> ::=   <nil>
+<rel_args>      ::= '(' [<name__ns_name> {',' <name__ns_name>}] ')'
+<name__ns_name> ::= <name> | <ns_name>
+
+<role>      ::= [<scope>] role <name> [':' does <rel_args>] [<capture_trait>] <role_body>
+<role_body> ::= <class_body>
+
+<exp> ::=    <nil>
            | <boolean>
            | <number>
            | <string_literal>
@@ -69,14 +86,31 @@
            | <anonymous_func>
            | <map>
            | <array>
-           | <expr> <infix_op> <expr>
-           | <expr> <postfix_op>
-           | <prefix_op> <expr>
-           | <stat_expr>
-           | <expr_group>
+           | <exp> <infix_op> <exp>
+           | <exp> <postfix_op>
+           | <prefix_op> <exp>
+           | <stat_exp>
+           | <
 
-<stat_expr> ::= <stat_prefix> <>
+<nil> ::=
+
+<boolean> ::=
+
+<number> ::=
+
+<regex_literal> ::=
+
+<anonymous_func> ::= [fn] '{' ['|' <func_args> '|'] {<stat>} '}' | ':' <exp_list>
+
+<string_literal> ::=
+
+<map> ::= 
+
+<array> ::= '[' {<exp>} ']' | '@a' <> <>
+
+<stat_exp> ::= <stat_prefix> <>
+<exp_group> ::=
 
 ```
 
-
+An expession is a special case of statement returning a value
