@@ -1,9 +1,9 @@
 # Syntax Of The Maat Programming Language
 
-* `#` is for comments
 * `{X}` stands for 0 or more of `X`
 * `[X]` implies `X` is optional
 * `|` stands for alternation
+* `(X)` for grouping, `X` is considered a single unit
 
 ```
 <block> ::= '{' {<stat>} '}'
@@ -13,8 +13,7 @@
             | <label_name> ':'
             | (break | next | redo | goto) [<label_name> | <loop_number>]
             | <package_def>
-            | <lex_vars_def>
-            | <package_vars_def>
+            | <var_def>
             | <package_def>
             | <func_def>
             | <class_def>
@@ -30,16 +29,20 @@
 
 <sep> ::= ';' | <new_line> | <generic_new_line>
 
-<exp_list> ::= <exp> {<comma> <exp> <comma>}
-
-<comma> ::= ','
+<exp_list> ::= <exp> {',' {','} <exp> {','}}
 
 <label_name> ::= <name>
 
 <package_def> :: package <ns_name> [<block>]
 
-<package_vars_def> ::= our 
-<lex_vars_def>     ::= let
+<var_def> ::= <scope> <var_assign>
+<scope>   ::= let | our
+<var_tmp> ::= tmp <var_assign>
+
+<var_assign> ::= ('(' (<var> {','} | <star_var> {<__var>} | {<var__>} <star_var> | <var__> <star_var> <__var>) ')' | <var>) '=' <exp_list>
+<star_var>   ::= '*' <var>
+<__var>      ::= ',' {','} <var>
+<var__>      ::= <var> ',' {','}
 
 <flows> ::=   if <exp_list> [<topic_var>] <block> {elseif <exp_list> [<topic_var>] <block>} [else <block>]
             | with <exp_list> [<topic_var>] <block> {orwith <exp_list> [<topic_var>] <block>} [else <block>]
@@ -64,18 +67,19 @@
 <func_arg>  ::= <var> [('=' | '=//') <exp>]
 <func_body> ::= <block>
 
-<package_def> ::= package <ns_name> <block>
+<package_def> ::= package <ns_name> [<block>]
 
-<class_def> ::= <scope> class <name> [':' (is | does) <rel_args>] [<capture_trait>] <class_body>
+<class_def> ::= [<scope>] class <name> ([<rel>] [<identity>] | [<identity>] [<rel>]) <class_body>
 
-<class_body> ::= '{' '}'
-
-<capture_trait> ::= ':' p
+<identity> ::= ':' i
+<rel>      ::= ':' (is | does) <rel_args>
 
 <rel_args>      ::= '(' [<name__ns_name> {',' <name__ns_name>}] ')'
 <name__ns_name> ::= <name> | <ns_name>
 
-<role>      ::= [<scope>] role <name> [':' does <rel_args>] [<capture_trait>] <role_body>
+<class_body> ::= '{' {<method_def> | <stat>} '}'
+
+<role_def>  ::= [<scope>] role <name> [':' does <rel_args>] [<identity>] <role_body>
 <role_body> ::= <class_body>
 
 <exp> ::=    <nil>
