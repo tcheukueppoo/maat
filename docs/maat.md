@@ -6,155 +6,140 @@ email: tcheukueppo@yandex.com
 
 # Maat 
 
-`Maat` is a multi-paradigm general purpose programming language that
-empowers programmers to easily build fast and scalable applications.
+`Maat` is a multi-paradigm general purpose programming language that empowers
+programmers to easily build fast and scalable applications.
 
 Key features of the Maat programming language:
 
-- Functional Programing
-- Object Oriented Programming
-- Multiple Dispatching
-- Closures
-- Concurrency with [Works](./types/Work.md) and [Maatines](./types/Ma.md)
-- Traits
-- Lazy Evaluation
-- Regular Expressions using PCRE2
-- Full Unicode support
-- Phasers
+* Functional Programing
+* Object Oriented Programming
+* Multiple Dispatching
+* Closures
+* Concurrency with [Works](./types/Work.md) and [Maatines](./types/Ma.md)
+* Traits
+* Lazy Evaluation
+* Regular Expressions using PCRE2
+* Full Unicode support
+* Memoization
 
 This is the specification of the Maat programming language, it is
 written as a guidance for its implementation.
 
-> **NB**: Take note of the following conventions when reading syntax definitions
-> - `[ X ]` implies X is optional
-> - `< X >` for grouping `X`
-> - `|` implies alternation, for example `A | B` signifies either `A` or `B`
-> - `*` implies the previous entity be it optional or not, can occur 0 or many times
-> - `*` implies the previous entity be it optional or not, can occur 1 or many times
-> - Words written in capital letter are self-documentary, for example `CODE`
-> - Lowercase words are keywords, for example `fn`
-
 # Operators
 
-This is the list of all operators supported by the Maat programming
-language, you are not required to master everything now as they are
-meticulously documented
+This is the list of all operators supported by the Maat programming language.
 
 ## Lonely operator
 
-- `…`, `...`: to specify unimplemented code
+* `…`, `...`: to specify unimplemented code
 
 **p**: postfix, **i**: infix, **b**: prefix
 
 ## Basic unary operators
 
-- `++`: **(p,b)** incrementation operator
-- `--`: **(p,b)** decrementation operator
-- `-`: **(b)** negation operator
-- `+`: **(b)** positive operator, result of the evaluation is equal to the operand
-- `~`: **(b)** binary complement
-- `…` or `...`: **(b)** destructor/accumulator operator
-- `^`: **(p)** Range operator, `^5` returns a `Range` object, i.e `Range.new(0, 5)`
-- `√`: **(p)** sqaure root operator
-- `⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹`: **(b)** power operators
-- `Σ`: **(p)** summation operator
-- `Π`: **(p)** product operator
+* `++`: **(p,b)** Incrementation operator.
+* `--`: **(p,b)** Decrementation operator.
+* `-`: **(b)** Negation operator.
+* `+`: **(b)** Positive operator, result of the evaluation is equal to the operand.
+* `~`: **(b)** Binary complement.
+* `*`: **(b)** Array destructor/accumulator operator.
+* `^`: **(p)** Range operator, `^5` returns a `Range` object, i.e `Range.new(0, 5)`.
+* `√`: **(p)** Sqaure root operator.
+* `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`: **(b)** Power operators.
+* `Σ`: **(p)** Summation operator.
+* `Π`: **(p)** Product operator.
 
 ## Named unary operators
 
-- `defined`: **(b)** check if a variable is `nil`
-- `sleep`: **(b)** sleep the current Maatine for a given amount of time
-- `return`: **(b)** return from a function
-- `assert`: **(b)** test an assertion
-- `assert_eq`: **(b)** equality test assertion
-- `exit`: **(b)** exit program with given exit code
+* `defined`: **(b)** Check if a variable is `nil`.
+* `sleep`: **(b)** Sleep the current Maatine for a given amount of time.
+* `return`: **(b)** Return from a function.
+* `assert`: **(b)** Test an assertion.
+* `assert_eq`: **(b)** Equality test assertion.
+* `exit`: **(b)** Exit program with given exit code.
 
 ## Named list operators
 
-- `say`: **(b)** print to the standard output with a trailing new line
-- `print`: **(b)** print without a new line
-- `printf`: **(b)** print formatted string
-- `sprintf`: **(b)** sprintf, return formatted string
-- `join`: **(b)** function version of `.join` method of the `Array` type
-- `map`: **(b)** function version of `.map` method of the `Array` type
-- `lmap`: **(b)** function version of `.lmap` method of the `Array` type
-- `grep`: **(b)** function version of `.grep` method of the `Array` type
-- `run`: **(b)** run the passed as argument commands with their parameters on a new shell
-- `die`: **(b)** raise an exception and exit program if there is no handler
-- `warn`: **(b)** warn by sending a message to the stderr
-
-## Named binary operators
-
-- `isa`: **(i)** `o isa str` returns true if `o` is an object instance of class `str` or of a class which is subclass to `str`
-- `minmax`: **(i)** returns in an array the min and the max of its left and right operand
+* `say`: **(b)** Print to the standard output with a trailing new line.
+* `print`: **(b)** Print without a new line.
+* `printf`: **(b)** Print formatted string.
+* `sprintf`: **(b)** Sprintf, return formatted string.
+* `join`: **(b)** Function version of `.join` method of the `Array` type.
+* `map`: **(b)** Function version of `.map` method of the `Array` type.
+* `lmap`: **(b)** Function version of `.lmap` method of the `Array` type.
+* `grep`: **(b)** Function version of `.grep` method of the `Array` type.
+* `run`: **(b)** Run the passed as argument commands with their parameters on a new shell.
+* `die`: **(b)** Raise an exception and exit program if there is no handler.
+* `warn`: **(b)** Warn by sending a message to the stderr.
 
 ## Binary operators for maat objects
 
-- `=`: **(i)** assignment operator
-- `.`: **(i)** method call operator on objects and classes
-- `.^`: **(i)** method call operator for meta-programming
-- `,`, `=>`: **(i,i)** comma and key-value separator infix operator
-- `!`: **(p)** negation operator ex: `!true == false`
-- `//`: **(i)** a variant of the `||` operator that tests for definedness, `a // b`, returns `a` if it isn't `nil` otherwise `b`
-- `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: **(i)** basic infix operators
-- `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: **(i)** add, sub, div, mul, remainder and range operator
-- `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: **(i)** `X op= Y` same as `X = X op Y`
-- `<<`, `>>`, `^`, `&`, `&=`, `|=`: **(i)** bitwise shift on left and right, logical `or` and `and`
-- `&&`, `||`, `&&=`, `||=`: **(i)** logical "and" and "or" operator
-- `≅` / `=~`, `~~`: **(i)** regex operator and smartmatch operator
-- `∉`,  `∈`, `∊`, `∍`, `∋`, `∌`, `⊂`, `⊄`, `⊆`, `⊈`, `⊃`, `⊅`, `⊇`, `⊉`, `≡`, `≢`, `⊖`, `∩`, `⊍`, `∪`, `⊖`, `⊎`, `∖`: **(i)** set operators
-- `<=>` : **(i)** `X <=> Y` says yield `-1` if `X < Y`, `0` if `X == Y`, or `-1` if `X > Y`
-- `∘`: **(i)** function composition infix operator
-- `?:`: **(?)** tenary operator
+* `=`: **(i)** Assignment operator.
+* `.`: **(i)** Method call operator on objects and classes.
+* `.^`: **(i)** Method call operator for meta-programming.
+* `,`: **(i)** Comma separator operator.
+* `=>`: **(i)** Key-value separator operator.
+* `!`: **(p)** Negation operator ex: `!true == false`.
+* `//`: **(i)** A variant of the `||` operator that tests for definedness, `a // b`, returns `a` if it isn't `nil` otherwise `b`.
+* `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: **(i)** Basic infix operators.
+* `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: **(i)** Add, sub, div, mul, remainder and range operator.
+* `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: **(i)** `X op= Y` same as `X = X op Y`.
+* `<<`, `>>`, `^`, `&`, `&=`, `|=`: **(i)** Bitwise shift on left and right, logical `or` and `and`.
+* `&&`, `||`, `&&=`, `||=`: **(i)** Logical "and" and "or" operator.
+* `≅` / `=~`, `~~`: **(i)** Regex operator and smartmatch operator.
+* `∉`,  `∈`, `∊`, `∍`, `∋`, `∌`, `⊂`, `⊄`, `⊆`, `⊈`, `⊃`, `⊅`, `⊇`, `⊉`, `≡`, `≢`, `⊖`, `∩`, `⊍`, `∪`, `⊖`, `⊎`, `∖`: **(i)** Set operators.
+* `<=>` : **(i)** `X <=> Y` says yield `-1` if `X < Y`, `0` if `X == Y`, or `-1` if `X > Y`.
+* `∘`: **(i)** Function composition infix operator.
+* `?:`: **(?)** Tenary operator.
 
 ## List of all operators from highest precedence to lowest
 
-- left        terms and list operators (leftward)
-- right       grouping operator `( )`
-- left        method call operator `.`
-- nonassoc    `++`, `--`, `√` and unary prefix `…` / `...`
-- right       `**`, `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`
-- right       `!`, `~`, `\` and unary `+` and `-`
-- left        `=~`, `!~`
-- left        `*`, `/`, `%`
-- left        `+`, `-`, `.`, `∘`
-- left        `∩`, `⊍`
-- left        `∪`,  `⊖`, `⊎`, `∖`
-- chained     `∈`, `∊`, `∉`, `∋`, `∍`, `∌`, `≡`, `≢`, `⊂`, `⊄`, `⊃`, `⊅`, `⊆`, `⊈`, `⊇`, `⊉`, `≼`, `≽`
-- left        `<<`, `>>`
-- nonassoc    named unary operators
-- nonassoc    `isa`
-- chained     `<`, `>`, `<=` / `≤`, `>=` / `≥`
-- chain/na    `==`, `!=`, `<=>`, `~~`
-- left        `&`
-- left        `|`, `^`
-- left        `&&`
-- left        `||`, `//`
-- nonassoc    `..`, lonely operator `…` / `...`
-- right       `?:`
-- right       `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`
-- list        `,`, `=>`
+* left        terms and list operators (leftward)
+* right       grouping operator `( )`
+* left        method call operator `.`
+* nonassoc    `++`, `--`, `√` and unary prefix `…` / `...`
+* right       `**`, `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`
+* right       `!`, `~`, `\` and unary `+` and `-`
+* left        `=~`, `!~`
+* left        `*`, `/`, `%`
+* left        `+`, `-`, `.`, `∘`
+* left        `∩`, `⊍`
+* left        `∪`,  `⊖`, `⊎`, `∖`
+* chained     `∈`, `∊`, `∉`, `∋`, `∍`, `∌`, `≡`, `≢`, `⊂`, `⊄`, `⊃`, `⊅`, `⊆`, `⊈`, `⊇`, `⊉`, `≼`, `≽`
+* left        `<<`, `>>`
+* nonassoc    named unary operators
+* nonassoc    `isa`
+* chained     `<`, `>`, `<=` / `≤`, `>=` / `≥`
+* chain/na    `==`, `!=`, `<=>`, `~~`
+* left        `&`
+* left        `|`, `^`
+* left        `&&`
+* left        `||`, `//`
+* nonassoc    `..`, lonely operator `…` / `...`
+* right       `?:`
+* right       `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`
+* list        `,`, `=>`
 
 # Comments
 
-Single line comments are done with `#` and multi-line comments with `---`
+Use `#` for single line comments and `---` for multi-line comments.
 
 ```
 # single line comment
 ---
+a
 multi
 line
 comment
 ---
 ```
 
-# Delimiter
+# Delimiters
 
 ## Pair delimiters
 
-
-The following pair delimiters can be used as delimiters for quoted values
-and regular expression operators.
+The following pair delimiters can be used as delimiters for regexes values and operators
+and other quoted values like strings (`@q`, `@qq`), arrays (`@a`) and maps (`@m`).
 
 ```
 ( )       [ ]       { }       < >
@@ -174,7 +159,8 @@ and regular expression operators.
 ### Examples
 
 ```
-let x = [ qw(one two three) ]
+# Could still for example use @a{one two three}
+let x = ['one', 'two', 'three']
 
 # [ "Three", "Two", "One" ]
 let b = x.map(:.cap).rev
@@ -183,10 +169,10 @@ let b = x.map(:.cap).rev
 x =~ s<o>«0»
 ```
 
-## Single character delimiter
+## Single character delimiters
 
-We also have a restricted set of delimiters for quoted values and regular
-expression operators.
+We also have a restricted set of single character delimiters to represent quoted values
+and regex operators.
 
 ```
 / | % "  '
@@ -195,25 +181,31 @@ expression operators.
 ### Examples
 
 ```
-let a = [ qw|ONE TWO THREE| ]
+# same as ['ONE', 'TWO', 'THREE']
+let a = @a|ONE TWO THREE|
 a.each: .lc.say
 
-say q"interpolation won't work"
+say @q/interpolation won't work/
 
-say qq<interpolation works, array: #a>
+say "interpolation works, array: #{a}"
 
 # [ "0ne", "Tw0" ]
 a.grep({|x| x =~ m|o|i }).map(:s|o|0|r).map(:.ucfirst).say
 ```
 
+The `|`s in `|x|` has nothing to do with single character delimiters, it part of
+the anonymous function syntax.
+
 # Variables
 
 `Maat` has four types of variables: package, lexical, temporary and static variables.
 
-A module file has a `.mm` extension, a package is a namespace, variables who are fully
-qualified are known as package variables, there is no one-to-one mapping between a
-namespace and module file, therefore multiple namespaces can be define in a single
-module file but this is not a good practice.
+A module file has a `.mm` extension, a package is a namespace, a variable that can
+be accessed from outside the package from which it was declared is called a package
+variable and this can only be done by using the variable's fully qualified name.
+There is no one-to-one mapping between a package and module file, therefore multiple
+packages can be defined in a single module file but this is usually not a good
+practice.
 
 Package variables can be accessed from other packages using their fully qualified
 name and lexically scoped variables cannot be accessed from outside the package in
@@ -222,41 +214,41 @@ which they were declared.
 A temporary variable is a variable that is lexically scoped and refers to a package
 variable declared from another package if the name of the temporary variable at
 declaration is fully qualified, otherwise it refers to a package variable of the same
-name declared in its own package. Any modification made to temporary variables remains
-**local** to their scopes of declaration, thus, out of these scopes, package variables
-they refer to remain untouched. You cannot temporarize lexically scoped variables and
-all package variables regardless of their types can to temporarize.
+name declared in its own package. Any modification made to temporary variables remain
+**local** to their scopes of declaration and thus out of these scopes, package
+variables they refer to remain untouched. You cannot temporarize lexically scoped
+variables. Every package variable regardless of its package can to temporarize.
 
 We declare package variables with the keyword `our`, lexically scoped variables
 with `let` and temporary variables with `temp`.
 
 ```
 package One::Two {
-    our x = [ qw<one two three> ]
+   our x = ['one', 'two', 'three']
 
-    let a = {one => 1}
-    {
-        # a: {one => 1, two => 2}
-        let a += {two => 2}
+   let a = {one => 1}
+   {
+      # a: {one => 1, two => 2}
+      let a += {two => 2}
 
-        # could still use "One::Two::x" at declaration
-        temp x = {}
-        # empty hash
-        say One::Two::x
-    }
+      # Could still use "One::Two::x" at declaration
+      temp x = {}
+      # empty hash
+      say One::Two::x
+   }
 
-    # output: {one => 1}
-    a.say
-    # output: [ qw<one two three> ]
-    x.say
+   # Output: {one => 1}
+   a.say
+   # Output: ['one', 'two', 'three']
+   x.say
 }
 
 package One::Two::Three {
-    # refers to the package variable "x" declared in the namespace "One::Two"
-    say One::Two::x
+   # Refers to the package variable "x" declared in the "One::Two" package
+   say One::Two::x
 
-    # compiler fails and tells that "a" isn't declared in namespace "One::Two::Three"
-    say One::Two::Three::a
+   # Compiler fails and tells that "a" isn't declared in namespace "One::Two::Three"
+   say One::Two::Three::a
 }
 ```
 
@@ -269,14 +261,30 @@ fn incr(n) {
    state k = n
 
    return k if ++k == 9
-   __FUN__(nil)
+   __FN__(nil)
 }
 
-# output: 9
+# Output: 9
 say incr(5)
 ```
-A constant variable when declared is lexically scoped by default unless you
-explicitly indicate that it is a package variables.
+
+```
+# Output: 3, 11, 4, 12
+X: {
+   state x = 2
+   ++x
+   say x
+   {
+      state x = 10
+      ++x
+      say x
+   }
+   redo X if x == 3
+}
+```
+
+A constant variable when declared is lexically scoped by default unless you explicitly
+indicate that it is a package variables.
 
 ```
 # lexically scoped declaration of a constant
@@ -288,49 +296,40 @@ const our (x, y) = (2, 10)
 
 ## Special variables
 
-Some special variables are package variables(`p`) while others are
-lexically scoped(`l`). Also, some these variables are writable(`w`)
-while others are read-only(`r`).
+Some special variables are package variables (`p`) while others are lexically scoped (`l`).
+Also, some of these variables are writable (`w`) while others are read-only (`r`).
 
 ### Type I special variables
 
-We expand the content of a type I special variable using the sigil `$`.
-It is prohibited to declare a variable with a sigil, regardless of
-whether or not it corresponds to any of the following.
+We expand the content of a type I special variable using the sigil `$`. It is prohibited
+to declare a variable with a sigil, regardless of whether or not it is special.
 
 ```
 say "Running $0 on $OS"
 ```
-- `v`: **(r,p)** Maat version
-- `o`: **(r,p)** OS on which `Maat` was build
-- `,`: **(w,p)** cutput field separator
-- `/`: **(w,p)** input record separator, new line by default
-- `\`: **(w,p)** output record separator(it is what trails `print`), it is an empty string by default
-- `|`: **(w,p)** if true, do not wait when buffer is full, flush to the associated stream for every read/write operation
-- `"`: **(w,p)** separator char for arrays when interpolated in double-quoted strings and regexs
-- `$`: **(r,p)** pid of the current running process
-- `0`: **(r,p)** name of the executing program
-- `(`, `)`: **(r,w,p)** real and effective gid of the current process, only works on OS supporting membership
-- `<`, `>`: **(r,w,p)** real and effective uid of the current process
-- `f`: **(w,p)** an array object containing the result of `.split` when using maat's `-a`, `-n`, and `-F` CLI options
-
-- `*`: **(r,l)** id of the current maatine, unique to each maatine
-- `.`: **(r,l)** line number for the last accessed file handle, 
-
-- `!`: **(r)** retrieve errors from syscalls
+* `v`: **(r,p)** Maat version.
+* `o`: **(r,p)** OS on which `Maat` was build.
+* `,`: **(w,p)** Cutput field separator.
+* `/`: **(w,p)** Input record separator, new line by default.
+* `|`: **(w,p)** If true, do not wait when buffer is full, flush to the stream after every read/write operation.
+* `"`: **(w,p)** Separator char for arrays when interpolated in double-quoted strings and regexs.
+* `$`: **(r,p)** Pid of the current running process.
+* `0`: **(r,p)** Name of the executing program.
+* `(`, `)`: **(r,w,p)** Real and effective gid of the current process, only works on OS supporting membership.
+* `<`, `>`: **(r,w,p)** Real and effective uid of the current process.
+* `f`: **(w,p)** An array object containing the result of `.split` when using maat's `-a`, `-n`, and `-F` CLI options.
+* `*`: **(r,l)** Id of the current maatine, unique to each maatine.
+* `.`: **(r,l)** Line number for the last accessed file handle, .
+* `!`: **(r)** Retrieve errors from syscalls.
 
 ### Type II special variables
 
-Any of the following variables in the exception of `_` declared
-in your Maat code will abort the compilation process.
+* `_`: **(w,l)** Topic variable, lexically scoped.
 
-- `_`: **(w,l)** topic variable, lexically scoped
-
-A topic variable `_` is declared as a lexically scoped variable and
-assigned a value when topicalizing with `with`, `given`, `for` or
-anonymous functions having undeclared parameters. In contrary to
-Perl, `_` is lexically scoped which is important as Maat natively
-support concurrency. 
+A topic variable `_` is declared as a lexically scoped variable and assigned
+a value when topicalizing with `with`, `given`, `for` or anonymous functions
+having undeclared parameters. `_` is lexically scoped as Maat supports
+language threads called Maatines.
 
 ```
 for ^5 {
@@ -338,115 +337,181 @@ for ^5 {
 }
 ```
 
-However, there are exceptions, for example the above declaration of `_`
-will fail during compilation since it is already declared and used by
-the `for`-loop.
+The above declaration of `_` will fail during compilation since it was already
+auto-declared and used by the loop.
 
-- `ENV`: **(w,p)** a `Map` object which contains your current environment variables
-- `PATH`: **(w,p)** an `Array` object which contains the absolute path to directories where maat searches for modules
-- `INC`: **(w,p)** a `Map`, which map each imported module to their path location on disk
-- `SIG`: **(w,p)** for traping signals, map a signal name to a `Fun` object to be called when a triggered signal is trapped
-- `ARGV`: **(w,p)** an `Array` object containing command line arguments
-- `ARGC`: **(w,p)** a `Num` object representing the number of command line arguments
-- `DATA`: **(w,p)** represents a file handle to manipulate data under the `__DATA__` special token in your maat code
+* `ENV`: **(w,p)** A `Map` object containing your environment variables.
+* `PATH`: **(w,p)** An `Array` object containing the absolute path to directories where maat searches for modules.
+* `INC`: **(w,p)** A `Map`, which maps each imported module to their path location on disk.
+* `SIG`: **(w,p)** For traping signals, map a signal name to a `Fn` object to be called when a triggered signal is trapped.
+* `ARGV`: **(w,p)** An `Array` object containing command line arguments.
+* `ARGC`: **(w,p)** A `Num` object representing the number of command line arguments.
+* `DATA`: **(w,p)** Represents a file handle to manipulate data under the `___DATA___` special token in your maat code.
+* `__FILE__`: **(r,p)** A `Str` object, it is the name of the source file in which it occurs.
+* `__FN__`: **(r,l)** It returns the current function object if enclosed by it, otherwise, `nil`.
 
-- `__FILE__`: **(r,p)** a `Str` object, it is the name of the source file in which it occurs.
-- `__FUN__`: **(r,l)** it returns the current function object if enclosed by it, otherwise, `nil`.
-
-
-As any other non-constant package variable, all these writable package
-variables can be temporarized.
+As any other non-constant package variable, all the above package variables
+can be temporarized.
 
 ### Special token
 
-- `__DATA__`
+* `___DATA___`
 
-`__DATA__` is not a variable. Hmm... it is a special token you fit into your
+`___DATA___` is not a variable. Hmm... it is a special token you fit into your
 maat code right at the end so that whatever data following it can be obtained
 via a file handle in the special variable `DATA`.
 
 ```
-{
-    temp $/ = ''
-    say DATA.readline # outputs what follows __DATA__
-}
-__DATA__
-This is not code but rather
-data accessible via "DATA"
-This is a nice feature is from Perl
+temp $/
+
+# Outputs what follows ___DATA___
+DATA.readline.say
+
+___DATA___
+This is not code but rather data accessible via "DATA".
+This feature is taken from Perl.
 ```
 
 ## Constants
 
-- `π`: Pi
-- `ℇ`: Euler constant
-- `ℎ`: Planck constant
-- `ℏ`: Planck constant over 2 pi
+* `π`: Pi
+* `ℇ`: Euler constant
+* `ℎ`: Planck constant
+* `ℏ`: Planck constant over 2 pi
 
 ## Assignments
 
-You can use the accumulator and destructor operator in assignments, here
-are some examples which are self-documentary.
+What you first need to understand is that a list of expressions grouped with `()` is
+also an expression which evaluates all its inner expressions and leave on the stack
+returned the value of the the last evaluated one. A exception arises when we start
+grouping variables on the left where is per
+
+You can use the accumulator and destructor operator in assignments, here are some
+examples which I believe should be self-documentary.
 
 ```
 let (a, b, c, d, e, f)
 let array = [1, 2, 3, 4, 5]
 
-(a, b, c)  = 2, 10, -1, 5 # a: 2, b: 10, c: -1
-(a, b, c)  = array        # a: [1, 2, 3, 4, 5], b: nil, c: nil
-(a, b, c)  = [2, 4, 5]*   # a: 2, b: 4, c: 5
-(a, b, *c) = array*, 10   # a: 1, b: 2, c: [3, 4, 5, 10]
-(a,,b)     = array*       # a: 1, b: 3
+# Just map and discard the rests
+(a, b, c) = (2, 10, -1, 5) # a: 2, b: 10, c: -1
 
-# fails during compilation, only use '...' at the end
-(a, *b, c) = 2, 4, 5
+#
+(a, b, c) = array # a: [1, 2, 3, 4, 5], b: nil, c: nil
+
+# Destruct the array and map the result
+(a, b, c) = ([2, 4, 5]*) # a: 2, b: 4, c: 5 
+
+# Same but 'c' accumulates the rest in an array
+(a, b, *c) = (array*, 10) # a: 1, b: 2, c: [3, 4, 5, 10]
+
+# Map but discard the 2nd element in the list obtained after destruction
+(a,, b) = (array*) # a: 1, b: 3
+
+# 'b' is greedy as accumulates the rest and 'c' is 'nil'
+(a, *b, c) = (2, 4, 5) # a: 1, b: [4, 5], c: nil
+
+# Mutiple trailing ',' on the right side have no special effects
+(a, b, c) = (4,, 10, 12) # a: 4, b: 10, c: 12
+
+# '(a, b, c) = 2' then '10' then '-1' 
+(a, b, c) = 2, 10, -1, 5 # a: 2, b: nil, c: nil
+
+(a, b, c) = array* # a: 1, b: nil, c: nil
+
+(a, b) = array*, 10 # a: 1, b: nil
+
+(a, *c) = array* # a: 1, c: nil
+
+let a = (10, 3, -2, 5) # a: 5
+
+let a = 11, 4, -391 # a: 11
+
+let (a) = (10, 4, -3) # a: 10. just map and discard the rest
+
+# Just executing 'let a' then 'b' then 'c = (5, 9, -1)'
+let a, b, c = (5, 9, -1) # a: nil, b: nil, c: -1.
+
+let a, b = 5, 10 # a: nil, b: 5
+
+let a, b, c = 10, 39 # a: nil, 
+
+# Fails at compilation, use '*' once!
+(a, *b, *c) = 2, 4, 2, 4
+
+# Fails at compilation, use '*' when grouping
+a, *b, c = 2, 40
 
 (e, f) = (10, -1) # e: 10, f: -1
 (e, f) = (f, e)   # e: -1, f: 10
 ```
 
+
 # Types
 
-Maat has ... builtin objects, types are objects and objects are types, check
-details on each types here.
+Maat has ... builtin types, types are objects and objects are types.
 
-- [`Bool`](./types/Bool.md)
-- [`Num`](./types/Num.md)
-- [`Str`](./types/Str.md)
-- [`Range`](./types/Range.md)
-- [`Array`](./types/Array.md)
-- [`Map`](./types/Map.md)
-- [`Set`](./types/Set.md)
-- [`MSet`](./types/MSet.md)
-- [`Bag`](./types/Bag.md)
-- [`MBag`](./types/MBag.md)
-- [`Lazy`](./types/Lazy.md)
-- [`Fun`](./types/Fun.md)
-- [`GFun`](./types/GFun.md)
-- [`Regex`](./types/Regex.md)
-- [`Ma`](./types/Ma.md)
-- [`Co`](./types/Co.md)
-- [`Work`](./types/Work.md)
-- [`Chan`](./types/Chan.md)
-- [`Socket`](./types/Socket.md)
-- [`Socket::Work`](./types/Socket::Work.md)
-- [`Proc`](./types/Proc.md)
-- [`Proc::Work`](./types/Proc::Work.md)
-- [`Pipe`](./types/Pipe.md)
-- [`File`](./types/File.md)
-- [`Dir`](./types/Dir.md)
-- [`Date`](./types/Date.md)
-- [`Sys`](./types/Sys.md)
-- [`Term`](./types/Term.md)
+* [`Bool`](./types/Bool.md)
+* [`Num`](./types/Num.md)
+* [`Str`](./types/Str.md)
+* [`Range`](./types/Range.md)
+* [`Array`](./types/Array.md)
+* [`Map`](./types/Map.md)
+* [`Set`](./types/Set.md)
+* [`Bag`](./types/Bag.md)
+* [`Lazy`](./types/Lazy.md)
+* [`Fun`](./types/Fun.md)
+* [`GFun`](./types/GFun.md)
+* [`Regex`](./types/Regex.md)
+* [`Ma`](./types/Ma.md)
+* [`Co`](./types/Co.md)
+* [`Work`](./types/Work.md)
+* [`Chan`](./types/Chan.md)
+* [`Socket`](./types/Socket.md)
+* [`Socket::Work`](./types/Socket::Work.md)
+* [`Proc`](./types/Proc.md)
+* [`Proc::Work`](./types/Proc::Work.md)
+* [`Pipe`](./types/Pipe.md)
+* [`File`](./types/File.md)
+* [`Dir`](./types/Dir.md)
+* [`Date`](./types/Date.md)
+* [`Sys`](./types/Sys.md)
+* [`Term`](./types/Term.md)
+
+## Mutability Trait
+
+The mutability of an object can be set at the time of its allocation by using the immutable
+trait `:im`, this way of making an object immutable is very unusual but can be very useful
+in certain scenarios. Consider the following code:
+
+```
+our c :im = {
+    Burkina_Faso => '',
+    Niger        => '',
+    Mali         => '',
+}
+```
+
+This code declares a package variable `c` and assigns to it a map which is set immutable
+using the `:im` trait, please note that there's really nothing that relates the mutability
+of `c` to `:im` although `c` . If you intend to not modify a complex
+struture through out the execution of your program then think of using `:im` as it enhances
+the performance of your program by avoiding unnecessary needed to synchronize operations on
+that structure when your program is executing in a multi-threaded environment.
+
+So `:im` simply means that any object assigned to `c` must be set immutable and this is
+only possible if and only if the object 
 
 # Blocks and Flow Controls
 
-We separate statements with a generic newline or a semicolon in case we have
-more than one statement on a single line.
+We separate statements with a generic newline or a semicolon in case we have more than
+one statement on a single line.
 
 1. Blocks
 
-`[ LABEL: ] { CODE }`
+```
+block ::= [ LABEL: ] '{' CODE '}'
+```
 
 ```
 say 1
@@ -471,12 +536,12 @@ block: {
 2. The `do` statement
 
 ```
-do { CODE }
+do '{' CODE '}'
 do 'PATH/TO/A/MAAT/FILE'
 ```
 
-`do` runs the code from the passed block or file and returns the
-result of the last evaluated expression.
+`do` runs the code from the passed block or file and returns the result of the
+last evaluated expression.
 
 ```
 let v = do { 2 }
@@ -495,27 +560,23 @@ let x = do { 2 ** 4 } + 2
 
 ## Topic variables
 
-Maat does topicalization with flow control statements and anonymous
-functions a way similar to that in Perl and Raku. It is important to
-understand this now to avoid confusion when reading the below
-specification. Here, we'll focus on topicalization regarding flow
-controls and the one about functions will be exlpained later.
+Maat does topicalization with flow control statements and anonymous functions a way
+similar to that in Perl and Raku. It is important to understand this now to avoid
+confusion when reading the below specification. Here, we'll focus on topicalization
+regarding flow controls and the one about functions will be explained later.
 
-Topicalization? What is it? first appeared in Perl, topicalization
-is a technique used to apply a set of operations on one or a group
-of specific targets, it involves making the topic of operations more
-accessible in code. If not explicitly defined, a topic variable is
-represented by the type II special variable `_` which holds the
-current default or implied argument for certain operations. Topica-
-lization allows you to use this special variable implicitly or
-explicitly within your code to refer to the current topic without
-having to explicitly declare it as parameter to each operation.
-An example is using the default topic variable in an anynomous
-function which implicitly means the anonymous function take a single
-parameter and the default topic variable refers to it. Another
-example is using the default topic variable within the code of the
-`with` construct to implicitly refer to the return value of its
-conditional expression.
+Topicalization? What is it? first appeared in Perl, topicalization is a technique
+used to apply a set of operations on one or a group of specific targets, it
+involves making the topic of operations more accessible in code. If not explicitly
+defined, a topic variable is represented by the type II special variable `_` which
+holds the current default or implied argument for certain operations. Topicalization
+allows you to use this special variable implicitly or explicitly within your code
+to refer to the current topic without having to explicitly declare it as parameter
+to each operation.  An example is using the default topic variable in an anynomous
+function which implicitly means the anonymous function take a single parameter and
+the default topic variable refers to it. Another example is using the default topic
+variable within the code of the `with` construct to implicitly refer to the return
+value of its conditional expression.
 
 
 2. The `if` flow control statement
@@ -555,8 +616,8 @@ if x % 2 -> r {
 }
 ```
 
-`if` has a statement modifer form where EXPR does not get executed
-in a new scope.
+`if` has a statement modifer form where EXPR does not get executed in
+a new scope.
 
 ```
 say "one" if true
@@ -579,7 +640,7 @@ EXPR with EXPR
 Conditional `with` construct, parathensis are optional as always.
 
 `with` tests for definedness (that's `!nil`) whereas `if` tests for
-`truth`. Unlike the `if` construct, the `with` and `orwith` sets the
+truth. Unlike the `if` construct, the `with` and `orwith` sets the
 default topic variable `_` to the value returned by the their
 conditional expressions.
 
@@ -684,7 +745,7 @@ registers that method with its arguments so that it gets called
 for every lazy iteration.
 
 ```
-let a = [qw(nairobi niamey yaounde)]
+let a = @a(nairobi niamey yaounde)
 
 # "grep" and "map" got registered and they later on get called for every element in "a"
 for a.lazy
@@ -803,9 +864,9 @@ redo  [ LABEL ]
 use loop control statements to control the behavoir of loop
 and non-flow control blocks
 
-- `next`: just like `C`'s `continue` loop control statement
-- `break`: just like `C`'s `break` loop control statement
-- `redo`: to rerun current loop block without evaluating the conditional 
+* `next`: just like `C`'s `continue` loop control statement
+* `break`: just like `C`'s `break` loop control statement
+* `redo`: to rerun current loop block without evaluating the conditional 
 
 if the LABEL is omitted, the control statement refers to
 the innermost enclosing loop or non-flow control block.
@@ -836,7 +897,8 @@ TWO: {
 
 ```
 fn do_sleep(n) {
-    LOOP: for ^10 {
+    LOOP:
+    for ^10 {
         break LOOP when n
         .sleep
     }
@@ -855,7 +917,7 @@ it offers is freeing us from using a conditional construct to avoid
 the execution of a statement.
 
 ```
-let amap = {qw(one 1 two 2 three 3)}
+let amap = @m(one 1 two 2 three 3)
 
 amap.each_kv {|k,v|
     once say 'only once!'
@@ -1148,10 +1210,10 @@ class A :is(B, C) :does(D, E) {
 
 List of traits supported by attributes and methods
 
-- `rw`: Make attribute read-write
-- `ro`: Make attribute read-only
-- `built`: Make attribute private but can be set when instanciating
-- `oi`: Make method private to the class
+* `rw`: Make attribute read-write
+* `ro`: Make attribute read-only
+* `built`: Make attribute private but can be set when instanciating
+* `oi`: Make method private to the class
 
 To every object is associated a metaobject which permits object
 introspection, given a variable `obj` containing an abitrary
