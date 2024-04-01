@@ -94,31 +94,31 @@ This is the list of all operators supported by the Maat programming language.
 
 ## List of all operators from highest precedence to lowest
 
-* left        terms and list operators (leftward)
-* right       grouping operator `( )`
-* left        method call operator `.`
-* nonassoc    `++`, `--`, `√` and unary prefix `…` / `...`
-* right       `**`, `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`
-* right       `!`, `~`, `\` and unary `+` and `-`
-* left        `=~`, `!~`
-* left        `*`, `/`, `%`
-* left        `+`, `-`, `.`, `∘`
-* left        `∩`, `⊍`
-* left        `∪`,  `⊖`, `⊎`, `∖`
-* chained     `∈`, `∊`, `∉`, `∋`, `∍`, `∌`, `≡`, `≢`, `⊂`, `⊄`, `⊃`, `⊅`, `⊆`, `⊈`, `⊇`, `⊉`, `≼`, `≽`
-* left        `<<`, `>>`
-* nonassoc    named unary operators
-* nonassoc    `isa`
-* chained     `<`, `>`, `<=` / `≤`, `>=` / `≥`
-* chain/na    `==`, `!=`, `<=>`, `~~`
-* left        `&`
-* left        `|`, `^`
-* left        `&&`
-* left        `||`, `//`
-* nonassoc    `..`, lonely operator `…` / `...`
-* right       `?:`
-* right       `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`
-* list        `,`, `=>`
+* terms and list operators (leftward): left
+* grouping operator `( )`: right
+* method call operator `.`: left
+* `++`, `--`, `√` and unary prefix `…` / `...`: nonassoc
+* `**`, `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`: right
+* `!`, `~`, `\` and unary `+` and `-`: right
+* `=~`, `!~`: left
+* `*`, `/`, `%`: left
+* `+`, `-`, `.`, `∘`: left
+* `∩`, `⊍`: left
+* `∪`,  `⊖`, `⊎`, `∖`: left
+* `∈`, `∊`, `∉`, `∋`, `∍`, `∌`, `≡`, `≢`, `⊂`, `⊄`, `⊃`, `⊅`, `⊆`, `⊈`, `⊇`, `⊉`, `≼`, `≽`: chained
+* `<<`, `>>`: left
+* named unary operators: nonassoc
+* `isa`: nonassoc
+* `<`, `>`, `<=` / `≤`, `>=` / `≥`: chained
+* `==`, `!=`, `<=>`, `~~`: chain/na
+* `&`: left
+* `|`, `^`: left
+* `&&`: left
+* `||`, `//`: left
+* `..`, lonely operator `…` / `...`: nonassoc
+* `?:`: right
+* `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`: right
+* `,`, `=>`: list
 
 # Comments
 
@@ -182,15 +182,15 @@ and regex operators.
 
 ```
 # same as ['ONE', 'TWO', 'THREE']
-let a = @a|ONE TWO THREE|
-a.each: .lc.say
+let a = @a|ONE TWO THREE|;
+a.each: .lc.say;
 
-say @q/interpolation won't work/
+say @q/interpolation won't work/;
 
-say "interpolation works, array: #{a}"
+say "interpolation works, array: #{a}";
 
 # [ "0ne", "Tw0" ]
-a.grep({|x| x =~ m|o|i }).map(:s|o|0|r).map(:.ucfirst).say
+a.grep({|x| x =~ m|o|i }).map(:s|o|0|r).map(:.ucfirst).say;
 ```
 
 The `|`s in `|x|` has nothing to do with single character delimiters, it part of
@@ -224,31 +224,31 @@ with `let` and temporary variables with `temp`.
 
 ```
 package One::Two {
-   our x = ['one', 'two', 'three']
+   our x = ['one', 'two', 'three'];
 
-   let a = {one => 1}
+   let a = {one => 1};
    {
       # a: {one => 1, two => 2}
-      let a += {two => 2}
+      let a += {two => 2};
 
       # Could still use "One::Two::x" at declaration
-      temp x = {}
+      temp x = {};
       # empty hash
-      say One::Two::x
+      say One::Two::x;
    }
 
    # Output: {one => 1}
-   a.say
+   a.say;
    # Output: ['one', 'two', 'three']
-   x.say
+   x.say;
 }
 
 package One::Two::Three {
    # Refers to the package variable "x" declared in the "One::Two" package
-   say One::Two::x
+   say One::Two::x;
 
    # Compiler fails and tells that "a" isn't declared in namespace "One::Two::Three"
-   say One::Two::Three::a
+   say One::Two::Three::a;
 }
 ```
 
@@ -258,28 +258,28 @@ variables with the `state` keyword.
 
 ```
 fn incr(n) {
-   state k = n
+   state k = n;
 
-   return k if ++k == 9
-   __FN__(nil)
+   return k if ++k == 9;
+   __FN__(nil);
 }
 
 # Output: 9
-say incr(5)
+say incr(5);
 ```
 
 ```
 # Output: 3, 11, 4, 12
 X: {
-   state x = 2
-   ++x
-   say x
+   state x = 2;
+   ++x;
+   say x;
    {
-      state x = 10
-      ++x
-      say x
+      state x = 10;
+      ++x;
+      say x;
    }
-   redo X if x == 3
+   redo X if x == 3;
 }
 ```
 
@@ -288,10 +288,10 @@ indicate that it is a package variables.
 
 ```
 # lexically scoped declaration of a constant
-const z = 4
+const z = 4;
 
 # constant package variables
-const our (x, y) = (2, 10)
+const our (x, y) = (2, 10);
 ```
 
 ## Special variables
@@ -362,7 +362,7 @@ maat code right at the end so that whatever data following it can be obtained
 via a file handle in the special variable `DATA`.
 
 ```
-temp $/
+temp $/;
 
 # Outputs what follows ___DATA___
 DATA.readline.say
@@ -390,60 +390,60 @@ You can use the accumulator and destructor operator in assignments, here are som
 examples which I believe should be self-documentary.
 
 ```
-let (a, b, c, d, e, f)
-let array = [1, 2, 3, 4, 5]
+let (a, b, c, d, e, f);
+let array = [1, 2, 3, 4, 5];
 
 # Just map and discard the rests
-(a, b, c) = (2, 10, -1, 5) # a: 2, b: 10, c: -1
+(a, b, c) = (2, 10, -1, 5); # a: 2, b: 10, c: -1
 
 #
-(a, b, c) = array # a: [1, 2, 3, 4, 5], b: nil, c: nil
+(a, b, c) = array; # a: [1, 2, 3, 4, 5], b: nil, c: nil
 
 # Destruct the array and map the result
-(a, b, c) = ([2, 4, 5]*) # a: 2, b: 4, c: 5 
+(a, b, c) = ([2, 4, 5]*); # a: 2, b: 4, c: 5 
 
 # Same but 'c' accumulates the rest in an array
-(a, b, *c) = (array*, 10) # a: 1, b: 2, c: [3, 4, 5, 10]
+(a, b, *c) = (array*, 10); # a: 1, b: 2, c: [3, 4, 5, 10]
 
 # Map but discard the 2nd element in the list obtained after destruction
-(a,, b) = (array*) # a: 1, b: 3
+(a,, b) = (array*); # a: 1, b: 3
 
 # 'b' is greedy as accumulates the rest and 'c' is 'nil'
-(a, *b, c) = (2, 4, 5) # a: 1, b: [4, 5], c: nil
+(a, *b, c) = (2, 4, 5); # a: 1, b: [4, 5], c: nil
 
 # Mutiple trailing ',' on the right side have no special effects
-(a, b, c) = (4,, 10, 12) # a: 4, b: 10, c: 12
+(a, b, c) = (4,, 10, 12); # a: 4, b: 10, c: 12
 
 # '(a, b, c) = 2' then '10' then '-1' 
-(a, b, c) = 2, 10, -1, 5 # a: 2, b: nil, c: nil
+(a, b, c) = 2, 10, -1, 5; # a: 2, b: nil, c: nil
 
-(a, b, c) = array* # a: 1, b: nil, c: nil
+(a, b, c) = array*; # a: 1, b: nil, c: nil
 
-(a, b) = array*, 10 # a: 1, b: nil
+(a, b) = array*, 10; # a: 1, b: nil
 
-(a, *c) = array* # a: 1, c: nil
+(a, *c) = array*; # a: 1, c: nil
 
-let a = (10, 3, -2, 5) # a: 5
+let a = (10, 3, -2, 5); # a: 5
 
-let a = 11, 4, -391 # a: 11
+let a = 11, 4, -391; # a: 11
 
-let (a) = (10, 4, -3) # a: 10. just map and discard the rest
+let (a) = (10, 4, -3); # a: 10. just map and discard the rest
 
 # Just executing 'let a' then 'b' then 'c = (5, 9, -1)'
-let a, b, c = (5, 9, -1) # a: nil, b: nil, c: -1.
+let a, b, c = (5, 9, -1); # a: nil, b: nil, c: -1.
 
-let a, b = 5, 10 # a: nil, b: 5
+let a, b = 5, 10; # a: nil, b: 5
 
-let a, b, c = 10, 39 # a: nil, 
+let a, b, c = 10, 39; # a: nil, 
 
 # Fails at compilation, use '*' once!
-(a, *b, *c) = 2, 4, 2, 4
+(a, *b, *c) = 2, 4, 2, 4;
 
 # Fails at compilation, use '*' when grouping
-a, *b, c = 2, 40
+a, *b, c = 2, 40;
 
-(e, f) = (10, -1) # e: 10, f: -1
-(e, f) = (f, e)   # e: -1, f: 10
+(e, f) = (10, -1); # e: 10, f: -1
+(e, f) = (f, e);  # e: -1, f: 10
 ```
 
 
@@ -489,7 +489,7 @@ our c :im = {
     Burkina_Faso => '',
     Niger        => '',
     Mali         => '',
-}
+};
 ```
 
 This code declares a package variable `c` and assigns to it a map which is set immutable
@@ -514,22 +514,22 @@ block ::= [ LABEL: ] '{' CODE '}'
 ```
 
 ```
-say 1
-say 2; say 3
+say 1;
+say 2; say 3;
 { say 1 }; { say 4 }
 
 {
-    say "one"
+    say "one";
     { say "two" }
 
     # recall the current block
-    _BLOCK_
+    _BLOCK_;
 }
 
 block: {
-    state x = 2
-    say x++
-    redo block if x < 20
+    state x = 2;
+    say x++;
+    redo block if x < 20;
 }
 ```
 
@@ -544,18 +544,18 @@ do 'PATH/TO/A/MAAT/FILE'
 last evaluated expression.
 
 ```
-let v = do { 2 }
+let v = do { 2 };
 
 # output: 2
-say v
+say v;
 
 # output: 3
-(do { 3 }).say
+(do { 3 }).say;
 
-do { false } || die "failed"
+do { false } || die "failed";
 
 # x: 18
-let x = do { 2 ** 4 } + 2
+let x = do { 2 ** 4 } + 2;
 ```
 
 ## Topic variables
@@ -600,19 +600,19 @@ variable `_`.
 if true { say "it is true" }
 
 if 0 {
-    say "you are a failure"
+    say "you are a failure";
 }
 elsif false {
-    say "still a failure, go away!!"
+    say "still a failure, go away!!";
 }
 else {
-    say "welcome my man!"
+    say "welcome my man!";
 }
 
 
-let x = Num.rand(120)
+let x = Num.rand(120);
 if x % 2 -> r {
-    say "remainder is #{r}"
+    say "remainder is #{r}";
 }
 ```
 
@@ -620,11 +620,11 @@ if x % 2 -> r {
 a new scope.
 
 ```
-say "one" if true
+say "one" if true;
 
-let k = 2 if 1
+let k = 2 if 1;
 # output: 2
-k.say
+k.say;
 ```
 
 3. The `with` flow control
@@ -645,7 +645,7 @@ default topic variable `_` to the value returned by the their
 conditional expressions.
 
 ```
-let (u, y) = 5, nil
+let (u, y) = 5, nil;
 
 with u { say "defined, see: #{_}" }
 
@@ -658,14 +658,14 @@ else              { say "and never here too" }
 The `with` statement avoid you from doing the following
 
 ```
-let x = (y + 1) / 2
+let x = (y + 1) / 2;
 with x { .say }
 ```
 
 But simple do
 
 ```
-with (y + 1) / 2  { .say }
+with (y + 1) / 2 { .say }
 ```
 
 Its statement modifer form.
@@ -677,7 +677,7 @@ Its statement modifer form.
 ```
 # output: 2 4 4 8
 for 4, 8 {
-    let k = _ with _ / 2
+    let k = _ with _ / 2;
     say k / _
 }
 ```
@@ -701,15 +701,15 @@ Here are examples of iterations over a comma seperated list of values
 # three iterations
 for "a", r/regex/, [2, 4] { .say }
 
-let ar = [ qw<one two three four five> ]
+let ar = [ qw<one two three four five> ];
 
 # trailing comma to indicate it is a list and thus only one iteration
 for ar, { .say }
 # or
-.say for (ar,)
+.say for (ar,);
 # and not this otherwise you get something weird if what follows "," can be
 # evaluated by the for loop or compiler bails out if it does not make sense
-.say for ar,
+.say for ar,;
 
 ---
 We have a.len + 1 iterations, the array destruction operator is used to
@@ -790,7 +790,7 @@ given 34 {
 For topicalization, you can also use `given` as a standalone statement
 
 ```
-let x = [2, 5]
+let x = [2, 5];
 given x {
     say "variable x has two elements" if .len == 2
 }
@@ -811,7 +811,7 @@ loop let k = 0; k ≤ 20; k² { k.say }
 
 # you can skip some parts
 loop let k = 0;;k++ {
-    k.say
+    k.say;
     break if k == 10
 }
 
@@ -823,15 +823,15 @@ loop { say "looping forever" }
 The basic `while` and `until` loop.
 
 ```
-let k = 6
+let k = 6;
 
 while k > 1 {
-    k.say
-    k--
+   k.say;
+   k--;
 }
 
 until k == 0 {
-    say "not entering here"
+   say "not entering here";
 }
 ```
 
@@ -844,13 +844,13 @@ do { CODE } until COND
 ```
 
 ```
-let k = Set.new(2, 4, 5)
-let b = [2, 7, 3]
+let k = Set.new(2, 4, 5);
+let b = [2, 7, 3];
 
-do k.push(b.pop) while [2, 7] ∉ k
+do k.push(b.pop) while [2, 7] ∉ k;
 
 do {
-    say "forever"
+   say "forever"
 } until false;
 ```
 
@@ -879,19 +879,19 @@ perform jumps using control statements like `redo`, `break` and `next`.
 ```
 # an infinite loop with prints "one"
 ONE: {
-    say "one"
+    say "one";
     redo ONE
 }
 
 # print "two" to the stdout and repeatly print "three"
 TWO: {
-    say "two"
+    say "two";
     THREE: {
-        say "three"
-        redo THREE
+        say "three";
+        redo THREE;
     }
     # dead code
-    say "never gonna be executed"
+    say "never gonna be executed";
 }
 ```
 
@@ -899,7 +899,7 @@ TWO: {
 fn do_sleep(n) {
     LOOP:
     for ^10 {
-        break LOOP when n
+        break LOOP when n;
         .sleep
     }
 }
@@ -917,11 +917,11 @@ it offers is freeing us from using a conditional construct to avoid
 the execution of a statement.
 
 ```
-let amap = @m(one 1 two 2 three 3)
+let amap = @m(one 1 two 2 three 3);
 
 amap.each_kv {|k,v|
-    once say 'only once!'
-    printf "%s => %d\n", k, v
+    once say 'only once!';
+    printf "%s => %d\n", k, v;
 }
 ```
 
@@ -989,7 +989,7 @@ Here we are declaring an anonymous function which takes a single
 parameter and then call it.
 
 ```
-let sleep = {|x| x.sleep; say "slept for #x seconds" }
+let sleep = {|x| x.sleep; say "slept for #x seconds" };
 sleep.call(5)
 ```
 
@@ -997,7 +997,7 @@ You can use the other syntax if your anonymous function is just a
 single expression. `__FUNC__` does not work here!
 
 ```
-let sleep = :5.sleep
+let sleep = :5.sleep;
 sleep.call
 ```
 
@@ -1013,17 +1013,17 @@ It is possible to omit `_` when calling a method on the content of a topic
 variable.
 
 ```
-let anony = { say _.Str * 2 }
+let anony = { say _.Str * 2 };
 
 # output: tanzaniatanzania
-anony.call("tanzania")
+anony.call("tanzania");
 
 # Err: takes only one arg as the topic let is used in anony
-anony.call("a", "b")
+anony.call("a", "b");
 
 # .ucfirst is the same as _.ucfirst
-let ar = @h(tcheukam madjou monthe)
-say ar.map(:.ucfirst)
+let ar = @h(tcheukam madjou monthe);
+say ar.map(:.ucfirst);
 ```
 
 The usage of the default topic variable in an anonymous function having
@@ -1035,7 +1035,7 @@ thus the default topic variable refers to the one from the outer scope.
 
 ```
 # output: 88888888 666666 666666
-ar.map(:.len).each { .times { .print } }
+ar.map(:.len).each { .times { .print } };
 ```
 
 Maat has support for multiple dispatching and named arguments. Mixing named
@@ -1044,7 +1044,7 @@ either you name all your arguments or you don't name anything at all.
 
 ```
 fn call(c, n) { c.call(_) for ^n }
-call({ .say }, 5)
+call({ .say }, 5);
 
 mul fn who(name, age) {
     say "Hello, my name is #name, I'm #{age}yo"
@@ -1054,18 +1054,18 @@ mul fn who(name) {
     say "Hello, my name is #name!"
 }
 
-who("kueppo", 20)
-who("madjou")
-who(age => 5, name => liza)
+who("kueppo", 20);
+who("madjou");
+who(age => 5, name => liza);
 
 # no candidates for this and thus fails at compile time
-who(age => 10)
+who(age => 10);
 
 fn mul(s, k) { s * k }
 fn mul(s)    { s * 2 }
 
-mul("one").say    # output: oneone
-mul("two", 5).say # output: twotwotwotwo
+mul("one").say;    # output: oneone
+mul("two", 5).say; # output: twotwotwotwo
 ```
 
 Maat has what we call an accumulator operator, this accumulator operator
@@ -1081,8 +1081,8 @@ fn count(name, *counts) {
     printf "You have %d %ss\n", counts.len > 0 ? counts.sum : 0, name
 }
 
-count("pineaple", 2, 4, 10) # output: You have 16 pineaples
-count("orange")             # output: You have 0 oranges
+count("pineaple", 2, 4, 10); # output: You have 16 pineaples
+count("orange");             # output: You have 0 oranges
 
 fn sum(*ar) { ar.sum }
 
@@ -1101,15 +1101,15 @@ to the compiler.
 
 ```
 # fails at compile time
-{ .say }.call(20)
+{ .say }.call(20);
 ```
 
 But this works
 
 ```
-Fn.new({ .say }).call(20)
-(:.say).call(20)
-fn { .say }.call(20)
+Fn.new({ .say }).call(20);
+(:.say).call(20);
+fn { .say }.call(20);
 ```
 
 ## Traits
@@ -1132,14 +1132,14 @@ is an iterable object where each iteration resumes from where the generator
 function was paused by a `take` call.
 
 ```
-fn factors(n) {
-    let k = 1
+fn factors(n) :gen {
+    let k = 1;
 
     while k ** 2 < n {
-        take k, n.div(k) if n % k 
-        k++
+        take k, n.div(k) if n % k;
+        k++;
     }
-    take k if k ** 2 == n
+    take k if k ** 2 == n;
 }
 
 .say for factors(36)
@@ -1178,15 +1178,15 @@ class C { ... }
 # "is" for inheritance and "does" for roles
 class A :is(B, C) :does(D, E) {
     # read-only attribute, ro: say A.x; not possible: A.x = "some value"
-    has x :ro   
+    has x :ro;
 
     # read-write attribute with default value '0', write: A.y = 2; read: say A.y
-    has y :rw = 0
+    has y :rw = 0;
 
-    has z
+    has z;
 
     # static variable which is accessible to all objects via class 'A': A.count
-    state count = 0
+    state count = 0;
 
     # static method (A.m()), self isn't valid here as with static variables
     state meth m() {
@@ -1212,7 +1212,7 @@ List of traits supported by attributes and methods
 
 * `rw`: Make attribute read-write
 * `ro`: Make attribute read-only
-* `built`: Make attribute private but can be set when instanciating
+* `built`: Make attribute private but can be set at instanciation
 * `oi`: Make method private to the class
 
 To every object is associated a metaobject which permits object
@@ -1221,9 +1221,9 @@ object, this object can be introspected via its metaobject by
 using the `.^` method call operator.
 
 ```
-obj.^who      # returns the class from which obj was instanciated
-obj.^name     # name of the class from which the object was instantiated
-obj.^methods  # 
+obj.^who;      # returns the class from which obj was instanciated
+obj.^name;     # name of the class from which the object was instantiated
+obj.^methods;  # 
 ```
 
 # Roles
@@ -1286,11 +1286,11 @@ its updated status and result with the `status` and `done` methods
 respectively.
 
 ```
-let w = Work.new   # new Work object
-say w.status       # output: Do
-w.done("I'm done")
-say w.status       # output: Done
-say w.result       # output: I'm done
+let w = Work.new;   # new Work object
+say w.status;       # output: Do
+w.done("I'm done");
+say w.status;       # output: Done
+say w.result;       # output: I'm done
 ```
 
 You can return a Work that is already done with the static `done`
@@ -1298,8 +1298,8 @@ method and you can also return a work that has already failed with
 the `failed` method.
 
 ```
-Work.done.status.say   # output: Done
-Work.failed.status.say # output: Failed
+Work.done.status.say;   # output: Done
+Work.failed.status.say; # output: Failed
 ```
 
 We can chain Works just like you do with Promises in Javascript
@@ -1322,9 +1322,9 @@ let w = Work.does({ sleep 4; 10 })
             .catch({|e| say "Catched: #{e}" })
             .then({ say "My handler is the one above"; _ + 2 })
             .then({(|r| say "Mine is below"; r - 2 })
-            .catch({|e| warn "Couldn't sub 2 from 12? ans: #{e}" })
+            .catch({|e| warn "Couldn't sub 2 from 12? ans: #{e}" });
 
-say abide w # output: 10
+say abide w; # output: 10
 ```
 
 To abide a work say `w` with function `abide` is to call the method `.result`
@@ -1338,7 +1338,7 @@ life :).
 
 ```
 Work.for(5)
-    .then({ say "Previous work was to sleep 5 seconds" })
+    .then({ say "Previous work was to sleep 5 seconds" });
 ```
 
 The above is kinda similar to this one and both of them can be used to
@@ -1346,7 +1346,7 @@ build timers.
 
 ```
 Work.does(:5.sleep)
-    .then(:…)
+    .then(:…);
 ```
 
 You can also set a work to do work by waiting til a specified time
@@ -1354,7 +1354,7 @@ using the `.til` static method
 
 ```
 Work.til(Date.now + 10)
-    .then(:say "Previous work is done at ", _ )
+    .then(:say "Previous work is done at ", _);
 ```
 
 You can use the `Work.allof` method to return a new Work object that
@@ -1363,10 +1363,10 @@ or `Failed`. The value return by `.result` method call on the returned
 work object is always `true` and practically useless.
 
 ```
-let k = ^5.map {|i| Work.does(:sleep i) }
+let k = ^5.map {|i| Work.does(:sleep i) };
 
 Work.allof(k)
-    .then: k.map(:.result).sum.say
+    .then: k.map(:.result).sum.say;
 ```
 
 See section on the [Work](./types/Work.md) type for more information.
@@ -1381,11 +1381,6 @@ Maatines across OS threads.
 See section on the [Ma](./types/Ma.md) type for more information.
 
 # Packages
-
-```
-```
-
-# Phasers
 
 ```
 ```
