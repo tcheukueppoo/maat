@@ -1,169 +1,198 @@
-# Syntax Of The Maat Programming Language
+# "Syntax" Of "The" Maat "Programming" Language
 
-* `{X}` stands for 0 or more of `X`
-* `[X]` implies `X` is optional
-* `|` stands for alternation
-* `(X)` for grouping, `X` is considered a single unit
+* `{X}` "stands" for "0" or "more" of `X`
+* `["X"]` "implies" `X` "is" optional
+* `|` "stands" for alternation
+* `(X)` "for" grouping, `X` "is" considered "a" single unit
 
 ```
-<block> ::= '{' {<stat>} '}'
+Block = "{" { Stat } "}" .
 
-<stat> ::=   <sep>
-           | <exp_list>
-           | <label>
-           | (break | next | redo | goto) [<name> | <loop_id>]
-           | <package_def>
-           | <var_def>
-           | <package_def>
-           | <func_def>
-           | <class_def>
-           | <role_def>
-           | <stat_modifier>
-           | <any_var_assign>
-           | <loops>
-           | <flows>
-           | use <ns_name> ['(' [<symbol> {',' <symbol>}] ')']
-           | load <string_literal>
-           | try <block> {catch <> <block>} [finally <block>]
-           | defer (<exp_list> | <block>)
-           | <unimplemented>
+Stat =   separator 
+       | unimpl
+       | ExpList
+       | Label
+       | StatMod
+       | Loop
+       | LoopCtrl
+       | Flow
+       | Defer 
+       | Try
+       | Use
+       | Load .
 
-<unimplemented> ::= '…' | '...'
-<sep>           ::= ';' | <new_line> | <generic_new_line>
+ExpList = Exp { Commas Exp } { "," } .
 
-<exp_list> ::= <exp> {<commas> <exp> {','}}
+Commas = "," { "," } .
 
-<commas> ::= ',' {','}
+Label = name ":" .
 
-<label> ::= <name> ':'
+Defer = "defer" ( Exp | Block ) .
 
-<package_def> ::= package <ns_name> [<block>]
+Try = "try" Block { "catch" Exp Block } [ "finally" Block ] .
 
-<var_def>         ::= <lex_var_def> | <package_var_def> | <state_var_def> | <tmp_var>
-<lex_var_def>     ::= let   <var_assign>
-<package_var_def> ::= our   <var_assign>
-<state_var_def>   ::= state <var_assign>
-<tmp_var>         ::= temp  <any_var_assign>
+Use = "use" namespace [ "(" [ name { "," name } ] ")" ] .
 
-<var_assign>     ::= ('(' <var_list>     {','} ')' | <var>    ) '=' <exp>
-<any_var_assign> ::= ('(' <any_var_list> {','} ')' | <any_var>) '=' <exp>
+Load = "load" StringLiteral .
 
-<any_var>            ::= <fq_package_var> | <lex_or_package_var> | <special_var>
-<lex_or_package_var> ::= <name>
-<special_var>        ::= '$' <name>
+Def =   Class
+      | Role
+      | Func
+      | VarDef
+      | Package .
 
-<var_list> ::=   <var__> <star_var> <__var>
-               | <var> {<__var>}
-               | <star_var> {<__var>}
-               | {<var__>} <star_var>
+Package = "package" namespace [ Block ] .
 
-<any_var_list> ::=   <any_var__> <star_any_var> <__any_var>
-                   | <any_var> {<__any_var>}
-                   | <star_any_var> {<__any_var>}
-                   | {<any_var__>} <star_any_var>
+VarDef = ( [ "const" ] ( [ scope ] | "state" ) LexNames | "const" LexNames | "temp" AnyNames ) [ EqExp ] .
 
-<star_var> ::= '*' <var>      [<trait_immut>]
-<__var>    ::= <commas> <var> [<trait_immut>]
-<var__>    ::= <var>          [<trait_immut>] <commas> 
+EqExp = "=" Exp .
 
-<trait_immut> ::= ':' im
+LexNames = "(" LexNameList { "," } ")" | name .
 
-<star_any_var> ::= '*' <any_var>      [<trait_immut>]
-<__any_var>    ::= <commas> <any_var> [<trait_immut>]
-<any_var__>    ::= <any_var>          [<trait_immut>] <commas>
+LexNameList =   Name__ StarName __Name
+              | name { __Name }
+              | StarName { __Name }
+              | { Name__ } StarName .
 
-<flows> ::=   given <exp_list> [<topic_var>] <block>
-            | if    <exp_list> [<topic_var>] <block> {elseif <exp_list> [<topic_var>] <block>} [else <block>]
-            | with  <exp_list> [<topic_var>] <block> {orwith <exp_list> [<topic_var>] <block>} [else <block>]
+StarName = "*" name    [ immut ] .
+__Name   = Commas name [ immut ] .
+Name__   = name        [ immut ] Commas .
 
-<topic_var> ::= '->' <var>
-<var>       ::= <name>
+AnyNames = "(" AnyNameList { "," } ")" | any_name .
 
-<stat_modifier> ::= <exp_list> (if | unless | when | given | for | until | while) <exp_list>
+AnyNameList =   any_name StarAnyName __AnyName
+              | any_name { __AnyName }
+              | StarAnyName { __AnyName }
+              | { AnyName__ } StarAnyName .
 
-<loops> ::=   for   <exp_list> [<topic_vars>]                        <block>
-            | while <exp_list>                                       <block>
-            | until <exp_list>                                       <block>
-            | loop  [[<exp_list>] ';' [<exp_list>] ';' [<exp_list>]] <block>
+StarAnyName = "*" any_name    [ immut ] .
+__AnyName   = Commas any_name [ immut ] .
+AnyName     = any_name        [ immut ] Commas .
 
-<topic_vars> ::= '->' <var> ['=' <exp>] {',' <var> ['=' <exp>]}
+Flow =   "given" ExpList [ TopicVar ] Block
+       | "if"    ExpList [ TopicVar ] Block { elseif ExpList [ TopicVar ] Block } [ else Block ]
+       | "with"  ExpList [ TopicVar ] Block { orwith ExpList [ TopicVar ] Block } [ else Block ] .
 
-<func_def> ::= [mul] fn <name> ['(' [<func_args>] ')'] [':' (save | gen)] <func_body>
+TopicVar = "->" name .
 
-<func_args> ::=   <norm_arg> {',' <norm_arg>} [',' <star_arg>] [',' <2star_arg>]
-                | <star_arg> ',' <2star_arg>
-                | <star_arg>
-                | <2star_arg>
+StatMod = ExpList ( conditional_keyword | loop_keyword ) ExpList .
 
-<norm_arg>  ::= <var> [('=' | '=//') <exp>]
-<star_arg>  ::= <star_var>
-<2star_arg> ::= '*' <star_arg>
-<func_body> ::= <block>
+Loop =   "for"   ExpList [ TopicVars ]                           Block
+       | "while" ExpList                                         Block
+       | "until" ExpList                                         Block
+       | "loop"  [ [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] ] Block .
 
-<class_def>           ::= [<scope>] class <name> [<class_rel_and_trait>] <class_body>
-<class_rel_and_trait> ::=   <class_rel> <trait_main>
-                          | <trait_main> <class_rel>
-                          | <class_rel>
-                          | <trait_main>
+LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
 
-<class_rel>     ::= ':' (is | does) '(' [<rel_args>] ')'
-<rel_args>      ::= <name__ns_name> {',' <name__ns_name>}
-<name__ns_name> ::= <name> | <ns_name>
+TopicVars = "->" name [ EqExp ] { "," name [ EqExp ] } .
 
-<trait_main> ::= ':' m
+Func = [ "const" ] [ scope ] [ "mul" ] "fn" name [ "(" [ FuncArgs ] ")" ] [ ":save" | ":gen" ] FuncBody .
 
-<scope> ::= let | our
+FuncArgs =   NormArg { "," NormArg } [ "," StarArg ] [ "," SStarArg ]
+           | StarArg "," SStarArg
+           | StarArg
+           | SStarArg .
 
-<class_body> ::= '{' ({(<class_attr_def> | <state_var_def> | <lex_var_def>)} {<method_def>} | <unimplemented>) '}'
+NormArg  = name [ ( "=" | "=//" ) Exp ] .
+StarArg  = StarName .
+SStarArg = "*" StarArg .
+FuncBody = Block .
 
-<class_attr_def> ::= has <name> [':' (rw | ro | built)] ['=' <expr>]
+Class            = [ "const" ] [ scope ] "class" name [ ClassRelAndTrait ] ClassBody
+ClassRelAndTrait =   ClassRel main
+                   | main ClassRel
+                   | ClassRel
+                   | main .
 
-<method_def>  ::= [mul] meth ['(' [<func_args>] ')'] [':' io] <method_body>
-<method_body> ::= <func_body>
+ClassRel     = (  ":is(" | ":does("  ) [ RelArgs ] ")"
+RelArgs      = NameOrFqName { "," NameOrFqName } .
+NameOrFqName = name | fq_name .
 
-<role_def>           ::= [<scope>] role <name> [<role_rel_and_trait>]  <role_body>
-<role_rel_and_trait> ::=   <role_rel> <trait_main>
-                         | <trait_main> <role_rel>
-                         | <trait_main>
-                         | <role_rel>
 
-<role_rel> ::= ':' does '(' [<rel_args>] ')'
+ClassBody = "{" ( { ( ClassAttr | ValidInClassStat ) } { ( Method | ValidInClassStat ) } | uimpl ) "}" .
 
-<role_body> ::= <class_body>
+ClassAttr = "has" name [ ":rw" | ":ro" | ":built" ] [ EqExp ] .
 
-<exp> ::=   <nil>
-          | <boolean>
-          | <number>
-          | <string_literal>
-          | <regex_literal>
-          | <anonymous_func>
-          | <map>
-          | <array>
-          | <exp> <infix_op> <exp>
-          | <exp> <postfix_op>
-          | <prefix_op> <exp>
-          | <stat_exp>
+ValidInClassStat =   Def
+                   | StatMod
+                   | Loop
+                   | Flow
+                   | Defer
+                   | Try
+                   | ExpList .
 
-<nil> ::= nil
+Method     = [ "mul" ] "meth" [ "(" [ FuncArgs ] ")" ] [ ":io" ] MethodBody .
+MethodBody = FuncBody .
 
-<boolean> ::= true | false
+Role            = [ "const" ] [ scope ] "role" name [ RoleRelAndTrait ] RoleBody .
+RoleRelAndTrait =   RoleRel main
+                  | main RoleRel
+                  | main
+                  | RoleRel .
 
-<number> ::=
+RoleRel = ":does(" [ RelArgs ] ")" .
 
-<regex_literal> ::= '@r'  | '/' <> '/'
+RoleBody = ClassBody .
 
-<anonymous_func> ::= [fn] '{' ['|' <func_args> '|'] {<stat>} '}' | ':' <exp>
+Exp =   nil
+      | boolean
+      | number
+      | string_literal
+      | regex_literal
+      | AnonymousFunc
+      | Array
+      | Map
+      | VarDef
+      | Exp infix_op Exp
+      | Exp postfix_op
+      | prefix_op Exp
+      | StatExp
+      |
 
-<string_literal> ::= <single_quoted> | <double_quoted> | <back_quoted>
+AnonymousFunc = [ "fn" ] "{" [ "|" FuncArgs "|" ] { Stat } "}" | ":" Exp .
 
-<map> ::= '{' '}' | '@m'
+Map = DefaultArray | QuotedMap .
 
-<array> ::= '[' {<exp>} ']' | '@a' <> <>
+Array = DefaultArray | QuotedArray .
 
-<stat_exp> ::= <stat_prefix> <>
+StatExp = StatPrefix <>
 
-<exp_group> ::=
+ExpGroup =
 
+/* Lexical tokens */
+
+separator = ";" .
+
+unimpl = "…" | "..." .
+
+immut = ":im" .
+main  = ":m" .
+
+nil     = "nil" .
+boolean = "true" | "false" .
+
+number =
+
+scope               = "let" | "our" .
+loop_keyword        = "for" | "until"  | "while" .
+conditional_keyword = "if"  | "unless" | "when" | "given" .
+
+name        = 
+_namespace  = name { "::" name } .
+namespace   = "::" name | name "::" _namespace .
+fq_name     = namespace | _namespace [ ":::" name ] .
+any_name    = fq_name | name | special_var .
+special_var = "$" name .
+
+string_literal           = single_quoted | double_quoted | backquoted | string_quoted_with_pairs
+single_quoted            = 
+double_quoted            =
+backquoted               =
+string_quoted_with_pairs = 
+
+regex_literal           = default_regex_literal | regex_quoted_with_pairs
+default_regex_literal   =
+regex_quoted_with_pairs = 
 ```
 
 An expession is a special case of statement returning a value
