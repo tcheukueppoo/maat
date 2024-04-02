@@ -1,0 +1,192 @@
+# WSF of the Maat Programming Language
+
+* `{X}` stands for 0 or more of `X`.
+* `[X]` implies `X` is optional.
+* `|` stands for alternation.
+* `(X)` for grouping, `X` is considered a single unit.
+
+```
+Block = "{" [ Stats ] "}" .
+
+Stats = ( NonBlockStat | BlockStat ) { ( end { end } NonBlockStat | BlockStat ) } [ end ] .
+
+NonBlockStat =   unimpl
+               | Package
+               | Use
+               | Load
+               | VarDef
+               | ExpList
+               | StatMod
+               | LoopCtrl
+               | DeferExp .
+
+BlockStat =   PackageBlock
+            | Label
+            | Loop
+            | Flow
+            | Func
+            | Class
+            | Role
+            | Try
+            | DeferBlock .
+
+Package      = "package" namespace .
+PackageBlock = Package Block .
+
+Label = name ":" .
+
+Use = "use" namespace [ "(" [ name { "," name } ] ")" ] .
+
+Load = "load" string_lit .
+
+ExpList = Exp { Commas Exp } { "," } .
+
+Commas = "," { "," } .
+
+VarDef = ( [ "const" ] ( [ scope ] | "state" ) Names | "const" Names | "temp" AnyNames ) [ EqExp ] .
+
+EqExp = "=" Exp .
+
+Names = "(" NameList { "," } ")" | name .
+
+NameList = { Name_ } [ "*" ] name [ immut ] { _Name } .
+
+_Name = Commas name [ immut ] .
+Name_ = name        [ immut ] Commas .
+
+AnyNames = "(" AnyNameList { "," } ")" | any_name .
+
+AnyNameList = { AnyName_ } [ "*" ] any_name [ immut ] { _AnyName } .
+
+_AnyName = Commas any_name [ immut ] .
+AnyName_ = any_name        [ immut ] Commas .
+
+Flow =   "given" ExpList [ TopicVar ] Block
+       | "when"  ExpList              Block
+       | "if"    ExpList [ TopicVar ] Block { elseif ExpList [ TopicVar ] Block } [ else Block ]
+       | "with"  ExpList [ TopicVar ] Block { orwith ExpList [ TopicVar ] Block } [ else Block ] .
+
+TopicVar = "->" name .
+
+StatMod = ExpList ( conditional_keyword | loop_keyword ) ExpList .
+
+Loop =   "for"   ExpList [ TopicVars ]                           Block
+       | "while" ExpList                                         Block
+       | "until" ExpList                                         Block
+       | "loop"  [ [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] ] Block .
+
+LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
+
+TopicVars = "->" name [ EqExp ] { "," name [ EqExp ] } .
+
+DeferBlock = "defer" Block .
+DeferExp   = "defer" Exp .
+
+Try = "try" Block { "catch" Exp Block } [ "finally" Block ] .
+
+Func = [ "const" ] [ scope ] [ "mul" ] "fn" name [ "(" [ FuncArgs ] ")" ] [ ":s" | ":g" ] FuncBody .
+
+FuncArgs =   NormArg { "," NormArg } [ "," AccArg ] [ "," MapArg ]
+           | AccArg "," MapArg
+           | AccArg
+           | MapArg .
+
+NormArg = name [ ( "=" | "=//" ) Exp ] .
+AccArg  = "*" name .
+HashArg = "*" "*" name .
+
+FuncBody = Block .
+
+Class    = [ "const" ] [ scope ] "class" name [ ClassRel ] [ main ] ClassBody .
+ClassRel = Is | Does | Is Does .
+
+Is   = ":is("   [ IsArgs   ] ")" .
+Does = ":does(" [ DoesArgs ] ")" .
+
+IsArgs   = Super { "," Super } .
+Super    = any_name | fq_name_main | PrefixExp .
+DoesArgs = IsArgs .
+
+ClassBody = "{" ( | unimpl ) "}" .
+ClassAttr = "has" name [ ( ":rw" | ":ro" | ":built" ) ] [ EqExp ] .
+
+Method     = [ "mul" ] "meth" name [ "(" [ FuncArgs ] ")" ] [ ":io" ] MethodBody .
+MethodBody = FuncBody .
+
+Role     = [ "const" ] [ scope ] "role" name [ Does ] [ main ] RoleBody .
+RoleBody = ClassBody .
+
+Exp =   nil
+      | boolean
+      | number
+      | string_lit
+      | regex_lit
+      | PrefixExp
+      | AnonymousFunc
+      | Array
+      | Map
+      | VarDef
+      | Exp infix_op Exp
+      | Exp postfix_op
+      | prefix_op Exp
+      | StatExp
+
+AnonymousFunc = [ "fn" ] "{" [ "|" FuncArgs "|" ] [ Stats ] "}" | ":" Exp .
+
+Map = DefaultMap | QuotedMap .
+
+Array = DefaultArray | QuotedArray .
+
+StatExp = StatPrefix (Loop | Flow)
+
+PrefixExp = 
+
+/* Lexical tokens */
+
+end = ";" .
+
+unimpl = "…" | "..." .
+
+immut = ":i" .
+main  = ":m" .
+
+nil = "nil" .
+
+boolean = "true" | "false" .
+
+number =
+
+conditional_keyword = "if"  | "unless" | "when" | "with" | "given" .
+loop_keyword        = "for" | "until"  | "while" .
+scope               = "let" | "our" .
+
+name = 
+
+namespace = name { "::" name } .
+
+fq_name      = namespace "::" name .
+fq_name_main = namespace ":::" name | ":::" name .
+
+special_name = "$" name .
+any_name     = name | fq_name | special_name .
+
+string_lit = single_quoted | double_quoted | back_quoted | quoted_with_pairs | here_doc .
+single_quoted  = 
+double_quoted  =
+back_quoted    =
+
+quoted_with_pairs = 
+
+here_doc               = unquoted_here_doc | single_quoted_here_doc | double_quoted_here_doc | back_quoted_here_doc .
+unquoted_here_doc      = "<<" here_doc_token
+single_quoted_here_doc = "<<" "'" here_doc_token "'"
+double_quoted_here_doc =
+back_quoted_here_doc   = "<<" "`" here_doc_token "`"
+here_doc_token         = name .
+
+regex_lit               = default_regex_lit | regex_quoted_with_pairs .
+default_regex_lit       =
+regex_quoted_with_pairs = 
+```
+
+An expession is a special case of statement returning a value
