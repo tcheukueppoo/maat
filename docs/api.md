@@ -91,14 +91,15 @@ With the high level API there's no concepts of virtuals, the API abstracts it aw
 API is fully object-oriented.
 
 ```
-Val a = av(sv("one"), m_value("['kueppo', 'is', 'sleeping']"));
+Val a = Av(Sv("one"), PVal("['kueppo', 'is', 'sleeping']"));
 
-O(m, a)->at(1)->c(Join, sv(" "))->c(len)->say;
+O(m,a)->at(1)->c(Join, Sv(" "))->c(Len)->say;
 
 Maa(m) // registers the default maatine to be used by O()
 
 // Output: k_u_e_o
-O(a)->at(1,0)->c(Split, sv("p"))->c(Grep, fv(":.len > 0"))->c(Join, sv("_"))->say;
+// a[1][0].split('p').grep(:.len > 0).join('_').say;
+O(a)->at(1,0)->c(Split, Sv("p"))->c(Grep, Fv(":.len > 0"))->c(Join, Sv("_"))->say;
 ```
 
 `O(a)`: Hey! `a` is a Maat value and all maat values are objects, push `a` into the stack of the
@@ -107,20 +108,20 @@ default registered maatine `m` (`Maa(m)`).
 `->at(1, 0)`: for assessing elements of complex structures, `at` is mainly for arrays, here it gets "kueppo"
 if map counterparts is `->get(<key>)`. the result is now at the top of the stack.
 
-`->c(split, sv("p"))`: push sv("p") onto the stack an call the the method `split` with the reciever the first
+`->c(split, Sv("p"))`: push Sv("p") onto the stack an call the the method `split` with the reciever the first
 element in the stack. The next `->c` calls barely does the same thing for each method.
 
 This abstracts away the virtual stack but things can really get messy because one can think of nesting `O` calls.
 
 So how do you figure this out?
 
-Val a = av(true), b = sv("kueppo");
+Val a = Av(true), b = Sv("kueppo");
 
 ```
 #define Unshift "unshift"
 #define Split   "split"
 
-O(a)->c(Unshift, O(b)->c(Split, sv())->v)->say; // Output: [["k", "u", "e", "p", "p", "o"], true]
+O(a)->c(Unshift, O(b)->c(Split, Sv())->v)->say; // Output: [["k", "u", "e", "p", "p", "o"], true]
 ```
 
 Internally, this should
@@ -140,23 +141,98 @@ The pointer to a structure is returned by the `O(...)` and this structure should
 struct S {
     struct S *(*c) (const char *func_name, va_list argp); // the ->c method
     Value *v; // top of the stack value
-    void * (*say) (void) // the ->say function
-    struct S *at(var_list argp); // for accessing array elements.
-    struct S *get(var_list argp); // for accessing map entries.
-    ....
+    void * (*say) (void); // the ->say function
+    void * (*dump) (void); // the ->say function
+    struct S (*at) (var_list argp); // for accessing array elements.
+    struct S (*get) (var_list argp); // for accessing map entries.
+    // ....
 }
 ```
 
 This means that each `c(...)` should start a callframe for the method call with
 the reciever at the start of the frame.
 
-Now let think on Using C arithmetics operator to perform mathematical operation
-with maat values, this is because having to use `->c` to perform mathematical
-operations in maat can be very combersome.
+Now let's think on Using C arithmetics operator to perform arithmetic operations
+on maat values, this is because having to use `->c` to perform arithmetic
+operations in maat can be very cumbersome and also that arithmetic operations
+in C is very unsafe.
 
+```
+Val a = Iv(2), b = Dv(2.30), c = Uv(~0ul);
 
+                    // will not overflow here like (2ul + (~0ul))
+Val res = Nv(N(b) * (N(a) + N(b)))
+```
+
+Still much to solve here will come back to it!
 
 4. Control statements
+
+```
+Val a = PVal("['one', 2, @q(quoted string)]");
+
+// given (m,a)
+given (a) {
+   when (nil) {
+     say("a is nil");
+     last;
+   }
+   when (sv(""))
+}
+
+```
+
+```
+Val m = Mv(Sv("one"), PVal("@a(I love Pinneaples)"))
+
+if_ (Val v = O(m)->get("one")) {
+   O(v)->c(Join, sv(" "))->say;
+}
+els {
+   say("Hash m does not have key 'one'");
+}
+```
+
+```
+Val a = PVal("[[2, 1, 10]]"), b = PVal("[[3, 10, 39]]");
+
+// foreach (m, a) {
+foreach (a) (i) { say("{}", i); }}
+
+/* Check if the number of rows equals the number of columns. */
+
+if ( len(a) != len(O(b)->at(0)) ) {
+   int i, col = (int)len(O(b)->at(0));
+   Val res = Av();
+
+   for (i = 0; i < len(a); i++) {
+      int j;
+      Val rs = Av();
+
+      for (j = 0; j < col; j++) {
+         int k;
+         double sum = 0;
+
+         for (k = 0; k < col; k++)
+            sum += O(a)->nat(i,k) * O(b)->nat(k,j);
+
+         O(rs)->c(Push, Nv(sum));
+      }
+
+      O(res)->c(Push, rs);
+   }
+
+   O(res)->say;
+}
+
+// foreach (m, map) (...) { to specify a maatine
+
+Val map = PVal("{one => 1, two => 2}");
+
+foreach (map) (k, v) {
+    say("{1} => {2}", k, v);
+}}
+```
 
 5. C Functions (`fn (fn_name) { ... }`)
 
