@@ -8,23 +8,24 @@
 ```
 Block = "{" [ Stats ] "}" .
 
-Stats = ( NonBlockStat | BlockStat ) { ( end { end } NonBlockStat | BlockStat ) } [ end ] .
+Stats = { ( NonBlockStat end { end } | BlockStat ) } [ NonBlockStat ] .
 
 NonBlockStat =   unimpl
                | Package
                | Use
                | Load
                | VarDef
-               | ExpList
+               | Exp
                | StatMod
                | LoopCtrl
-               | DeferExp .
+               | DeferExp
+               | Return .
 
 BlockStat =   PackageBlock
             | Label
             | Loop
             | Flow
-            | Func
+            | Fn
             | Class
             | Role
             | Try
@@ -39,63 +40,68 @@ Use = "use" namespace [ "(" [ name { "," name } ] ")" ] .
 
 Load = "load" string_lit .
 
-ExpList = Exp { Commas Exp } { "," } .
+Exps = Exp { Commas Exp } { "," } .
 
 Commas = "," { "," } .
 
-VarDef = ( [ "const" ] ( [ scope ] | "state" ) Names | "const" Names | "temp" AnyNames ) [ EqExp ] .
+Return = return [ ExpList ] .
+
+ExpList = Exps | "(" Exps ")" .
+
+VarDef = ( [ "const" ] ( [ scope ] | "state" ) Vars | "const" Names | "temp" AnyVars ) [ EqExp ] .
 
 EqExp = "=" Exp .
 
-Names = "(" NameList { "," } ")" | name .
+Vars    = "(" VarList { "," } ")" | var .
+VarList = { Var_ } [ "*" ] var [ im ] { _Var } .
+_Var    = Commas var [ im ] .
+Var_    = var        [ im ] Commas .
 
-NameList = { Name_ } [ "*" ] name [ immut ] { _Name } .
+AnyVars    = "(" AnyVarList { "," } ")" | any_var .
+AnyVarList = { AnyVar_ } [ "*" ] any_var [ im ] { _AnyVar } .
+_AnyVar    = Commas any_var [ im ] .
+AnyVar_    = any_var        [ im ] Commas .
 
-_Name = Commas name [ immut ] .
-Name_ = name        [ immut ] Commas .
+Flow =   "given" Cond [ TopicVar ] Block
+       | "when"  Cond              Block
+       | "if"    Cond [ TopicVar ] Block { elseif Cond [ TopicVar ] Block } [ else Block ]
+       | "with"  Cond [ TopicVar ] Block { orwith Cond [ TopicVar ] Block } [ else Block ] .
 
-AnyNames = "(" AnyNameList { "," } ")" | any_name .
+TopicVar = "->" var .
 
-AnyNameList = { AnyName_ } [ "*" ] any_name [ immut ] { _AnyName } .
+Cond = ExpList | "(" ExpList ")". 
 
-_AnyName = Commas any_name [ immut ] .
-AnyName_ = any_name        [ immut ] Commas .
+StatMod = ExpList ( cond_keyword | loop_keyword ) Cond .
 
-Flow =   "given" ExpList [ TopicVar ] Block
-       | "when"  ExpList              Block
-       | "if"    ExpList [ TopicVar ] Block { elseif ExpList [ TopicVar ] Block } [ else Block ]
-       | "with"  ExpList [ TopicVar ] Block { orwith ExpList [ TopicVar ] Block } [ else Block ] .
+Loop =   "for"   ExpList [ TopicVars ] Block
+       | "while" Cond                  Block
+       | "until" Cond                  Block
+       | "loop"  [ LoopStats ]         Block .
 
-TopicVar = "->" name .
-
-StatMod = ExpList ( conditional_keyword | loop_keyword ) ExpList .
-
-Loop =   "for"   ExpList [ TopicVars ]                           Block
-       | "while" ExpList                                         Block
-       | "until" ExpList                                         Block
-       | "loop"  [ [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] ] Block .
+LoopStats    = "(" [ ExpListStats ] ")" | ExpListStats .
+ExpListStats = [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] .
 
 LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
 
-TopicVars = "->" name [ EqExp ] { "," name [ EqExp ] } .
+TopicVars = "->" var [ EqExp ] { "," var [ EqExp ] } .
 
 DeferBlock = "defer" Block .
 DeferExp   = "defer" Exp .
 
 Try = "try" Block { "catch" Exp Block } [ "finally" Block ] .
 
-Func = [ "const" ] [ scope ] [ "mul" ] "fn" name [ "(" [ FuncArgs ] ")" ] [ ":s" | ":g" ] FuncBody .
+Fn = [ "const" ] [ scope ] [ "mul" ] "fn" name [ "(" [ FnArgs ] ")" ] [ ":s" | ":g" ] FnBody .
 
-FuncArgs =   NormArg { "," NormArg } [ "," AccArg ] [ "," MapArg ]
-           | AccArg "," MapArg
-           | AccArg
-           | MapArg .
+FnArgs =   NormArg { "," NormArg } [ "," AccArg ] [ "," MapArg ]
+         | AccArg "," MapArg
+         | AccArg
+         | MapArg .
 
-NormArg = name [ ( "=" | "=//" ) Exp ] .
-AccArg  = "*" name .
-HashArg = "*" "*" name .
+NormArg = var [ ( "=" | "=//" ) Exp ] .
+AccArg  = "*" var .
+HashArg = "*" "*" var .
 
-FuncBody = Block .
+FnBody = Block .
 
 Class    = [ "const" ] [ scope ] "class" name [ ClassRel ] [ main ] ClassBody .
 ClassRel = Is | Does | Is Does .
@@ -103,15 +109,23 @@ ClassRel = Is | Does | Is Does .
 Is   = ":is("   [ IsArgs   ] ")" .
 Does = ":does(" [ DoesArgs ] ")" .
 
-IsArgs   = Super { "," Super } .
-Super    = any_name | fq_name_main | PrefixExp .
 DoesArgs = IsArgs .
 
-ClassBody = "{" ( | unimpl ) "}" .
-ClassAttr = "has" name [ ( ":rw" | ":ro" | ":built" ) ] [ EqExp ] .
+IsArgs   = RelClass { "," RelClass } .
+RelClass = any_name | fq_name_main | PrefixExp .
 
-Method     = [ "mul" ] "meth" name [ "(" [ FuncArgs ] ")" ] [ ":io" ] MethodBody .
-MethodBody = FuncBody .
+ClassBody = "{" ( AttrsWithOthers { end } | AttrsWithOthers end { end } MethsWithOthers ) "}" .
+
+/* */
+AttrsWithOthers = ( ClassAttr | Stat ) { ( end { end } ClassAttr | _Stat ) } .
+MethsWithOthers = ( Method    | Stat ) { ( Method                | _Stat ) } .
+Stat            = NonBlockStat | BlockStat .
+_Stat           = end { end } Stat .
+
+ClassAttr = "field" name [ ( ":rw" | ":ro" | ":built" ) ] [ EqExp ] .
+
+Method     = [ "mul" ] "meth" name [ "(" [ FnArgs ] ")" ] [ ":io" ] MethodBody .
+MethodBody = FnBody .
 
 Role     = [ "const" ] [ scope ] "role" name [ Does ] [ main ] RoleBody .
 RoleBody = ClassBody .
@@ -122,7 +136,7 @@ Exp =   nil
       | string_lit
       | regex_lit
       | PrefixExp
-      | AnonymousFunc
+      | AnonyFn
       | Array
       | Map
       | VarDef
@@ -131,7 +145,7 @@ Exp =   nil
       | prefix_op Exp
       | StatExp
 
-AnonymousFunc = [ "fn" ] "{" [ "|" FuncArgs "|" ] [ Stats ] "}" | ":" Exp .
+AnonyFn = [ "fn" ] "{" [ "|" FnArgs "|" ] [ Stats ] "}" .
 
 Map = DefaultMap | QuotedMap .
 
@@ -145,10 +159,12 @@ PrefixExp =
 
 end = ";" .
 
+infix_op = "," | ":"
+
 unimpl = "…" | "..." .
 
-immut = ":i" .
-main  = ":m" .
+im   = ":i" .
+main = ":m" .
 
 nil = "nil" .
 
@@ -156,37 +172,43 @@ boolean = "true" | "false" .
 
 number =
 
-conditional_keyword = "if"  | "unless" | "when" | "with" | "given" .
-loop_keyword        = "for" | "until"  | "while" .
-scope               = "let" | "our" .
+cond_keyword = "if"  | "unless" | "when" | "with" | "given" .
+loop_keyword = "for" | "until"  | "while" .
+scope        = "let" | "our" .
 
 name = 
 
+var = name .
+
 namespace = name { "::" name } .
 
-fq_name      = namespace "::" name .
-fq_name_main = namespace ":::" name | ":::" name .
+fq_var      = namespace "::" name .
+fq_var_main = namespace ":::" name | ":::" name .
 
-special_name = "$" name .
-any_name     = name | fq_name | special_name .
+special_var = "$" name .
+any_var     = var | fq_var | special_name .
 
-string_lit = single_quoted | double_quoted | back_quoted | quoted_with_pairs | here_doc .
-single_quoted  = 
-double_quoted  =
-back_quoted    =
+string_lit = single_q | double_q | back_q | q_with_pairs | here_doc .
+single_q   = 
+double_q   =
+back_q     =
 
-quoted_with_pairs = 
+q_with_pairs = 
 
-here_doc               = unquoted_here_doc | single_quoted_here_doc | double_quoted_here_doc | back_quoted_here_doc .
-unquoted_here_doc      = "<<" here_doc_token
-single_quoted_here_doc = "<<" "'" here_doc_token "'"
-double_quoted_here_doc =
-back_quoted_here_doc   = "<<" "`" here_doc_token "`"
-here_doc_token         = name .
+here_doc          = no_q_here_doc | single_q_here_doc | double_q_here_doc | back_q_here_doc .
+no_q_here_doc     = "<<" here_doc_tok
+single_q_here_doc = "<<" "'" here_doc_tok "'"
+double_q_here_doc =
+back_q_here_doc   = "<<" "`" here_doc_tok "`"
+here_doc_tok      = name .
 
-regex_lit               = default_regex_lit | regex_quoted_with_pairs .
-default_regex_lit       =
-regex_quoted_with_pairs = 
+regex_lit          = default_regex_lit | regex_q_with_pairs .
+default_regex_lit  = "/" "/" regex_flags .
+regex_q_with_pairs = 
+regex_flags        =
 ```
 
-An expession is a special case of statement returning a value
+An expession is a special case of statement that returns a value.
+
+say ((2,,,4) + 1) # outputs 5 it implies that an expression list is an expression and ',' is an infix operator.
+say ((2,,) + 1)   # outputs 3, is ',' also a postfix operator?

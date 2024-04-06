@@ -716,7 +716,7 @@ We have a.len + 1 iterations, the array destruction operator is used to
 break 'ar' into a list. At topic let declaration, set a custom default
 value to handle situations where we are out of elements
 ---
-for ar…, 2 -> m, n = 'default' { (n + '-' + m).say }
+for ar*, 2 -> m, n = 'default' { (n + '-' + m).say }
 ```
 
 Iterating over an Array objects
@@ -725,7 +725,7 @@ Iterating over an Array objects
 # output: 3 3 5 4 4
 for ar -> i { say i.len }
 
-# 'ar' is now a[3 3 5 4 4] as 'j' binds the corresponding indexed element
+# 'ar' is now @a(3 3 5 4 4) as 'j' binds the corresponding indexed element
 for ar -> j {
     j = j.len
 }
@@ -735,7 +735,31 @@ for ar -> i, j = "none" {
     print "(#i, #j) "
 }
 
-.say for ar
+# output: 3 3 5 4 4
+.say for ar;
+
+# output: @a(3 3 5 4 4)
+.say for ar,;
+
+# Output: 2
+for (((2, (2, 10)), 2)) { .say }
+
+# syntax error
+for ((2, (2, 10)), 2),  { .say }
+
+let points = { kueppo => @a(10 30 9), monthe => [100, 39, 10] };
+
+# Output: ['10', '30', '9']
+for points<kueppo>,   { .say }
+for (points<kueppo>,) { .say }
+
+# Output: 100, 39, 10
+for points<month> { .say }
+
+# Output: 10, 2
+# it's so as parenthese are optionals, this means that the first
+# encountered parenthese is part of the `for' syntax.
+for ((2, (2, 10)), 2) { .say }
 ```
 
 For lazy evaluation, we iterate over a lazy object. A lazy object
@@ -847,7 +871,7 @@ do { CODE } until COND
 let k = Set.new(2, 4, 5);
 let b = [2, 7, 3];
 
-do k.push(b.pop) while [2, 7] ∉ k;
+do k.push(b.pop) while set(2, 7) ∉ k;
 
 do {
    say "forever"
@@ -1013,7 +1037,7 @@ It is possible to omit `_` when calling a method on the content of a topic
 variable.
 
 ```
-let anony = { say _.Str * 2 };
+let anony = { say _ * 2 };
 
 # output: tanzaniatanzania
 anony.call("tanzania");
@@ -1022,8 +1046,8 @@ anony.call("tanzania");
 anony.call("a", "b");
 
 # .ucfirst is the same as _.ucfirst
-let ar = @h(tcheukam madjou monthe);
-say ar.map(:.ucfirst);
+let ar = @a(tcheukam madjou monthe);
+say ar.map: .ucfirst;
 ```
 
 The usage of the default topic variable in an anonymous function having
@@ -1035,7 +1059,7 @@ thus the default topic variable refers to the one from the outer scope.
 
 ```
 # output: 88888888 666666 666666
-ar.map(:.len).each { .times { .print } };
+ar.map(:.len).each: .times: .print;
 ```
 
 Maat has support for multiple dispatching and named arguments. Mixing named
@@ -1093,18 +1117,17 @@ fn bad_func3(*a, b, *c) { ... }
 fn bad_func4(a, *b, *c) { ... }
 ```
 
-The reason why `fun` optionally precedes `{}` when defining
-anonymous functions is mainly for syntatic sugar and so to avoid
-confusion with blocks, it is prohibited to declare an anonymous
-function as a value the following way as it may add much work
-to the compiler.
+The reason why `fn` optionally precedes `{}` when defining anonymous
+functions is mainly for syntatic sugar and so to avoid confusion with
+blocks, it is prohibited to declare an anonymous function the
+following ways as it may add much work to the compiler.
 
 ```
 # fails at compile time
 { .say }.call(20);
 ```
 
-But this works
+But the following are permitted:
 
 ```
 Fn.new({ .say }).call(20);
@@ -1120,8 +1143,8 @@ same function call when doing recursive calls. This trait can help you do
 dynamic programming with less overhead.
 
 ```
-fn fib(n) :save {
-    n < 2 ? n : __FUN__(n - 1) + __FUN__(n - 2)
+fn fib(n) :s {
+    n < 2 ? n : __FN__(n - 1) + __FN__(n - 2)
 }
 ```
 
@@ -1132,7 +1155,7 @@ is an iterable object where each iteration resumes from where the generator
 function was paused by a `take` call.
 
 ```
-fn factors(n) :gen {
+fn factors(n) :g {
     let k = 1;
 
     while k ** 2 < n {
