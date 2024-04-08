@@ -58,29 +58,28 @@ AnyVarList = { AnyVar_ } [ "*" ] any_var [ im ] { _AnyVar } .
 _AnyVar    = Commas any_var [ im ] .
 AnyVar_    = any_var        [ im ] Commas .
 
-Flow =   "given" CtrlExp [ TopicVar ] Block
-       | "when"  CtrlExp              Block
-       | "if"    CtrlExp [ TopicVar ] Block { elseif CtrlExp [ TopicVar ] Block } [ else Block ]
-       | "with"  CtrlExp [ TopicVar ] Block { orwith CtrlExp [ TopicVar ] Block } [ else Block ] .
+Flow =   "given" Cond [ TopicVar ] Block
+       | "when"  Cond              Block
+       | "if"    Cond [ TopicVar ] Block { elseif Cond [ TopicVar ] Block } [ else Block ]
+       | "with"  Cond [ TopicVar ] Block { orwith Cond [ TopicVar ] Block } [ else Block ] .
 
 TopicVar = "->" var .
 
-/* Parenthesis here are part of the control structures' syntax. */
-CtrlExp = ExpList | "(" ExpList ")". 
+Cond = ExpList .
 
 Return = return CtrlExp .
 
 StatMod = ExpList ( cond_keyword | loop_keyword ) Cond .
 
 Loop =   ForLoop
-       | "loop"  [ LoopCondStats ] Block .
-       | "while" CtrlExp           Block
-       | "until" CtrlExp           Block
+       | "once"                    Block
+       | "loop"  [ LoopCondStats ] Block
+       | "while" Cond              Block
+       | "until" Cond              Block .
 
-ForLoop = "for" CtrlExp [ TopicVars ] Block .
+ForLoop = "for" ExpList [ TopicVars ] Block .
 
-LoopCondStats = "(" [ ExpListStats ] ")" | ExpListStats .
-ExpListStats  = [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] .
+LoopCondStats = "(" [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] ")".
 
 LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
 
@@ -115,9 +114,9 @@ DoesArgs = IsArgs .
 IsArgs   = RelClass { "," RelClass } .
 RelClass = any_name | fq_name_main | PrefixExp .
 
-ClassBody = "{" ( AttrsWithOthers | AttrsWithOthers end { end } MethsWithOthers ) "}" .
+ClassBody = "{" ( FieldWithOthers | FieldWithOthers end { end } MethsWithOthers ) "}" .
 
-AttrsWithOthers   = { ClassNonBlockStat end { end } | BlockStat      } [ ClassNonBlockStat ] .
+FieldWithOthers   = { ClassNonBlockStat end { end } | BlockStat      } [ ClassNonBlockStat ] .
 MethsWithOthers   = { NonBlockStat      end { end } | ClassBlockStat } [ NonBlockStat      ] .
 ClassNonBlockStat = Field | NonBlockStat .
 ClassBlockStat    = Meth  | BlockStat .
@@ -180,30 +179,104 @@ prefix_op = .
 
 unimpl = "…" | "..." .
 
-im   = ":i" .
-main = ":m" .
+im = ":i" . main = ":m" .
 
 nil = "nil" .
 
 boolean = "true" | "false" .
 
-number  = oct | hex | bin | decimal | integer .
-oct     =
-hex     =
-bin     =
-decimal =
+dec_digit = "0" … "9" .
+bin_digit = "0" | "1" .
+oct_digit = "0" … "7" .
+hex_digit = "0" … "9" | "A" … "F" | "a" … "f" .
 
-cond_keyword = "if"  | "unless" | "when" | "with" | "given" .
+num_lit = int_lit | float_lit .
+
+int_lit = dec_int | oct_int | hex_int | bin_int .
+dec_int = "0" | "1" … "9"   [ [ "_" ] dec_digits ] .
+hex_int = "0" ( "x" | "X" ) [ "_" ] hex_digits .
+bin_int = "0" ( "b" | "B" ) [ "_" ] bin_digit { [ "_" ] bin_digit } .
+oct_int = "0" [ "o" | "O" ] [ "_" ] oct_digit { [ "_" ] oct_digit } .
+
+dec_digits = dec_digit { [ "_" ] dec_digit } .
+hex_digits = hex_digit { [ "_" ] hex_digit } .
+
+float_lit = hex_float | dec_float .
+
+hex_float = .
+
+dec_float = .
+
+scope = "let" | "our" .
+
 loop_keyword = "for" | "until"  | "while" .
-scope        = "let" | "our" .
+cond_keyword = "if"  | "unless" | "when" | "with" | "given" .
 
-nl = [ "\r" ] "\n" .
+nl = [ cr_esc ] nl_esc .
 
-special_char = "$" | "v" | "o" | ","
-                   | "/" | "|" | """"
-                   | "$" | "0" | "("
-                   | "<" | "f" | "*"
-                   | "." | "!" .
+special_char =   "V" | "O" | ","
+               | "/" | "|" | """"
+               | "$" | "0" | "("
+               | "<" | "F" | "*"
+               | "." | "!" | "$" .
+
+string_lit = str_default | str_with_pair | here_doc .
+
+str_default = single_q | double_q | back_q .
+
+single_q = "'"  val_single_q "'"  .
+double_q = """" val_double_q """" .
+back_q   = "`"  val_single_q "`"  .
+
+val_double_q = vsq .
+val_single_q = vdq .
+
+vsq = .
+vdq = .
+
+str_with_pair = "@" ( single_q_p | double_q_p | back_q_p | regex_q_p ) .
+single_q_p    = "q" pair__s_q__pair .
+double_q_p    = "Q" pair__d_q__pair .
+back_q_p      = "x" pair__b_q__pair .
+regex_q_p     = "r" pair__r_q__pair .
+
+pair__s_q__pair =   o_cb   vsq c_cb   | o_pr   vsq c_pr   | o_sb vsq c_sb | o_lab vsq o_rab
+                  | o_ldap vsq c_rdap | o_lapq vsq c_lapq | s_em vsq s_em | s_bt  vsq s_bt
+                  | s_dl   vsq s_dl   | s_vb   vsq s_vb   | s_dq vsq s_sq | s_sq  vsq s_sq
+                  | s_sl   vsq s_sl   | s_cm   vsq s_cm .
+
+pair__d_q__pair =   o_cb   vdq c_cb   | o_pr   vdq c_pr   | o_sb vdq c_sb | o_lab vdq o_rab
+                  | o_ldap vdq c_rdap | o_lapq vdq c_lapq | s_em vdq s_em | s_bt  vdq s_bt
+                  | s_dl   vdq s_dl   | s_vb   vdq s_vb   | s_dq vdq s_sq | s_sq  vdq s_sq
+                  | s_sl   vdq s_sl   | s_cm   vdq s_cm .
+
+pair__b_q__pair = pair__s_q__pair .
+
+pair_r_q_pair = 
+
+o_cb  = "{" . c_cb  = "}" . o_pr   = "(" . c_pr   = ")" . o_sb   = "[" . c_sb   = "]" .
+o_lab = "<" . c_rab = ">" . o_ldaq = "«" . c_rdap = "»" . o_labq = "‹" . c_rabq = "›" .
+
+e_cb = "\}" . e_pr = "\)" . e_sb = "\]" . e_rab = "\>" . c_rdap = "\»" . e_rabq = "\›" .
+
+s_em = "!" . s_bt = "`" . s_dl = "$" . s_vb = "|" .
+s_dq = '"' . s_sq = "'" . s_sl = "/" . s_cm = "," .
+
+e_em = "\!"     . e_bt = "\`" . s_dl = "\$" . e_vb = "\|" .
+e_bq = "\" """" . e_sq = "\'" . e_sl = "\/" . e_cm = "\," .
+
+here_doc    = hd_no_q | hd_single_q | hd_double_q | hd_back_q .
+hd_no_q     = "<<"      tok      nl vsq nl tok .
+hd_single_q = "<<" "'"  tok "'"  nl vsq nl tok .
+hd_double_q = "<<" """" tok """" nl vdq nl tok .
+hd_back_q   = "<<" "`"  tok "`"  nl vsq nl tok .
+tok         = name .
+
+regex_lit         = regex_default | regex_q_with_pair .
+regex_default     = "/" "/" { regex_val_mod } .
+regex_q_with_pair = "@r"
+regex_val_mod     = "m" | "i" | "s" | "a" | "n" |
+regex_s_op_mod    = regex_value_mod | "g" | "e" |
 
 name = 
 
@@ -216,57 +289,12 @@ fq_var_main = [ namespace ] ":::" name .
 
 special_var = "$" special_char .
 any_var     = var | fq_var | special_var .
-
-string_lit = string_default | string_with_pair | here_doc .
-
-string_default = single_q | double_q | back_q .
-single_q       = "'"  val_single_q "'" .
-double_q       = """" val_double_q """" .
-back_q         = "`"  val_single_q "`" .
-val_double_q   = vsq .
-val_single_q   = vdq .
-
-vsq = .
-vdq = .
-
-string_with_pair = "@" ( single_q_p | double_q_p | back_q_p ) .
-single_q_p       = "q" p__s_q__p .
-double_q_p       = "Q" p__d_q__p .
-back_q_p         = "x" p__b_q__p .
-
-p__s_q__p =   o_cb   vsq c_cb   | o_pr   vsq c_pr   | o_sb vsq c_sb | o_lab vsq o_rab
-            | o_ldap vsq c_rdap | o_lapq vsq c_lapq | s_em vsq s_em | s_bt  vsq s_bt
-            | s_dl   vsq s_dl   | s_vb   vsq s_vb   | s_dq vsq s_sq | s_sq  vsq s_sq
-            | s_sl   vsq s_sl   | s_cm   vsq s_cm .
-
-p__d_q__p =   o_cb   vdq c_cb   | o_pr   vdq c_pr   | o_sb vdq c_sb | o_lab vdq o_rab
-            | o_ldap vdq c_rdap | o_lapq vdq c_lapq | s_em vdq s_em | s_bt  vdq s_bt
-            | s_dl   vdq s_dl   | s_vb   vdq s_vb   | s_dq vdq s_sq | s_sq  vdq s_sq
-            | s_sl   vdq s_sl   | s_cm   vdq s_cm .
-
-p__b_q__p = p__s_q__p .
-
-o_cb  = "{" . c_cb  = "}" . o_pr   = "(" . c_pr   = ")" . o_sb   = "[" . c_sb   = "]" .
-o_lab = "<" . c_rab = ">" . o_ldaq = "«" . c_rdap = "»" . o_labq = "‹" . c_rabq = "›" .
-
-s_em = "!"  . s_bt = "`" . s_dl = "$" . s_vb = "|" .
-s_dq = """" . s_sq = "'" . s_sl = "/" . s_cm = "," .
-
-here_doc    = hd_no_q | hd_single_q | hd_double_q | hd_back_q .
-hd_no_q     = "<<"      tok      nl vsq tok .
-hd_single_q = "<<" "'"  tok "'"  nl vsq tok .
-hd_double_q = "<<" """" tok """" nl vdq tok .
-hd_back_q   = "<<" "`"  tok "`"  nl vsq tok .
-tok         = name .
-
-regex_lit         = regex_default | regex_q_with_pair .
-regex_default     = "/" "/" { regex_val_mod } .
-regex_q_with_pair = "@r"
-regex_val_mod     = "m" | "i" | "s" | "a" | "n" |
-regex_s_op_mod    = regex_value_mod | "g" | "e" |
 ```
 
 An expession is a special case of statement that returns a value.
 
 say ((2,,,4) + 1) # outputs 5 it implies that an expression list is an expression and ',' is an infix operator.
 say ((2,,) + 1)   # outputs 3, is ',' also a postfix operator?
+
+# ambiguity
+loop (); k; k { }

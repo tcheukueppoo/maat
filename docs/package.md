@@ -7,7 +7,7 @@ class B { ... }
 package A::B
 
 our y = 2
-class B :p :is(...) { ... }
+class B :m :is(...) { ... }
 
 package main
 # x

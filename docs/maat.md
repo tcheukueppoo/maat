@@ -475,9 +475,8 @@ Maat has ... builtin types, types are objects and objects are types.
 ## Mutability Trait
 
 The mutability of an object can be set at the time of its allocation by using
-the immutable trait `:im`, this way of making an object immutable is very
-unusual but can be very useful in certain scenarios. Consider the following
-code:
+the immutable trait `:i`, this way of making an object immutable is very unusual
+but can be very useful in certain scenarios. Consider the following code:
 
 ```
 our c :i = {
@@ -489,14 +488,13 @@ our c :i = {
 
 This code declares a package variable `c` and assigns to it a map which is set
 immutable using the `:i` trait, please note that there's really nothing that
-relates the mutability of `c` to `:im` although `c` . If you intend to not
-modify a complex struture through out the execution of your program then think
-of using `:im` as it enhances the performance of your program by avoiding
+relates the mutability of `c` to `:i` although `c` . If you intend to not modify
+a complex struture through out the execution of your program then think of
+using `:i` as it enhances the performance of your program by avoiding
 unnecessary needed to synchronize operations on that structure when your program
 is executing in a multi-threaded environment.
 
-So `:im` simply means that any object assigned to `c` must be marked immutable
-is
+So `:i` simply means that any object assigned to `c` must be marked immutable is
 
 only possible if and only if the object 
 
