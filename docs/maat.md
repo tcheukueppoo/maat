@@ -22,8 +22,8 @@ Key features of the Maat programming language:
 * Full Unicode support
 * Memoization
 
-This is the specification of the Maat programming language, it is
-written as a guidance for its implementation.
+This is the specification of the Maat programming language, it is written as a
+guidance for its implementation.
 
 # Operators
 
@@ -138,22 +138,12 @@ comment
 
 ## Pair delimiters
 
-The following pair delimiters can be used as delimiters for regexes values and operators
-and other quoted values like strings (`@q`, `@qq`), arrays (`@a`) and maps (`@m`).
+The following pair delimiters can be used as delimiters for regexes values
+(`@r`) and operators and other quoted values like strings (`@q`, `@Q`, and
+`@x`), arrays (`@a`) and maps (`@m`).
 
 ```
-( )       [ ]       { }       < >
-⦗ ⦘       ⧼ ⧽      〈 〉      ❨ ❩
-❲ ❳       ❴ ❵       ⟅ ⟆       ⟦ ⟧
-« »       » «       ‹ ›       › ‹
-〈 〉    〈 〉     《 》     「 」
-„ ”       “ ”       ‘ ’       ‚ ’
-『 』     【 】     〔 〕    〖 〗
-〘 〙     〚 〛     ⌈ ⌉       ⌊ ⌋
-❪ ❫       ❬ ❭       ❮ ❯       ❰ ❱
-⟨ ⟩       ⟪ ⟫       ⟬ ⟭       ⟮ ⟯
-⦃ ⦄       ⦅ ⦆       ⦋ ⦌       ⦍ ⦎
-⦏ ⦐       ⦑ ⦒
+() [] {} <> «» ‹›
 ```
 
 ### Examples
@@ -171,11 +161,11 @@ x =~ s<o>«0»
 
 ## Single character delimiters
 
-We also have a restricted set of single character delimiters to represent quoted values
+We also have a restricted set of single character delimiters for quoted values
 and regex operators.
 
 ```
-/ | % "  '
+/ `` | % " ' , $ !
 ```
 
 ### Examples
@@ -193,31 +183,33 @@ say "interpolation works, array: #{a}";
 a.grep({|x| x =~ m|o|i }).map(:s|o|0|r).map(:.ucfirst).say;
 ```
 
-The `|`s in `|x|` has nothing to do with single character delimiters, it part of
-the anonymous function syntax.
+The `|`s in `|x|` has nothing to do with single character delimiters, it
+part of the anonymous function syntax.
 
 # Variables
 
-`Maat` has four types of variables: package, lexical, temporary and static variables.
+`Maat` has four types of variables: package, lexical, temporary and static
+variables.
 
-A module file has a `.mm` extension, a package is a namespace, a variable that can
-be accessed from outside the package from which it was declared is called a package
-variable and this can only be done by using the variable's fully qualified name.
-There is no one-to-one mapping between a package and module file, therefore multiple
-packages can be defined in a single module file but this is usually not a good
-practice.
+A module file has a `.mm` extension, a package is a namespace, a variable that
+can be accessed from outside the package from which it was declared is called a
+package variable and this can only be done by using the variable's fully
+qualified name. There is no one-to-one mapping between a package and module
+file, therefore multiple packages can be defined in a single module file but
+this is usually not a good practice.
 
-Package variables can be accessed from other packages using their fully qualified
-name and lexically scoped variables cannot be accessed from outside the package in
-which they were declared.
+Package variables can be accessed from other packages using their fully
+qualified name and lexically scoped variables cannot be accessed from outside
+the package in which they were declared.
 
-A temporary variable is a variable that is lexically scoped and refers to a package
-variable declared from another package if the name of the temporary variable at
-declaration is fully qualified, otherwise it refers to a package variable of the same
-name declared in its own package. Any modification made to temporary variables remain
-**local** to their scopes of declaration and thus out of these scopes, package
-variables they refer to remain untouched. You cannot temporarize lexically scoped
-variables. Every package variable regardless of its package can to temporarize.
+A temporary variable is a variable that is lexically scoped and refers to a
+package variable declared from another package if the name of the temporary
+variable at declaration is fully qualified, otherwise it refers to a package
+variable of the same name declared in its own package. Any modification made to
+temporary variables remain **local** to their scopes of declaration and thus out
+of these scopes, package variables they refer to remain untouched. You cannot
+temporarize lexically scoped variables. Every package variable regardless of its
+package can to temporarize.
 
 We declare package variables with the keyword `our`, lexically scoped variables
 with `let` and temporary variables with `temp`.
@@ -283,8 +275,8 @@ X: {
 }
 ```
 
-A constant variable when declared is lexically scoped by default unless you explicitly
-indicate that it is a package variables.
+A constant variable when declared is lexically scoped by default unless you
+explicitly indicate that it is a package variables.
 
 ```
 # lexically scoped declaration of a constant
@@ -296,13 +288,15 @@ const our (x, y) = (2, 10);
 
 ## Special variables
 
-Some special variables are package variables (`p`) while others are lexically scoped (`l`).
-Also, some of these variables are writable (`w`) while others are read-only (`r`).
+Some special variables are package variables (`p`) while others are lexically
+scoped (`l`). Also, some of these variables are writable (`w`) while others are
+read-only (`r`).
 
 ### Type I special variables
 
-We expand the content of a type I special variable using the sigil `$`. It is prohibited
-to declare a variable with a sigil, regardless of whether or not it is special.
+We expand the content of a type I special variable using the sigil `$`. It is
+prohibited to declare a variable with a sigil, regardless of whether or not it
+is special.
 
 ```
 say "Running $0 on $OS"
@@ -326,10 +320,10 @@ say "Running $0 on $OS"
 
 * `_`: **(w,l)** Topic variable, lexically scoped.
 
-A topic variable `_` is declared as a lexically scoped variable and assigned
-a value when topicalizing with `with`, `given`, `for` or anonymous functions
-having undeclared parameters. `_` is lexically scoped as Maat supports
-language threads called Maatines.
+A topic variable `_` is declared as a lexically scoped variable and assigned a
+value when topicalizing with `with`, `given`, `for` or anonymous functions
+having undeclared parameters. `_` is lexically scoped as Maat supports language
+threads called Maatines.
 
 ```
 for ^5 {
@@ -350,8 +344,8 @@ auto-declared and used by the loop.
 * `__FILE__`: **(r,p)** A `Str` object, it is the name of the source file in which it occurs.
 * `__FN__`: **(r,l)** It returns the current function object if enclosed by it, otherwise, `nil`.
 
-As any other non-constant package variable, all the above package variables
-can be temporarized.
+As any other non-constant package variable, all the above package
+variables can be temporarized.
 
 ### Special token
 
@@ -381,13 +375,13 @@ This feature is taken from Perl.
 
 ## Assignments
 
-What you first need to understand is that a list of expressions grouped with `()` is
-also an expression which evaluates all its inner expressions and leave on the stack
-returned the value of the the last evaluated one. A exception arises when we start
-grouping variables on the left where is per
+What you first need to understand is that a list of expressions grouped with
+`()` is also an expression which evaluates all its inner expressions and leave
+on the stack returned the value of the the last evaluated one. A exception
+arises when we start grouping variables on the left where is per
 
-You can use the accumulator and destructor operator in assignments, here are some
-examples which I believe should be self-documentary.
+You can use the accumulator and destructor operator in assignments, here are
+some examples which I believe should be self-documentary.
 
 ```
 let (a, b, c, d, e, f);
@@ -480,32 +474,36 @@ Maat has ... builtin types, types are objects and objects are types.
 
 ## Mutability Trait
 
-The mutability of an object can be set at the time of its allocation by using the immutable
-trait `:im`, this way of making an object immutable is very unusual but can be very useful
-in certain scenarios. Consider the following code:
+The mutability of an object can be set at the time of its allocation by using
+the immutable trait `:im`, this way of making an object immutable is very
+unusual but can be very useful in certain scenarios. Consider the following
+code:
 
 ```
-our c :im = {
+our c :i = {
     Burkina_Faso => '',
     Niger        => '',
     Mali         => '',
 };
 ```
 
-This code declares a package variable `c` and assigns to it a map which is set immutable
-using the `:im` trait, please note that there's really nothing that relates the mutability
-of `c` to `:im` although `c` . If you intend to not modify a complex
-struture through out the execution of your program then think of using `:im` as it enhances
-the performance of your program by avoiding unnecessary needed to synchronize operations on
-that structure when your program is executing in a multi-threaded environment.
+This code declares a package variable `c` and assigns to it a map which is set
+immutable using the `:i` trait, please note that there's really nothing that
+relates the mutability of `c` to `:im` although `c` . If you intend to not
+modify a complex struture through out the execution of your program then think
+of using `:im` as it enhances the performance of your program by avoiding
+unnecessary needed to synchronize operations on that structure when your program
+is executing in a multi-threaded environment.
 
-So `:im` simply means that any object assigned to `c` must be set immutable and this is
+So `:im` simply means that any object assigned to `c` must be marked immutable
+is
+
 only possible if and only if the object 
 
 # Blocks and Flow Controls
 
-We separate statements with a generic newline or a semicolon in case we have more than
-one statement on a single line.
+We separate statements with a generic newline or a semicolon in case we have
+more than one statement on a single line.
 
 1. Blocks
 
@@ -560,24 +558,24 @@ let x = do { 2 ** 4 } + 2;
 
 ## Topic variables
 
-Maat does topicalization with flow control statements and anonymous functions a way
-similar to that in Perl and Raku. It is important to understand this now to avoid
-confusion when reading the below specification. Here, we'll focus on topicalization
-regarding flow controls and the one about functions will be explained later.
+Maat does topicalization with flow control statements and anonymous functions a
+way similar to that in Perl and Raku. It is important to understand this now to
+avoid confusion when reading the below specification. Here, we'll focus on
+topicalization regarding flow controls and the one about functions will be
+explained later.
 
-Topicalization? What is it? first appeared in Perl, topicalization is a technique
-used to apply a set of operations on one or a group of specific targets, it
-involves making the topic of operations more accessible in code. If not explicitly
-defined, a topic variable is represented by the type II special variable `_` which
-holds the current default or implied argument for certain operations. Topicalization
-allows you to use this special variable implicitly or explicitly within your code
-to refer to the current topic without having to explicitly declare it as parameter
-to each operation.  An example is using the default topic variable in an anynomous
-function which implicitly means the anonymous function take a single parameter and
-the default topic variable refers to it. Another example is using the default topic
-variable within the code of the `with` construct to implicitly refer to the return
-value of its conditional expression.
-
+Topicalization is a technique used to apply a set of operations on one or a
+group of specific targets, it involves making the topic of operations more
+accessible in code. If not explicitly defined, a topic variable is represented
+by the type II special variable `_` which holds the current default or implied
+argument for certain operations. Topicalization allows you to use this special
+variable implicitly or explicitly within your code to refer to the current topic
+without having to explicitly declare it as parameter to each operation. An
+example is using the default topic variable in an anynomous function which
+implicitly means the anonymous function take a single parameter and the default
+topic variable refers to it. Another example is using the default topic variable
+within the code of the `with` construct to implicitly refer to the return value
+of its conditional expression.
 
 2. The `if` flow control statement
 
@@ -592,9 +590,8 @@ EXPR if EXPR
 Conditional construct `if`, note that paranthesis are optional.
 
 You must explicitly defined a topic variable if the return value of the
-conditional expression of `if` or any `elsif` is of interest to you as
-this flow construct neither changes nor defines the default topic
-variable `_`.
+conditional expression of `if` or any `elsif` is of interest to you as this flow
+construct neither changes nor defines the default topic variable `_`.
 
 ```
 if true { say "it is true" }
@@ -616,8 +613,8 @@ if x % 2 -> r {
 }
 ```
 
-`if` has a statement modifer form where EXPR does not get executed in
-a new scope.
+`if` has a statement modifer form where EXPR does not get executed in a new
+scope.
 
 ```
 say "one" if true;
@@ -639,10 +636,9 @@ EXPR with EXPR
 
 Conditional `with` construct, parathensis are optional as always.
 
-`with` tests for definedness (that's `!nil`) whereas `if` tests for
-truth. Unlike the `if` construct, the `with` and `orwith` sets the
-default topic variable `_` to the value returned by the their
-conditional expressions.
+`with` tests for definedness (that's `!nil`) whereas `if` tests for truth.
+Unlike the `if` construct, the `with` and `orwith` sets the default topic
+variable `_` to the value returned by the their conditional expressions.
 
 ```
 let (u, y) = 5, nil;
@@ -690,10 +686,9 @@ for <LIST | ARRAY | MAP | RANGE | LAZY | GFun> [ -> TOPIC_VAR [ , TOPIC_VAR ]* ]
 EXPR for <LIST | ARRAY | RANGE | MAP | LAZY | GFun>
 ```
 
-`for` either iterate over an iterable object or a comma separated
-list of values which internal is represented as an object. Iterable
-objects here are object of the following types: `Array`, `Map`
-`Range`, `Lazy` and `GFun`.
+`for` either iterate over an iterable object or a comma separated list of values
+which internal is represented as an object. Iterable objects here are object of
+the following types: `Array`, `Map` `Range`, `Lazy` and `GFun`.
 
 Here are examples of iterations over a comma seperated list of values
 
@@ -712,9 +707,9 @@ for ar, { .say }
 .say for ar,;
 
 ---
-We have a.len + 1 iterations, the array destruction operator is used to
-break 'ar' into a list. At topic let declaration, set a custom default
-value to handle situations where we are out of elements
+We have a.len + 1 iterations, the array destruction operator is used to break
+'ar' into a list. At topic let declaration, set a custom default value to handle
+situations where we are out of elements
 ---
 for ar*, 2 -> m, n = 'default' { (n + '-' + m).say }
 ```
@@ -762,11 +757,10 @@ for points<month> { .say }
 for ((2, (2, 10)), 2) { .say }
 ```
 
-For lazy evaluation, we iterate over a lazy object. A lazy object
-implements a subset of Array methods that process array elements
-to produce other elements. Each method call on a lazy object
-registers that method with its arguments so that it gets called
-for every lazy iteration.
+For lazy evaluation, we iterate over a lazy object. A lazy object implements a
+subset of Array methods that process array elements to produce other elements.
+Each method call on a lazy object registers that method with its arguments so
+that it gets called for every lazy iteration.
 
 ```
 let a = @a(nairobi niamey yaounde)
@@ -786,10 +780,9 @@ when COND [ | EXPR ]* { CODE }
 EXPR when COND
 ```
 
-the when flow control is similar the `if` construct but differs from 
-how the condition is tested if COND is just an expression, then CODE
-gets executed if the value of the topic variable smartmatch the result
-of EXPR
+the when flow control is similar the `if` construct but differs from  how the
+condition is tested if COND is just an expression, then CODE gets executed if
+the value of the topic variable smartmatch the result of EXPR
 
 
 6. The `given` topicalizer
@@ -885,20 +878,20 @@ break [ LABEL ]
 next  [ LABEL ]
 redo  [ LABEL ]
 ```
-use loop control statements to control the behavoir of loop
-and non-flow control blocks
+use loop control statements to control the behavoir of loop and non-flow control
+blocks
 
 * `next`: just like `C`'s `continue` loop control statement
 * `break`: just like `C`'s `break` loop control statement
 * `redo`: to rerun current loop block without evaluating the conditional 
 
-if the LABEL is omitted, the control statement refers to
-the innermost enclosing loop or non-flow control block.
+if the LABEL is omitted, the control statement refers to the innermost enclosing
+loop or non-flow control block.
 
 11. `labels`
 
-labels permits you to label blocks and flow controls so as to be able to
-perform jumps using control statements like `redo`, `break` and `next`.
+labels permits you to label blocks and flow controls so as to be able to perform
+jumps using control statements like `redo`, `break` and `next`.
 
 ```
 # an infinite loop with prints "one"
@@ -935,10 +928,9 @@ fn do_sleep(n) {
 once STATEMENT
 ```
 
-`once` gives you the possibility to execute a statement within a loop
-only once regardless of the number of iterations. One great advantage
-it offers is freeing us from using a conditional construct to avoid
-the execution of a statement.
+`once` gives you the possibility to execute a statement within a loop only once
+regardless of the number of iterations. One great advantage it offers is freeing
+us from using a conditional construct to avoid the execution of a statement.
 
 ```
 let amap = @m(one 1 two 2 three 3);
@@ -966,9 +958,9 @@ ma FOR_LOOP
 ```
 
 `ma` is a statement prefix for function calls and the `for` loop, it is
-responsible of running code concurrently using maatines. When prefixed
-to function calls, it runs the function in a new lightweight thread known
-as a Maatine.
+responsible of running code concurrently using maatines. When prefixed to
+function calls, it runs the function in a new lightweight thread known as a
+Maatine.
 
 ```
 fn just_sleep(n) { n.sleep }
@@ -978,9 +970,9 @@ for 10..20 -> time {
 }
 ```
 
-When `ma` is used along side with a `for` loop, each block runs run on
-its own Maatine. In Maat, you'll never have to care about concurrent
-access to shared memory because synchronization is done by Maat itself.
+When `ma` is used along side with a `for` loop, each block runs run on its own
+Maatine. In Maat, you'll never have to care about concurrent access to shared
+memory because synchronization is done by Maat itself.
 
 ```
 ma for ^10 { .sleep }
@@ -996,10 +988,9 @@ ma for ^10 { .sleep }
 : EXPR
 ```
 
-Functions are first class values and hence they can be assigned to
-variables. The use of parantheses during a function call is optional
-while its usage in a function definition is mandatory if and only if
-that function takes arguments.
+Functions are first class values and hence they can be assigned to variables.
+The use of parantheses during a function call is optional while its usage in a
+function definition is mandatory if and only if that function takes arguments.
 
 ```
 fn hello_world {
@@ -1009,8 +1000,8 @@ fn hello_world {
 hello_world()
 ```
 
-Here we are declaring an anonymous function which takes a single
-parameter and then call it.
+Here we are declaring an anonymous function which takes a single parameter and
+then call it.
 
 ```
 let sleep = {|x| x.sleep; say "slept for #x seconds" };
@@ -1027,11 +1018,11 @@ sleep.call
 
 ## The default Topic Variable `_`
 
-The type II special variable `_` is called a topic variable, this variable
-can be implicitly refered on anonymous functions and some flow control blocks.
-The usage of this default topic variable within the code of an anonymous
-function implies that this anonymous function takes a single argument whose
-parameter wasn't explicitly declared with `| ... |` and hence defaults to `_`.
+The type II special variable `_` is called a topic variable, this variable can
+be implicitly refered on anonymous functions and some flow control blocks. The
+usage of this default topic variable within the code of an anonymous function
+implies that this anonymous function takes a single argument whose parameter
+wasn't explicitly declared with `| ... |` and hence defaults to `_`.
 
 It is possible to omit `_` when calling a method on the content of a topic
 variable.
@@ -1050,12 +1041,11 @@ let ar = @a(tcheukam madjou monthe);
 say ar.map: .ucfirst;
 ```
 
-The usage of the default topic variable in an anonymous function having
-declared parameter or expecting no parameters refers to the one from
-outer scopes.
+The usage of the default topic variable in an anonymous function having declared
+parameter or expecting no parameters refers to the one from outer scopes.
 
-The method `.times` of the `Num` type expects no argument when called and
-thus the default topic variable refers to the one from the outer scope.
+The method `.times` of the `Num` type expects no argument when called and thus
+the default topic variable refers to the one from the outer scope.
 
 ```
 # output: 88888888 666666 666666
@@ -1092,12 +1082,11 @@ mul("one").say;    # output: oneone
 mul("two", 5).say; # output: twotwotwotwo
 ```
 
-Maat has what we call an accumulator operator, this accumulator operator
-in a method/function definition is a prefix operator used to collect the
-rest of extra indefinite number of arguments as an array into the last
-declared parameter of that function/method during calls. This is done by
-prepending `…` to the last declared parameter at function/method
-definition.
+Maat has what we call an accumulator operator, this accumulator operator in a
+method/function definition is a prefix operator used to collect the rest of
+extra indefinite number of arguments as an array into the last declared
+parameter of that function/method during calls. This is done by prepending `…`
+to the last declared parameter at function/method definition.
 
 ```
 # using the array accumulator operator for variadic arguments
@@ -1117,10 +1106,10 @@ fn bad_func3(*a, b, *c) { ... }
 fn bad_func4(a, *b, *c) { ... }
 ```
 
-The reason why `fn` optionally precedes `{}` when defining anonymous
-functions is mainly for syntatic sugar and so to avoid confusion with
-blocks, it is prohibited to declare an anonymous function the
-following ways as it may add much work to the compiler.
+The reason why `fn` optionally precedes `{}` when defining anonymous functions
+is mainly for syntatic sugar and so to avoid confusion with blocks, it is
+prohibited to declare an anonymous function the following ways as it may add
+much work to the compiler.
 
 ```
 # fails at compile time
@@ -1137,10 +1126,10 @@ fn { .say }.call(20);
 
 ## Traits
 
-Functions as well as methods support the `:save` trait, the `:save` trait
-caches the return value of a function call to avoid recomputation of the
-same function call when doing recursive calls. This trait can help you do
-dynamic programming with less overhead.
+Functions as well as methods support the `:save` trait, the `:save` trait caches
+the return value of a function call to avoid recomputation of the same function
+call when doing recursive calls. This trait can help you do dynamic programming
+with less overhead.
 
 ```
 fn fib(n) :s {
@@ -1150,8 +1139,8 @@ fn fib(n) :s {
 
 ## Generator function
 
-A Generator function for gathering values with `take`, a generator function
-is an iterable object where each iteration resumes from where the generator
+A Generator function for gathering values with `take`, a generator function is
+an iterable object where each iteration resumes from where the generator
 function was paused by a `take` call.
 
 ```
@@ -1238,10 +1227,9 @@ List of traits supported by attributes and methods
 * `built`: Make attribute private but can be set at instanciation
 * `oi`: Make method private to the class
 
-To every object is associated a metaobject which permits object
-introspection, given a variable `obj` containing an abitrary
-object, this object can be introspected via its metaobject by
-using the `.^` method call operator.
+To every object is associated a metaobject which permits object introspection,
+given a variable `obj` containing an abitrary object, this object can be
+introspected via its metaobject by using the `.^` method call operator.
 
 ```
 obj.^who;      # returns the class from which obj was instanciated
@@ -1291,11 +1279,12 @@ See section on the [Regex](./types/Regex.md) type for more information.
 # Async Programming with Works
 
 Maat has two concurrent programming model which are the asynchronous and
-thread-like model. The thread-like model is what we call [Maatines](./types/Ma.md)
-and the async model is what we call [Works](./types/Work.md). Async functionality
-is implemented with the help of Maatines, so yeah… it is just an abstract
-layer over it. A Work encapsulate a computation called a Work which runs
-internally as a new or updated Maatine object.
+thread-like model. The thread-like model is what we call
+[Maatines](./types/Ma.md) and the async model is what we call
+[Works](./types/Work.md). Async functionality is implemented with the help of
+Maatines, so yeah… it is just an abstract layer over it. A Work encapsulate a
+computation called a Work which runs internally as a new or updated Maatine
+object.
 
 A Work has three possible state which are the `Do`, `Done` and `Failed` state.
 
@@ -1303,10 +1292,9 @@ A Work has three possible state which are the `Do`, `Done` and `Failed` state.
 2. In the `Done` state, Work is `Done` and has its result saved for latter retrieval.
 3. In the `Failed` state, an exception was thrown when the Work was doing its work and hence `Fail`ed.
 
-The below code creates a new Work which is initially in the `Do`
-state, completes its work with the `done` method and from there checks
-its updated status and result with the `status` and `done` methods
-respectively.
+The below code creates a new Work which is initially in the `Do` state,
+completes its work with the `done` method and from there checks its updated
+status and result with the `status` and `done` methods respectively.
 
 ```
 let w = Work.new;   # new Work object
@@ -1316,9 +1304,8 @@ say w.status;       # output: Done
 say w.result;       # output: I'm done
 ```
 
-You can return a Work that is already done with the static `done`
-method and you can also return a work that has already failed with
-the `failed` method.
+You can return a Work that is already done with the static `done` method and you
+can also return a work that has already failed with the `failed` method.
 
 ```
 Work.done.status.say;   # output: Done
@@ -1330,15 +1317,16 @@ We can chain Works just like you do with Promises in Javascript
 > The chaining mechanism of Works in Maat is completely
 > different from that of Promises in javascript.
 
-Listen to the story: you first start by creating a work with `Work.does`
-which returns a work object on which you can but not only do either of
-the following:
+Listen to the story: you first start by creating a work with `Work.does` which
+returns a work object on which you can but not only do either of the following:
 
-1. Call the `.catch` method to handle any exception on the created Work, it returns back the same object
-2. Call the `.then` method to create and return a new Work to be scheduled for execution if Work object invoker is `Done`
+1. Call the `.catch` method to handle any exception on the created Work, it
+   returns back the same object
+2. Call the `.then` method to create and return a new Work to be scheduled for
+   execution if Work object invoker is `Done`
 
-If the exception of the work created by `.then` is not handled, it inherits
-its exception handler from the highiest top level Work.
+If the exception of the work created by `.then` is not handled, it inherits its
+exception handler from the highiest top level Work.
 
 ```
 let w = Work.does({ sleep 4; 10 })
@@ -1350,40 +1338,39 @@ let w = Work.does({ sleep 4; 10 })
 say abide w; # output: 10
 ```
 
-To abide a work say `w` with function `abide` is to call the method `.result`
-on it. `abide` function can take multiple Works as argument and return their
-results in an Array. If a work with a handled exception encounters an 
+To abide a work say `w` with function `abide` is to call the method `.result` on
+it. `abide` function can take multiple Works as argument and return their
+results in an Array. If a work with a handled exception encounters an
 exception, calling `.result` on it returns `nil`.
 
-You can setup a work to do work by sleeping for a given amount of time using
-the static `.for` method, yes! sleeping is a kind of a work, even in real
-life :).
+You can setup a work to do work by sleeping for a given amount of time using the
+static `.for` method, yes! sleeping is a kind of a work, even in real life :).
 
 ```
 Work.for(5)
     .then({ say "Previous work was to sleep 5 seconds" });
 ```
 
-The above is kinda similar to this one and both of them can be used to
-build timers.
+The above is kinda similar to this one and both of them can be used to build
+timers.
 
 ```
 Work.does(:5.sleep)
     .then(:…);
 ```
 
-You can also set a work to do work by waiting til a specified time
-using the `.til` static method
+You can also set a work to do work by waiting til a specified time using the
+`.til` static method
 
 ```
 Work.til(Date.now + 10)
     .then(:say "Previous work is done at ", _);
 ```
 
-You can use the `Work.allof` method to return a new Work object that
-will be `Done` when all the work passed as arguments are either `Done`
-or `Failed`. The value return by `.result` method call on the returned
-work object is always `true` and practically useless.
+You can use the `Work.allof` method to return a new Work object that will be
+`Done` when all the work passed as arguments are either `Done` or `Failed`. The
+value return by `.result` method call on the returned work object is always
+`true` and practically useless.
 
 ```
 let k = ^5.map {|i| Work.does(:sleep i) };
@@ -1396,10 +1383,10 @@ See section on the [Work](./types/Work.md) type for more information.
 
 # Maatines
 
-Maatines are lightweight threads managed by the Maat runtime, they are
-extremely easy and less costly to create and destroy. Internally, Maat
-has a high performant scheduler which schedules the executions of
-Maatines across OS threads.
+Maatines are lightweight threads managed by the Maat runtime, they are extremely
+easy and less costly to create and destroy. Internally, Maat has a high
+performant scheduler which schedules the executions of Maatines across OS
+threads.
 
 See section on the [Ma](./types/Ma.md) type for more information.
 
