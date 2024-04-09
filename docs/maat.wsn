@@ -18,6 +18,7 @@ NonBlockStat =   unimpl
                | Exp
                | StatMod
                | LoopCtrl
+               | LoopCtrlExp
                | DeferExp
                | Return .
 
@@ -29,6 +30,7 @@ BlockStat =   PackageBlock
             | Class
             | Role
             | Try
+            | LoopCtrlBlock
             | DeferBlock .
 
 Package      = "package" namespace .
@@ -58,7 +60,8 @@ AnyVarList = { AnyVar_ } [ "*" ] any_var [ im ] { _AnyVar } .
 _AnyVar    = Commas any_var [ im ] .
 AnyVar_    = any_var        [ im ] Commas .
 
-Flow =   "given" Cond [ TopicVar ] Block
+Flow =   "once"                    Block
+       | "given" Cond [ TopicVar ] Block
        | "when"  Cond              Block
        | "if"    Cond [ TopicVar ] Block { elseif Cond [ TopicVar ] Block } [ else Block ]
        | "with"  Cond [ TopicVar ] Block { orwith Cond [ TopicVar ] Block } [ else Block ] .
@@ -67,19 +70,18 @@ TopicVar = "->" var .
 
 Cond = ExpList .
 
-Return = return CtrlExp .
+StatMod = ( ExpList ( cond_keyword | loop_keyword ) Cond ) | "once" ExpList .
 
-StatMod = ExpList ( cond_keyword | loop_keyword ) Cond .
+Return = return ExpList .
 
 Loop =   ForLoop
-       | "once"                    Block
        | "loop"  [ LoopCondStats ] Block
        | "while" Cond              Block
        | "until" Cond              Block .
 
 ForLoop = "for" ExpList [ TopicVars ] Block .
 
-LoopCondStats = "(" [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] ")".
+LoopCondStats = "(" [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] ")" .
 
 LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
 
@@ -98,7 +100,7 @@ FnArgs =   NormArg { "," NormArg } [ "," AccArg ] [ "," MapArg ]
          | MapArg .
 
 NormArg = var [ ( "=" | "=//" ) Exp ] .
-AccArg  = "*" var .
+AccArg  = "*"     var .
 HashArg = "*" "*" var .
 
 FnBody = Block .
@@ -148,13 +150,13 @@ AnonyFn = [ "fn" ] "{" [ "|" FnArgs "|" ] [ Stats ] "}" .
 
 Map        = DefaultMap | QuotedMap .
 DefaultMap = "{" { Exp "=>" Exp Commas } "}" .
-QuotedMap  = "@m" PairWordsPair .
+QuotedMap  = "@m" PairTokensPair .
 
 PairWordsPair =   xxPair Words xxPair
                 | xxPair Words xxPair
                 | xxPair Words xxPair .
 
-Words =  .
+Token =  .
 
 Array        = DefaultArray | QuotedArray .
 DefaultArray = "[" [ ExpList ] "]" .
@@ -168,6 +170,10 @@ MaStatExp = "ma" ( ForLoop | FnCall ) .
 PrefixExp =  .
 
 /* Below are lexical tokens */
+
+scope        = "let" | "our" .
+loop_keyword = "for" | "until"  | "while" .
+cond_keyword = "if"  | "unless" | "when" | "with" | "given" .
 
 end = ";" .
 
@@ -185,40 +191,35 @@ nil = "nil" .
 
 boolean = "true" | "false" .
 
-dec_digit = "0" … "9" .
-bin_digit = "0" | "1" .
-oct_digit = "0" … "7" .
-hex_digit = "0" … "9" | "A" … "F" | "a" … "f" .
+bin_digit      = "0" | "1" .
+non_zero_digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" .
+oct_digit      = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" .
+dec_digit      = "0" | non_zero_digit .
+hex_digit      = dec_digit | "A" | "B" | "C" | "D" | "E" | "F" | "a" | "b" | "c" | "d" | "e" | "f" .
 
 num_lit = int_lit | float_lit .
 
-int_lit = dec_int | oct_int | hex_int | bin_int .
-dec_int = "0" | "1" … "9"   [ [ "_" ] dec_digits ] .
-hex_int = "0" ( "x" | "X" ) [ "_" ] hex_digits .
+int_lit = bin_int | oct_int | dec_int | hex_int .
 bin_int = "0" ( "b" | "B" ) [ "_" ] bin_digit { [ "_" ] bin_digit } .
 oct_int = "0" [ "o" | "O" ] [ "_" ] oct_digit { [ "_" ] oct_digit } .
+dec_int = "0" | non_zero_digit [ [ "_" ] dec_digits ] .
+hex_int = "0" ( "x" | "X" )      [ "_" ] hex_digits .
 
 dec_digits = dec_digit { [ "_" ] dec_digit } .
 hex_digits = hex_digit { [ "_" ] hex_digit } .
 
 float_lit = hex_float | dec_float .
 
-hex_float = .
+dec_float =   dec_int [ "." [ dec_digits ] ] dec_exp
+            | dec_int                        dec_exp
+            | "." dec_digits               [ dec_exp ] .
 
-dec_float = .
+dec_exp = ( "e" | "E" ) [ "-" | "+" ] dec_digits .
 
-scope = "let" | "our" .
-
-loop_keyword = "for" | "until"  | "while" .
-cond_keyword = "if"  | "unless" | "when" | "with" | "given" .
-
-nl = [ cr_esc ] nl_esc .
-
-special_char =   "V" | "O" | ","
-               | "/" | "|" | """"
-               | "$" | "0" | "("
-               | "<" | "F" | "*"
-               | "." | "!" | "$" .
+hex_float    = "0" ( "x" | "X" ) hex_mantissa ( "p" | "P" ) [ "-" | "+" ] dec_digits .
+hex_mantissa =   [ "_" ] hex_digits "." [ hex_digits ]
+               | [ "_" ] hex_digits
+               |   "."   hex_digits .
 
 string_lit = str_default | str_with_pair | here_doc .
 
@@ -226,13 +227,13 @@ str_default = single_q | double_q | back_q .
 
 single_q = "'"  val_single_q "'"  .
 double_q = """" val_double_q """" .
-back_q   = "`"  val_single_q "`"  .
+back_q   = "`"  val_double_q "`"  .
 
-val_double_q = vsq .
-val_single_q = vdq .
+val_double_q = unicode_val  | esc_char | .
+val_single_q = unicode_char | esc_char_sq | new_line .
 
-vsq = .
-vdq = .
+unicode_val = byte | unicode_codepoint | ascii_codepoint | esc_char .
+esc_char = 
 
 str_with_pair = "@" ( single_q_p | double_q_p | back_q_p | regex_q_p ) .
 single_q_p    = "q" pair__s_q__pair .
@@ -240,19 +241,19 @@ double_q_p    = "Q" pair__d_q__pair .
 back_q_p      = "x" pair__b_q__pair .
 regex_q_p     = "r" pair__r_q__pair .
 
-pair__s_q__pair =   o_cb   vsq c_cb   | o_pr   vsq c_pr   | o_sb vsq c_sb | o_lab vsq o_rab
-                  | o_ldap vsq c_rdap | o_lapq vsq c_lapq | s_em vsq s_em | s_bt  vsq s_bt
-                  | s_dl   vsq s_dl   | s_vb   vsq s_vb   | s_dq vsq s_sq | s_sq  vsq s_sq
-                  | s_sl   vsq s_sl   | s_cm   vsq s_cm .
+pair__s_q__pair =   o_cb   vsq_cb   c_cb   | o_pr   vsq_pr   c_pr   | o_sb vsq_sb c_sb | o_lab vsq_rab o_rab
+                  | o_ldap vsq_rdap c_rdap | o_lapq vsq_lapq c_lapq | s_em vsq_em s_em | s_bt  vsq_bt  s_bt
+                  | s_dl   vsq_dl   s_dl   | s_vb   vsq_vb   s_vb   | s_dq vsq_sq s_dq | s_sq  vsq     s_sq
+                  | s_sl   vsq_sl   s_sl   | s_cm   vsq_cm   s_cm .
 
-pair__d_q__pair =   o_cb   vdq c_cb   | o_pr   vdq c_pr   | o_sb vdq c_sb | o_lab vdq o_rab
-                  | o_ldap vdq c_rdap | o_lapq vdq c_lapq | s_em vdq s_em | s_bt  vdq s_bt
-                  | s_dl   vdq s_dl   | s_vb   vdq s_vb   | s_dq vdq s_sq | s_sq  vdq s_sq
-                  | s_sl   vdq s_sl   | s_cm   vdq s_cm .
+pair__d_q__pair =   o_cb   vdq_cb   c_cb   | o_pr   vdq_pr   c_pr   | o_sb vdq_sb c_sb | o_lab vdq_rab c_rab
+                  | o_ldap vdq_rdap c_rdap | o_lapq vdq_lapq c_lapq | s_em vdq_em s_em | s_bt  vdq_bt  s_bt
+                  | s_dl   vdq_dl   s_dl   | s_vb   vdq_vb   s_vb   | s_dq vdq    s_dq | s_sq  vdq_sq  s_sq
+                  | s_sl   vdq_sl   s_sl   | s_cm   vdq_cm   s_cm .
 
-pair__b_q__pair = pair__s_q__pair .
+pair__b_q__pair = pair__d_q__pair .
 
-pair_r_q_pair = 
+pair__r_q__pair = 
 
 o_cb  = "{" . c_cb  = "}" . o_pr   = "(" . c_pr   = ")" . o_sb   = "[" . c_sb   = "]" .
 o_lab = "<" . c_rab = ">" . o_ldaq = "«" . c_rdap = "»" . o_labq = "‹" . c_rabq = "›" .
@@ -272,11 +273,21 @@ hd_double_q = "<<" """" tok """" nl vdq nl tok .
 hd_back_q   = "<<" "`"  tok "`"  nl vsq nl tok .
 tok         = name .
 
+generic_nl = [ carriage_return ] new_line .
+
+
 regex_lit         = regex_default | regex_q_with_pair .
 regex_default     = "/" "/" { regex_val_mod } .
 regex_q_with_pair = "@r"
 regex_val_mod     = "m" | "i" | "s" | "a" | "n" |
 regex_s_op_mod    = regex_value_mod | "g" | "e" |
+
+
+special_char =   "V" | "O" | ","
+               | "/" | "|" | """"
+               | "$" | "0" | "("
+               | "<" | "F" | "*"
+               | "." | "!" | "$" .
 
 name = 
 
@@ -298,3 +309,5 @@ say ((2,,) + 1)   # outputs 3, is ',' also a postfix operator?
 
 # ambiguity
 loop (); k; k { }
+exp, exp, exp if exp, exp, exp ... === exp, exp, exp if (exp, exp, exp ...)
+hex_float (_.)
