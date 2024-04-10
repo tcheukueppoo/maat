@@ -18,8 +18,8 @@ NonBlockStat =   unimpl
                | Exp
                | StatMod
                | LoopCtrl
-               | LoopCtrlExp
-               | DeferExp
+               | DeferExpList
+               | OnceExpList
                | Return .
 
 BlockStat =   PackageBlock
@@ -30,8 +30,8 @@ BlockStat =   PackageBlock
             | Class
             | Role
             | Try
-            | LoopCtrlBlock
-            | DeferBlock .
+            | DeferBlock
+            | OnceBlock .
 
 Package      = "package" namespace .
 PackageBlock = Package Block .
@@ -42,9 +42,9 @@ Use = "use" namespace [ "(" [ name { "," name } ] ")" ] .
 
 Load = "load" string_lit .
 
-Commas = "," { "," } .
-
 ExpList = Exp { Commas Exp } { "," } .
+
+Commas = "," { "," } .
 
 VarDef = ( [ "const" ] ( [ scope ] | "state" ) Vars | "const" Vars | "temp" AnyVars ) [ EqExp ] .
 
@@ -52,32 +52,40 @@ EqExp = "=" Exp .
 
 Vars    = "(" VarList { "," } ")" | var .
 VarList = { Var_ } [ "*" ] var [ im ] { _Var } .
-_Var    = Commas var [ im ] .
-Var_    = var        [ im ] Commas .
+
+Var_ =        var [ im ] Commas .
+_Var = Commas var [ im ] .
 
 AnyVars    = "(" AnyVarList { "," } ")" | any_var .
 AnyVarList = { AnyVar_ } [ "*" ] any_var [ im ] { _AnyVar } .
-_AnyVar    = Commas any_var [ im ] .
-AnyVar_    = any_var        [ im ] Commas .
 
-Flow =   "once"                    Block
-       | "given" Cond [ TopicVar ] Block
-       | "when"  Cond              Block
-       | "if"    Cond [ TopicVar ] Block { elseif Cond [ TopicVar ] Block } [ else Block ]
-       | "with"  Cond [ TopicVar ] Block { orwith Cond [ TopicVar ] Block } [ else Block ] .
+AnyVar_ =        any_var [ im ] Commas .
+_AnyVar = Commas any_var [ im ] .
+
+Flow =   "given"  Cond [ TopicVar ] Block
+       | "when"   Cond              Block
+       | "unless" Cond [ TopicVar ] Block { elseif Cond [ TopicVar ] Block } [ else Block ]
+       | "if"     Cond [ TopicVar ] Block { elseif Cond [ TopicVar ] Block } [ else Block ]
+       | "with"   Cond [ TopicVar ] Block { orwith Cond [ TopicVar ] Block } [ else Block ] .
 
 TopicVar = "->" var .
 
 Cond = ExpList .
 
-StatMod = ( ExpList ( cond_keyword | loop_keyword ) Cond ) | "once" ExpList .
+StatMod = ( ExpList ( cond_keyword | loop_keyword ) Cond ) .
+
+OnceBlock   = "once" Block .
+OnceExpList = "once" ExpList .
+
+DeferBlock   = "defer" Block .
+DeferExpList = "defer" ExpList .
 
 Return = return ExpList .
 
 Loop =   ForLoop
        | "loop"  [ LoopCondStats ] Block
-       | "while" Cond              Block
-       | "until" Cond              Block .
+       | "while"   Cond            Block
+       | "until"   Cond            Block .
 
 ForLoop = "for" ExpList [ TopicVars ] Block .
 
@@ -86,9 +94,6 @@ LoopCondStats = "(" [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] ")" .
 LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
 
 TopicVars = "->" var [ EqExp ] { "," var [ EqExp ] } .
-
-DeferBlock = "defer" Block .
-DeferExp   = "defer" Exp .
 
 Try = "try" Block { "catch" Exp Block } [ "finally" Block ] .
 
@@ -106,7 +111,7 @@ HashArg = "*" "*" var .
 FnBody = Block .
 
 Class    = [ "const" ] [ scope ] "class" name [ ClassRel ] [ main ] ClassBody .
-ClassRel = Is | Does | Is Does .
+ClassRel = Is Does | Does Is | Is | Does .
 
 Is   = ":is("   [ IsArgs   ] ")" .
 Does = ":does(" [ DoesArgs ] ")" .
@@ -152,9 +157,9 @@ Map        = DefaultMap | QuotedMap .
 DefaultMap = "{" { Exp "=>" Exp Commas } "}" .
 QuotedMap  = "@m" PairTokensPair .
 
-PairWordsPair =   xxPair Words xxPair
-                | xxPair Words xxPair
-                | xxPair Words xxPair .
+PairWordsPair =   xxPair Tokens xxPair
+                | xxPair Tokens xxPair
+                | xxPair Tokens xxPair .
 
 Token =  .
 
@@ -169,11 +174,11 @@ MaStatExp = "ma" ( ForLoop | FnCall ) .
 
 PrefixExp =  .
 
-/* Below are lexical tokens */
+--- Below is the WSN of all lexical tokens ---
 
 scope        = "let" | "our" .
 loop_keyword = "for" | "until"  | "while" .
-cond_keyword = "if"  | "unless" | "when" | "with" | "given" .
+cond_keyword = "if"  | "unless" | "unless" | "when" | "with" | "given" .
 
 end = ";" .
 
@@ -185,7 +190,8 @@ prefix_op = .
 
 unimpl = "…" | "..." .
 
-im = ":i" . main = ":m" .
+im   = ":" "i" .
+main = ":" "m" .
 
 nil = "nil" .
 
@@ -210,46 +216,70 @@ hex_digits = hex_digit { [ "_" ] hex_digit } .
 
 float_lit = hex_float | dec_float .
 
-dec_float =   dec_int [ "." [ dec_digits ] ] dec_exp
-            | dec_int                        dec_exp
-            | "." dec_digits               [ dec_exp ] .
+dec_float =   dec_int [ "." [ dec_digits ] ]   dec_exp
+            | dec_int                          dec_exp
+            |           "."   dec_digits     [ dec_exp ] .
 
 dec_exp = ( "e" | "E" ) [ "-" | "+" ] dec_digits .
 
 hex_float    = "0" ( "x" | "X" ) hex_mantissa ( "p" | "P" ) [ "-" | "+" ] dec_digits .
 hex_mantissa =   [ "_" ] hex_digits "." [ hex_digits ]
                | [ "_" ] hex_digits
-               |   "."   hex_digits .
+               |                    "."   hex_digits .
 
-string_lit = str_default | str_with_pair | here_doc .
+string_lit = str_default | str_q_with_pair | here_doc .
 
 str_default = single_q | double_q | back_q .
 
-single_q = "'"  val_single_q "'"  .
-double_q = """" val_double_q """" .
-back_q   = "`"  val_double_q "`"  .
+single_q = "'"  { val_single_q } "'"  .
+double_q = """" { val_double_q } """" .
+back_q   = "`"  { val_double_q } "`"  .
 
-val_double_q = unicode_val  | esc_char | .
-val_single_q = unicode_char | esc_char_sq | new_line .
+vdq = val_double_q .
+vsq = val_single_q .
 
-unicode_val = byte | unicode_codepoint | ascii_codepoint | esc_char .
-esc_char = 
+vdq = esc_char    | ascii_codepoint | unicode_codepoint | unicode_codepoint_utf8_encoded .
+vsq = esc_sq_char | unicode_codepoint_utf8_encoded .
 
-str_with_pair = "@" ( single_q_p | double_q_p | back_q_p | regex_q_p ) .
-single_q_p    = "q" pair__s_q__pair .
-double_q_p    = "Q" pair__d_q__pair .
-back_q_p      = "x" pair__b_q__pair .
-regex_q_p     = "r" pair__r_q__pair .
+esc_sq_char = "\" "'" .
+esc_char    = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | """" ) .
 
-pair__s_q__pair =   o_cb   vsq_cb   c_cb   | o_pr   vsq_pr   c_pr   | o_sb vsq_sb c_sb | o_lab vsq_rab o_rab
-                  | o_ldap vsq_rdap c_rdap | o_lapq vsq_lapq c_lapq | s_em vsq_em s_em | s_bt  vsq_bt  s_bt
-                  | s_dl   vsq_dl   s_dl   | s_vb   vsq_vb   s_vb   | s_dq vsq_sq s_dq | s_sq  vsq     s_sq
-                  | s_sl   vsq_sl   s_sl   | s_cm   vsq_cm   s_cm .
+ascii_codepoint = "\" "x" hex_digit _hex_digit .
+_hex_digit      = [ "_" ] hex_digit .
 
-pair__d_q__pair =   o_cb   vdq_cb   c_cb   | o_pr   vdq_pr   c_pr   | o_sb vdq_sb c_sb | o_lab vdq_rab c_rab
-                  | o_ldap vdq_rdap c_rdap | o_lapq vdq_lapq c_lapq | s_em vdq_em s_em | s_bt  vdq_bt  s_bt
-                  | s_dl   vdq_dl   s_dl   | s_vb   vdq_vb   s_vb   | s_dq vdq    s_dq | s_sq  vdq_sq  s_sq
-                  | s_sl   vdq_sl   s_sl   | s_cm   vdq_cm   s_cm .
+unicode_codepoint = unicode_u_val | unicode_n_val .
+unicode_u_val     = "\" "u" ( hex_digit _hex_digit | "{" codepoint "}" ) .
+unicode_n_val     = "\" "N" "{" ( "U" "+" codepoint ) | normative_name "}" .
+normative_name    = 
+
+codepoint =   hex_digit      _hex_digit   [ _hex_digit ] [ _hex_digit ]
+            [ _hex_digit ] [ _hex_digit ] [ _hex_digit ] [ _hex_digit ] .
+
+unicode_codepoint_utf8_encoded = well_formed_utf8_byte_sequence | ill_formed_utf8_byte_sequence .
+well_formed_utf8_byte_sequence = --- --- .
+ill_formed_utf8_byte_sequence  = --- --- .
+
+str_q_with_pair = "@" ( single_q_p | double_q_p | back_q_p | regex_q_p ) .
+single_q_p      = "q" pair__s_q__pair .
+double_q_p      = "Q" pair__d_q__pair .
+back_q_p        = "x" pair__b_q__pair .
+regex_q_p       = "r" pair__r_q__pair .
+
+pair__s_q__pair =   o_cb   { vsq_cb   } c_cb   | o_pr   { vsq_pr   } c_pr
+                  | o_sb   { vsq_sb   } c_sb   | o_lab  { vsq_rab  } o_rab
+                  | o_ldap { vsq_rdap } c_rdap | o_lapq { vsq_lapq } c_lapq
+                  | s_em   { vsq_em   } s_em   | s_bt   { vsq_bt   } s_bt
+                  | s_dl   { vsq_dl   } s_dl   | s_vb   { vsq_vb   } s_vb
+                  | s_dq   { vsq_sq   } s_dq   | s_sq   { vsq      } s_sq
+                  | s_sl   { vsq_sl   } s_sl   | s_cm   { vsq_cm   } s_cm .
+
+pair__d_q__pair =   o_cb   { vdq_cb   } c_cb   | o_pr   { vdq_pr   } c_pr
+                  | o_sb   { vdq_sb   } c_sb   | o_lab  { vdq_rab  } c_rab
+                  | o_ldap { vdq_rdap } c_rdap | o_lapq { vdq_lapq } c_lapq
+                  | s_em   { vdq_em   } s_em   | s_bt   { vdq_bt   } s_bt
+                  | s_dl   { vdq_dl   } s_dl   | s_vb   { vdq_vb   } s_vb
+                  | s_dq   { vdq      } s_dq   | s_sq   { vdq_sq   } s_sq
+                  | s_sl   { vdq_sl   } s_sl   | s_cm   { vdq_cm   } s_cm .
 
 pair__b_q__pair = pair__d_q__pair .
 
@@ -258,13 +288,22 @@ pair__r_q__pair =
 o_cb  = "{" . c_cb  = "}" . o_pr   = "(" . c_pr   = ")" . o_sb   = "[" . c_sb   = "]" .
 o_lab = "<" . c_rab = ">" . o_ldaq = "«" . c_rdap = "»" . o_labq = "‹" . c_rabq = "›" .
 
-e_cb = "\}" . e_pr = "\)" . e_sb = "\]" . e_rab = "\>" . c_rdap = "\»" . e_rabq = "\›" .
+e_cb  = "\" "}" . e_pr   = "\" ")" . e_sb   = "\" "]" .
+e_rab = "\" ">" . c_rdap = "\" "»" . e_rabq = "\" "›" .
 
 s_em = "!" . s_bt = "`" . s_dl = "$" . s_vb = "|" .
 s_dq = '"' . s_sq = "'" . s_sl = "/" . s_cm = "," .
 
-e_em = "\!"     . e_bt = "\`" . s_dl = "\$" . e_vb = "\|" .
-e_bq = "\" """" . e_sq = "\'" . e_sl = "\/" . e_cm = "\," .
+e_em = "\" "!"  . e_bt = "\" "`" . s_dl = "\" "$" . e_vb = "\" "|" .
+e_bq = "\" """" . e_sq = "\" "'" . e_sl = "\" "/" . e_cm = "\" "," .
+
+vsq_cb = vsq | e_cb . vsq_rdap = vsq | e_rdap . vsq_dl = vsq | e_dl . vsq_sl  = vsq | e_sl  .
+vdq_cb = vdq | e_cb . vdq_rdap = vdq | e_rdap . vdq_dl = vdq | e_dl . vdq_sl  = vdq | e_sl  .
+vsq_pr = vsq | e_pr . vsq_lapq = vsq | e_lapq . vsq_vb = vsq | e_vb . vsq_cm  = vsq | e_cm  .
+vdq_pr = vdq | e_pr . vdq_lapq = vdq | e_lapq . vdq_vb = vdq | e_vb . vdq_cm  = vdq | e_cm  .
+vsq_sb = vsq | e_sb . vsq_em   = vsq | e_em   . vsq_sq = vsq | e_sq . vdq_sb  = vdq | e_sb  .
+vdq_em = vdq | e_em . vsq_rab  = vsq | e_rab  . vsq_bt = vsq | e_bt . vdq_rab = vdq | e_rab .
+vdq_bt = vdq | e_bt . vdq_sq   = vdq | e_sq   .
 
 here_doc    = hd_no_q | hd_single_q | hd_double_q | hd_back_q .
 hd_no_q     = "<<"      tok      nl vsq nl tok .
