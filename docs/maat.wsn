@@ -56,8 +56,8 @@ VarList = { Var_ } [ "*" ] var [ im ] { _Var } .
 Var_ =        var [ im ] Commas .
 _Var = Commas var [ im ] .
 
-AnyVars    = "(" AnyVarList { "," } ")" | any_var .
-AnyVarList = { AnyVar_ } [ "*" ] any_var [ im ] { _AnyVar } .
+AnyVars    = "(" AnyVarList ")" | any_var .
+AnyVarList = { AnyVar_ } [ "*" ] any_var [ im ] { _AnyVar } { "," } .
 
 AnyVar_ =        any_var [ im ] Commas .
 _AnyVar = Commas any_var [ im ] .
@@ -72,7 +72,7 @@ TopicVar = "->" var .
 
 Cond = ExpList .
 
-StatMod = ( ExpList ( cond_keyword | loop_keyword ) Cond ) .
+StatMod = ExpList ( cond_keyword | loop_keyword ) Cond .
 
 OnceBlock   = "once" Block .
 OnceExpList = "once" ExpList .
@@ -136,9 +136,9 @@ MethBody = FnBody .
 Role     = [ "const" ] [ scope ] "role" name [ Does ] [ main ] RoleBody .
 RoleBody = ClassBody .
 
-Exp =   nil
-      | boolean
-      | number
+Exp =   nil_lit
+      | bool_lit
+      | number_lit
       | string_lit
       | regex_lit
       | PrefixExp
@@ -153,19 +153,29 @@ Exp =   nil
 
 AnonyFn = [ "fn" ] "{" [ "|" FnArgs "|" ] [ Stats ] "}" .
 
-Map        = DefaultMap | QuotedMap .
-DefaultMap = "{" { Exp "=>" Exp Commas } "}" .
-QuotedMap  = "@m" PairTokensPair .
+Map        = MapDefault | MapQuoted .
+MapDefault = "{" [ Exp "=>" Exp { Commas Exp "=>" Exp } { "," } ] "}" .
+MapQuoted  = "@m" MapPairTokensPair .
 
-PairWordsPair =   xxPair Tokens xxPair
-                | xxPair Tokens xxPair
-                | xxPair Tokens xxPair .
+MapPairTokenspair =   o_cb    { uni__e_cb    uni__e_cb    } c_cb    | o_pr   { uni__e_pr   uni__e_pr   } c_pr
+                    | o_sb    { uni__e_sb    uni__e_sb    } c_sb    | o_lab  { uni__e_rab  uni__e_rab  } c_rab
+                    | o_ldabq { uni__e_rdabq uni__e_rdabq } c_rdabq | o_labq { uni__e_rabq uni__e_rabq } c_rabq
+                    | s_em    { uni__e_em    uni__e_em    } s_em    | s_bq   { uni__e_bq   uni__e_bq   } s_bq
+                    | s_dl    { uni__e_dl    uni__e_dl    } s_dl    | s_vb   { uni__e_vb   uni__e_vb   } s_vb
+                    | s_dq    { uni__e_dq    uni__e_dq    } s_dq    | s_sq   { uni__e_sq   uni__e_sq   } s_sq
+                    | s_sl    { uni__e_sl    uni__e_sl    } s_sl    | s_cm   { uni__e_cm   uni__e_cm   } s_cm .
 
-Token =  .
+Array        = ArrayDefault | ArrayQuoted .
+ArrayDefault = "[" [ ExpList ] "]" .
+ArrayQuoted  = "@a" ArrayPairTokensPair .
 
-Array        = DefaultArray | QuotedArray .
-DefaultArray = "[" [ ExpList ] "]" .
-QoutedArray  = "@a" PairWordsPair .
+ArrayPairTokenspair =   o_cb    { uni__e_cb    } c_cb    | o_pr   { uni__e_pr   } c_pr
+                      | o_sb    { uni__e_sb    } c_sb    | o_lab  { uni__e_rab  } c_rab
+                      | o_ldabq { uni__e_rdabq } c_rdabq | o_labq { uni__e_rabq } c_rabq
+                      | s_em    { uni__e_em    } s_em    | s_bq   { uni__e_bq   } s_bq
+                      | s_dl    { uni__e_dl    } s_dl    | s_vb   { uni__e_vb   } s_vb
+                      | s_dq    { uni__e_dq    } s_dq    | s_sq   { uni__e_sq   } s_sq
+                      | s_sl    { uni__e_sl    } s_sl    | s_cm   { uni__e_cm   } s_cm .
 
 StatExp = DoStatExp | MaStatExp .
 
@@ -193,9 +203,8 @@ unimpl = "…" | "..." .
 im   = ":" "i" .
 main = ":" "m" .
 
-nil = "nil" .
-
-boolean = "true" | "false" .
+nil_lit  = "nil" .
+bool_lit = "true" | "false" .
 
 bin_digit      = "0" | "1" .
 non_zero_digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" .
@@ -227,19 +236,31 @@ hex_mantissa =   [ "_" ] hex_digits "." [ hex_digits ]
                | [ "_" ] hex_digits
                |                    "."   hex_digits .
 
+o_cb    = "{" . c_cb   = "}"  . o_pr   = "(" . c_pr   = ")" .
+o_sb    = "[" . c_sb   = "]"  . o_lab  = "<" . c_rab  = ">" .
+o_ldabq = "«" . c_rdabq = "»" . o_labq = "‹" . c_rabq = "›" .
+
+e_cb  = "\" "}" . e_pr    = "\" ")" . e_sb   = "\" "]" .
+e_rab = "\" ">" . c_rdabq = "\" "»" . e_rabq = "\" "›" .
+
+s_em = "!"  . s_bq = "`" . s_dl = "$" . s_vb = "|" .
+s_dq = """" . s_sq = "'" . s_sl = "/" . s_cm = "," .
+
+e_em = "\" "!"  . e_bq = "\" "`" . s_dl = "\" "$" . e_vb = "\" "|" .
+e_bq = "\" """" . e_sq = "\" "'" . e_sl = "\" "/" . e_cm = "\" "," .
+
 string_lit = str_default | str_q_with_pair | here_doc .
 
 str_default = single_q | double_q | back_q .
-
-single_q = "'"  { val_single_q } "'"  .
-double_q = """" { val_double_q } """" .
-back_q   = "`"  { val_double_q } "`"  .
+single_q    = s_sq { val_single_q } s_sq .
+double_q    = s_dq { val_double_q } s_dq .
+back_q      = s_bq { val_double_q } s_bq .
 
 vdq = val_double_q .
 vsq = val_single_q .
 
-vdq = esc_char    | ascii_codepoint | unicode_codepoint | unicode_codepoint_utf8_encoded .
 vsq = esc_sq_char | unicode_codepoint_utf8_encoded .
+vdq = esc_char    | ascii_codepoint | unicode_codepoint | unicode_codepoint_utf8_encoded | var_interpolation .
 
 esc_sq_char = "\" "'" .
 esc_char    = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | """" ) .
@@ -259,51 +280,41 @@ unicode_codepoint_utf8_encoded = well_formed_utf8_byte_sequence | ill_formed_utf
 well_formed_utf8_byte_sequence = --- --- .
 ill_formed_utf8_byte_sequence  = --- --- .
 
+var_interpolation = special_var | "#" ( "{" "}" | ) .
+
 str_q_with_pair = "@" ( single_q_p | double_q_p | back_q_p | regex_q_p ) .
 single_q_p      = "q" pair__s_q__pair .
 double_q_p      = "Q" pair__d_q__pair .
 back_q_p        = "x" pair__b_q__pair .
 regex_q_p       = "r" pair__r_q__pair .
 
-pair__s_q__pair =   o_cb   { vsq_cb   } c_cb   | o_pr   { vsq_pr   } c_pr
-                  | o_sb   { vsq_sb   } c_sb   | o_lab  { vsq_rab  } o_rab
-                  | o_ldap { vsq_rdap } c_rdap | o_lapq { vsq_lapq } c_lapq
-                  | s_em   { vsq_em   } s_em   | s_bt   { vsq_bt   } s_bt
-                  | s_dl   { vsq_dl   } s_dl   | s_vb   { vsq_vb   } s_vb
-                  | s_dq   { vsq_sq   } s_dq   | s_sq   { vsq      } s_sq
-                  | s_sl   { vsq_sl   } s_sl   | s_cm   { vsq_cm   } s_cm .
+pair__s_q__pair =   o_cb    { vsq | e_cb    } c_cb    | o_pr   { vsq | e_pr   } c_pr
+                  | o_sb    { vsq | e_sb    } c_sb    | o_lab  { vsq | e_rab  } c_rab
+                  | o_ldabq { vsq | e_rdabq } c_rdabq | o_labq { vsq | e_rabq } c_rabq
+                  | s_em    { vsq | e_em    } s_em    | s_bq   { vsq | e_bq   } s_bq
+                  | s_dl    { vsq | e_dl    } s_dl    | s_vb   { vsq | e_vb   } s_vb
+                  | s_dq    { vsq | e_dq    } s_dq    | s_sq   { vsq          } s_sq
+                  | s_sl    { vsq | e_sl    } s_sl    | s_cm   { vsq | e_cm   } s_cm .
 
-pair__d_q__pair =   o_cb   { vdq_cb   } c_cb   | o_pr   { vdq_pr   } c_pr
-                  | o_sb   { vdq_sb   } c_sb   | o_lab  { vdq_rab  } c_rab
-                  | o_ldap { vdq_rdap } c_rdap | o_lapq { vdq_lapq } c_lapq
-                  | s_em   { vdq_em   } s_em   | s_bt   { vdq_bt   } s_bt
-                  | s_dl   { vdq_dl   } s_dl   | s_vb   { vdq_vb   } s_vb
-                  | s_dq   { vdq      } s_dq   | s_sq   { vdq_sq   } s_sq
-                  | s_sl   { vdq_sl   } s_sl   | s_cm   { vdq_cm   } s_cm .
+_pair__d_q__pair =   o_cb    { vdq | e_cb    } c_cb    | o_pr   { vdq | e_pr   } c_pr
+                   | o_sb    { vdq | e_sb    } c_sb    | o_lab  { vdq | e_rab  } c_rab
+                   | o_ldabq { vdq | e_rdabq } c_rdabq | o_lapq { vdq | e_lapq } c_lapq
+                   | s_em    { vdq | e_em    } s_em    | s_bq   { vdq | e_bq   } s_bq
+                   | s_dl    { vdq | e_dl    } s_dl    | s_vb   { vdq | e_vb   } s_vb
+                   | s_dq    { vdq           } s_dq    | s_sl   { vdq | e_sl   } s_sl
+                   | s_cm    { vdq | e_cm    } s_cm .
 
+pair__d_q__pair = _pair__d_q__pair | s_sq { vdq | e_sq } s_sq .
 pair__b_q__pair = pair__d_q__pair .
 
-pair__r_q__pair = 
+pair__r_q__pair = ( _pair__d_q__pair | s_sq { vsq | e_sq } s_sq ) [ regex_modifier ] .
 
-o_cb  = "{" . c_cb  = "}" . o_pr   = "(" . c_pr   = ")" . o_sb   = "[" . c_sb   = "]" .
-o_lab = "<" . c_rab = ">" . o_ldaq = "«" . c_rdap = "»" . o_labq = "‹" . c_rabq = "›" .
+regex_lit         = regex_default | regex_q_with_pair .
+regex_default     = "/" "/" { regex_val_mod } .
+regex_q_with_pair = "@r"
+regex_val_mod     = "m" | "i" | "s" | "a" | "n" |
+regex_s_op_mod    = regex_value_mod | "g" | "e" |
 
-e_cb  = "\" "}" . e_pr   = "\" ")" . e_sb   = "\" "]" .
-e_rab = "\" ">" . c_rdap = "\" "»" . e_rabq = "\" "›" .
-
-s_em = "!" . s_bt = "`" . s_dl = "$" . s_vb = "|" .
-s_dq = '"' . s_sq = "'" . s_sl = "/" . s_cm = "," .
-
-e_em = "\" "!"  . e_bt = "\" "`" . s_dl = "\" "$" . e_vb = "\" "|" .
-e_bq = "\" """" . e_sq = "\" "'" . e_sl = "\" "/" . e_cm = "\" "," .
-
-vsq_cb = vsq | e_cb . vsq_rdap = vsq | e_rdap . vsq_dl = vsq | e_dl . vsq_sl  = vsq | e_sl  .
-vdq_cb = vdq | e_cb . vdq_rdap = vdq | e_rdap . vdq_dl = vdq | e_dl . vdq_sl  = vdq | e_sl  .
-vsq_pr = vsq | e_pr . vsq_lapq = vsq | e_lapq . vsq_vb = vsq | e_vb . vsq_cm  = vsq | e_cm  .
-vdq_pr = vdq | e_pr . vdq_lapq = vdq | e_lapq . vdq_vb = vdq | e_vb . vdq_cm  = vdq | e_cm  .
-vsq_sb = vsq | e_sb . vsq_em   = vsq | e_em   . vsq_sq = vsq | e_sq . vdq_sb  = vdq | e_sb  .
-vdq_em = vdq | e_em . vsq_rab  = vsq | e_rab  . vsq_bt = vsq | e_bt . vdq_rab = vdq | e_rab .
-vdq_bt = vdq | e_bt . vdq_sq   = vdq | e_sq   .
 
 here_doc    = hd_no_q | hd_single_q | hd_double_q | hd_back_q .
 hd_no_q     = "<<"      tok      nl vsq nl tok .
@@ -315,12 +326,35 @@ tok         = name .
 generic_nl = [ carriage_return ] new_line .
 
 
-regex_lit         = regex_default | regex_q_with_pair .
-regex_default     = "/" "/" { regex_val_mod } .
-regex_q_with_pair = "@r"
-regex_val_mod     = "m" | "i" | "s" | "a" | "n" |
-regex_s_op_mod    = regex_value_mod | "g" | "e" |
+uni__e_cb    = ( uni___space__cb    | e_cb    ) { uni___space__cb   | e_cb     } .
+uni__e_sb    = ( uni___space__sb    | e_sb    ) { uni___space__sb   | e_sb     } .
+uni__e_rdabq = ( uni___space__rdabq | e_rdabq ) { uni___space__rdabq | e_rdabq } .
+uni__e_em    = ( uni___space__em    | e_em    ) { uni___space__em   | e_em     } .
+uni__e_dl    = ( uni___space__dl    | e_dl    ) { uni___space__dl   | e_dl     } .
+uni__e_dq    = ( uni___space__dq    | e_dq    ) { uni___space__dq   | e_dq     } .
+uni__e_sl    = ( uni___space__sl    | e_sl    ) { uni___space__sl   | e_sl     } .
+uni__e_pr    = ( uni___space__pr    | e_pr    ) { uni___space__pr   | e_pr     } .
+uni__e_rab   = ( uni___space__rab   | e_rab   ) { uni___space__rab  | e_rab    } .
+uni__e_lapq  = ( uni___space__lapq  | e_lapq  ) { uni___space__lapq | e_lapq   } .
+uni__e_bq    = ( uni___space__bt    | e_bq    ) { uni___space__bt   | e_bq     } .
+uni__e_vb    = ( uni___space__vb    | e_vb    ) { uni___space__vb   | e_vb     } .
+uni__e_sq    = ( uni___space__sq    | e_sq    ) { uni___space__sq   | e_sq     } .
+uni__e_cm    = ( uni___space__cm    | e_cm    ) { uni___space__cm   | e_cm     } .
 
+uni___space__cb    = --- utf8 encoded unicode codepoint except U+0020 and U+007D --- .
+uni___space__sb    = --- utf8 encoded unicode codepoint except U+0020 and U+005D --- .
+uni___space__rdabq = --- utf8 encoded unicode codepoint except U+0020 and U+00BB --- .
+uni___space__em    = --- utf8 encoded unicode codepoint except U+0020 and U+0021 --- .
+uni___space__dl    = --- utf8 encoded unicode codepoint except U+0020 and U+0024 --- .
+uni___space__dq    = --- utf8 encoded unicode codepoint except U+0020 and U+0022 --- .
+uni___space__sl    = --- utf8 encoded unicode codepoint except U+0020 and U+002F --- .
+uni___space__pr    = --- utf8 encoded unicode codepoint except U+0020 and U+0029 --- .
+uni___space__rab   = --- utf8 encoded unicode codepoint except U+0020 and U+003E --- .
+uni___space__rabq  = --- utf8 encoded unicode codepoint except U+0020 and U+203A --- .
+uni___space__bq    = --- utf8 encoded unicode codepoint except U+0020 and U+0060 --- .
+uni___space__vb    = --- utf8 encoded unicode codepoint except U+0020 and U+007C --- .
+uni___space__sq    = --- utf8 encoded unicode codepoint except U+0020 and U+0027 --- .
+uni___space__cm    = --- utf8 encoded unicode codepoint except U+0020 and U+002C --- .
 
 special_char =   "V" | "O" | ","
                | "/" | "|" | """"
