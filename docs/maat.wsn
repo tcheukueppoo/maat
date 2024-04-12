@@ -46,12 +46,10 @@ ExpList = Exp { Commas Exp } { "," } .
 
 Commas = "," { "," } .
 
-VarDef = ( [ "const" ] ( [ scope ] | "state" ) Vars | "const" Vars | "temp" AnyVars ) [ EqExp ] .
+VarDef = ( [ "const" ] ( [ scope ] | "state" ) Vars | "const" Vars | "temp" AnyVars ) [ "=" Exp ] .
 
-EqExp = "=" Exp .
-
-Vars    = "(" VarList { "," } ")" | var .
-VarList = { Var_ } [ "*" ] var [ im ] { _Var } .
+Vars    = "(" VarList ")" | var .
+VarList = { Var_ } [ "*" ] var [ im ] { _Var } { "," } .
 
 Var_ =        var [ im ] Commas .
 _Var = Commas var [ im ] .
@@ -87,53 +85,50 @@ Loop =   ForLoop
        | "while"   Cond            Block
        | "until"   Cond            Block .
 
-ForLoop = "for" ExpList [ TopicVars ] Block .
+ForLoop    = "for" ExpList [ TopicVars ] Block .
+TopicVars  = "->" var [ DefaultVal ] { "," var [ DefaultVal ] } .
+DefaultVal = ( "=" | "=//" ) Exp .
 
 LoopCondStats = "(" [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] ")" .
 
 LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
 
-TopicVars = "->" var [ EqExp ] { "," var [ EqExp ] } .
-
 Try = "try" Block { "catch" Exp Block } [ "finally" Block ] .
 
-Fn = [ "const" ] [ scope ] [ "mul" ] "fn" name [ "(" [ FnArgs ] ")" ] [ ":s" | ":g" ] FnBody .
-
+Fn     = [ "const" ] [ scope ] [ "mul" ] "fn" name [ "(" [ FnArgs ] ")" ] [ ":s" | ":g" ] FnBody .
+FnBody = Block .
 FnArgs =   NormArg { "," NormArg } [ "," AccArg ] [ "," MapArg ]
          | AccArg "," MapArg
          | AccArg
          | MapArg .
 
-NormArg = var [ ( "=" | "=//" ) Exp ] .
-AccArg  = "*"     var .
+NormArg = var [ DefaultVal ] .
+AccArg  =     "*" var .
 HashArg = "*" "*" var .
 
-FnBody = Block .
+Class = [ "const" ] [ scope ] "class" name { Is | Does } [ main ] ClassBody .
 
-Class    = [ "const" ] [ scope ] "class" name [ ClassRel ] [ main ] ClassBody .
-ClassRel = Is Does | Does Is | Is | Does .
+Is   = ":is"   IsArg .
+Does = ":does" DoesArg .
 
-Is   = ":is("   [ IsArgs   ] ")" .
-Does = ":does(" [ DoesArgs ] ")" .
+DoesArg = IsArg .
+IsArg   = RelClass { "," RelClass } .
 
-DoesArgs = IsArgs .
+RelClass = any_var | fq_name_main | PrefixExp .
 
-IsArgs   = RelClass { "," RelClass } .
-RelClass = any_name | fq_name_main | PrefixExp .
+ClassBody = "{" ( FieldAndOthers | FieldAndOthers end { end } MethsAndOthers ) "}" .
 
-ClassBody = "{" ( FieldWithOthers | FieldWithOthers end { end } MethsWithOthers ) "}" .
-
-FieldWithOthers   = { ClassNonBlockStat end { end } | BlockStat      } [ ClassNonBlockStat ] .
-MethsWithOthers   = { NonBlockStat      end { end } | ClassBlockStat } [ NonBlockStat      ] .
-ClassNonBlockStat = Field | NonBlockStat .
+FieldAndOthers    = { ClassNonBlockStat end { end } | BlockStat      } [ ClassNonBlockStat ] .
+MethsAndOthers    = { NonBlockStat      end { end } | ClassBlockStat } [ NonBlockStat      ] .
 ClassBlockStat    = Meth  | BlockStat .
+ClassNonBlockStat = Field | NonBlockStat .
 
-Field = "field" name [ ":rw" | ":ro" | ":built" ] [ EqExp ] .
+Field = "field" name [ ":rw" | ":ro" | ":built" ] [ DefaultVal ] .
 
 Meth     = [ "mul" ] "meth" ( "<" custom_op ">" | name [ "(" [ FnArgs ] ")" ] ) [ ":io" ] MethBody .
 MethBody = FnBody .
 
-Role     = [ "const" ] [ scope ] "role" name [ Does ] [ main ] RoleBody .
+Role     = [ "const" ] [ scope ] "role" name { Does } [ main ] RoleBody .
 RoleBody = ClassBody .
 
 Exp =   nil_lit
@@ -141,15 +136,33 @@ Exp =   nil_lit
       | number_lit
       | string_lit
       | regex_lit
-      | PrefixExp
       | AnonyFn
       | Array
       | Map
       | VarDef
+      | PrefixExp
+      | PostfixExp
       | Exp infix_op Exp
       | Exp postfix_op
       | prefix_op Exp
-      | StatExp
+      | StatExp .
+
+PostfixExp =   Exp
+             | RegexMatch
+             | RegexSub
+             | RegexTrans
+             | OpRegexMatch
+             | OpRegexSub
+             | OpRegexTrans .
+
+RegexMatch   = "/" "/" | "m" | .
+RegexSub     = "s" .
+RegexTrans   = "y" .
+OpRegexMatch = PostfixExp "=~" RegexMatch .
+OpRegexSub   = PostfixExp "=~" RegexSub .
+OpRegexTrans = PostfixExp "=~" RegexTrans .
+
+PrefixExp =
 
 AnonyFn = [ "fn" ] "{" [ "|" FnArgs "|" ] [ Stats ] "}" .
 
@@ -181,8 +194,6 @@ StatExp = DoStatExp | MaStatExp .
 
 DoStatExp = "do" ( Loop    | Flow   ) .
 MaStatExp = "ma" ( ForLoop | FnCall ) .
-
-PrefixExp =  .
 
 --- Below is the WSN of all lexical tokens ---
 
@@ -236,8 +247,8 @@ hex_mantissa =   [ "_" ] hex_digits "." [ hex_digits ]
                | [ "_" ] hex_digits
                |                    "."   hex_digits .
 
-o_cb    = "{" . c_cb   = "}"  . o_pr   = "(" . c_pr   = ")" .
-o_sb    = "[" . c_sb   = "]"  . o_lab  = "<" . c_rab  = ">" .
+o_cb    = "{" . c_cb    = "}" . o_pr   = "(" . c_pr   = ")" .
+o_sb    = "[" . c_sb    = "]" . o_lab  = "<" . c_rab  = ">" .
 o_ldabq = "«" . c_rdabq = "»" . o_labq = "‹" . c_rabq = "›" .
 
 e_cb  = "\" "}" . e_pr    = "\" ")" . e_sb   = "\" "]" .
@@ -259,28 +270,28 @@ back_q      = s_bq { val_double_q } s_bq .
 vdq = val_double_q .
 vsq = val_single_q .
 
-vsq = esc_sq_char | unicode_codepoint_utf8_encoded .
-vdq = esc_char    | ascii_codepoint | unicode_codepoint | unicode_codepoint_utf8_encoded | var_interpolation .
+vsq = esc_sq_char       | uni_codepoint_utf8_encoded .
+vdq = exp_interpolation | esc_char | ascii_codepoint | uni_codepoint | uni_codepoint_utf8_encoded .
+
+exp_interpolation = special_var | "#" ( "{" Exp "}" | fq_) .
 
 esc_sq_char = "\" "'" .
-esc_char    = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | """" ) .
+esc_char    = "\" ( "#" | "$" | "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | """" ) .
 
 ascii_codepoint = "\" "x" hex_digit _hex_digit .
 _hex_digit      = [ "_" ] hex_digit .
 
-unicode_codepoint = unicode_u_val | unicode_n_val .
-unicode_u_val     = "\" "u" ( hex_digit _hex_digit | "{" codepoint "}" ) .
-unicode_n_val     = "\" "N" "{" ( "U" "+" codepoint ) | normative_name "}" .
-normative_name    = 
+uni_codepoint  = uni_u_val | uni_n_val .
+uni_u_val      = "\" "u" ( hex_digit _hex_digit | "{" codepoint "}" ) .
+uni_n_val      = "\" "N" "{" ( "U" "+" codepoint ) | normative_name "}" .
+normative_name = 
 
 codepoint =   hex_digit      _hex_digit   [ _hex_digit ] [ _hex_digit ]
             [ _hex_digit ] [ _hex_digit ] [ _hex_digit ] [ _hex_digit ] .
 
-unicode_codepoint_utf8_encoded = well_formed_utf8_byte_sequence | ill_formed_utf8_byte_sequence .
-well_formed_utf8_byte_sequence = --- --- .
-ill_formed_utf8_byte_sequence  = --- --- .
-
-var_interpolation = special_var | "#" ( "{" "}" | ) .
+uni_codepoint_utf8_encoded = well_formed_utf8_byte_seq | ill_formed_utf8_byte_seq .
+well_formed_utf8_byte_seq  = --- --- .
+ill_formed_utf8_byte_seq   = --- --- .
 
 str_q_with_pair = "@" ( single_q_p | double_q_p | back_q_p | regex_q_p ) .
 single_q_p      = "q" pair__s_q__pair .
@@ -307,11 +318,8 @@ _pair__d_q__pair =   o_cb    { vdq | e_cb    } c_cb    | o_pr   { vdq | e_pr   }
 pair__d_q__pair = _pair__d_q__pair | s_sq { vdq | e_sq } s_sq .
 pair__b_q__pair = pair__d_q__pair .
 
-pair__r_q__pair = ( _pair__d_q__pair | s_sq { vsq | e_sq } s_sq ) [ regex_modifier ] .
+pair__r_q__pair = ( _pair__d_q__pair | s_sq { vsq | e_sq } s_sq ) [ regex_lit_modifier ] .
 
-regex_lit         = regex_default | regex_q_with_pair .
-regex_default     = "/" "/" { regex_val_mod } .
-regex_q_with_pair = "@r"
 regex_val_mod     = "m" | "i" | "s" | "a" | "n" |
 regex_s_op_mod    = regex_value_mod | "g" | "e" |
 
@@ -323,7 +331,7 @@ hd_double_q = "<<" """" tok """" nl vdq nl tok .
 hd_back_q   = "<<" "`"  tok "`"  nl vsq nl tok .
 tok         = name .
 
-generic_nl = [ carriage_return ] new_line .
+nl = [ carriage_return ] new_line .
 
 
 uni__e_cb    = ( uni___space__cb    | e_cb    ) { uni___space__cb   | e_cb     } .
@@ -341,37 +349,34 @@ uni__e_vb    = ( uni___space__vb    | e_vb    ) { uni___space__vb   | e_vb     }
 uni__e_sq    = ( uni___space__sq    | e_sq    ) { uni___space__sq   | e_sq     } .
 uni__e_cm    = ( uni___space__cm    | e_cm    ) { uni___space__cm   | e_cm     } .
 
-uni___space__cb    = --- utf8 encoded unicode codepoint except U+0020 and U+007D --- .
-uni___space__sb    = --- utf8 encoded unicode codepoint except U+0020 and U+005D --- .
-uni___space__rdabq = --- utf8 encoded unicode codepoint except U+0020 and U+00BB --- .
-uni___space__em    = --- utf8 encoded unicode codepoint except U+0020 and U+0021 --- .
-uni___space__dl    = --- utf8 encoded unicode codepoint except U+0020 and U+0024 --- .
-uni___space__dq    = --- utf8 encoded unicode codepoint except U+0020 and U+0022 --- .
-uni___space__sl    = --- utf8 encoded unicode codepoint except U+0020 and U+002F --- .
-uni___space__pr    = --- utf8 encoded unicode codepoint except U+0020 and U+0029 --- .
-uni___space__rab   = --- utf8 encoded unicode codepoint except U+0020 and U+003E --- .
-uni___space__rabq  = --- utf8 encoded unicode codepoint except U+0020 and U+203A --- .
-uni___space__bq    = --- utf8 encoded unicode codepoint except U+0020 and U+0060 --- .
-uni___space__vb    = --- utf8 encoded unicode codepoint except U+0020 and U+007C --- .
-uni___space__sq    = --- utf8 encoded unicode codepoint except U+0020 and U+0027 --- .
-uni___space__cm    = --- utf8 encoded unicode codepoint except U+0020 and U+002C --- .
+uni___space__cb    = --- UTF-8-encoded unicode codepoint except U+0020 and U+007D --- .
+uni___space__sb    = --- UTF-8-encoded unicode codepoint except U+0020 and U+005D --- .
+uni___space__rdabq = --- UTF-8-encoded unicode codepoint except U+0020 and U+00BB --- .
+uni___space__em    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0021 --- .
+uni___space__dl    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0024 --- .
+uni___space__dq    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0022 --- .
+uni___space__sl    = --- UTF-8-encoded unicode codepoint except U+0020 and U+002F --- .
+uni___space__pr    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0029 --- .
+uni___space__rab   = --- UTF-8-encoded unicode codepoint except U+0020 and U+003E --- .
+uni___space__rabq  = --- UTF-8-encoded unicode codepoint except U+0020 and U+203A --- .
+uni___space__bq    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0060 --- .
+uni___space__vb    = --- UTF-8-encoded unicode codepoint except U+0020 and U+007C --- .
+uni___space__sq    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0027 --- .
+uni___space__cm    = --- UTF-8-encoded unicode codepoint except U+0020 and U+002C --- .
 
-special_char =   "V" | "O" | ","
-               | "/" | "|" | """"
-               | "$" | "0" | "("
-               | "<" | "F" | "*"
+special_name =   "V" | "O" | "," | "/" | "|" | """"
+               | "$" | "0" | "(" | "<" | "F" | "*"
                | "." | "!" | "$" .
 
 name = 
 
 var = name .
 
-namespace = name { "::" name } .
-
+namespace   = name { "::" name } .
 fq_var      = namespace "::" name .
 fq_var_main = [ namespace ] ":::" name .
 
-special_var = "$" special_char .
+special_var = "$" ( "{" special_name "}" | special_name ) .
 any_var     = var | fq_var | special_var .
 ```
 
@@ -384,3 +389,16 @@ say ((2,,) + 1)   # outputs 3, is ',' also a postfix operator?
 loop (); k; k { }
 exp, exp, exp if exp, exp, exp ... === exp, exp, exp if (exp, exp, exp ...)
 hex_float (_.)
+code_interpolation
+
+`PostfixExp` isn't solely dedicated to regexes but it turns out that regexes are
+the only postfix expressions of this kind. Also, the presence of `RegexMatch`,
+`RegexSub` and `RegexTrans` as possible values to `PostfixExp` is due to the
+fact that a regex expression starting with its left operand implies the
+operation is done on the default topic variable `_`, for instance an expression
+starting with `/^Ku.p{2}[0o]/` is equivalent to `_ =~ /^Ku.p{2}[0o]/`.
+
+The reason why the regex operator `=~` isn't a normal infix operator like its
+brothers is due to the designed decisions of the compiler and also how exactly
+regular expressions are used in Maat
+
