@@ -155,14 +155,16 @@ PostfixExp =   Exp
              | OpRegexSub
              | OpRegexTrans .
 
-OpRegexMatch  = PostfixExp "=~" RegexMatch .
-OpRegexSub    = PostfixExp "=~" RegexSub .
-OpRegexTrans  = PostfixExp "=~" RegexTrans .
-RegexMatch    = ( s_sl { vdq | e_sl } s_sl | "m" delim__r_q__delim ) m_regex_modifer | CompiledRegex .
-RegexSub      = "s" (  |  ) s_regex_modifier .
-RegexTrans    = "y" (  |  ) y_regex_modifier .
-CompiledRegex =
+OpRegexMatch = PostfixExp "=~" RegexMatch .
+OpRegexSub   = PostfixExp "=~" RegexSub .
+OpRegexTrans = PostfixExp "=~" RegexTrans .
 
+RegexMatch = ( "m" delim__r_q__delim | s_sl { vdq | e_sl } s_sl ) m_regex_modifer | regex_q_p .
+RegexSub   = "s" RegexSubArg s_regex_modifier .
+RegexTr    = "y" RegexTrArg  y_regex_modifier .
+RegeSubArg = d_q__pair_delim delim__r_q__delim | delim__r_q__delim d_q__pair_delim | r_q__single_char_delim .
+RegexTrArg = RegexSubArg .
+           
 
 PrefixExp =
 
@@ -268,20 +270,20 @@ hex_mantissa =   [ "_" ] hex_digits "." [ hex_digits ]
                | [ "_" ] hex_digits
                |                    "."   hex_digits .
 
-o_cb    = "{" .        c_cb    = "}" .        e_cb    = "\" "}" .
-o_pr    = "(" .        c_pr    = ")" .        e_pr    = "\" ")" .
-o_sb    = "[" .        c_sb    = "]" .        e_sb    = "\" "]" .
-o_lab   = "<" .        c_rab   = ">" .        e_rab   = "\" ">" .
-o_ldabq = "«" .        c_rdabq = "»" .        e_rdabq = "\" "»" .
-o_labq  = "‹" .        c_rabq  = "›" .        e_rabq  = "\" "›" .
+o_cb    = "{" .   c_cb    = "}" .   e_cb    = "\" "}" .
+o_pr    = "(" .   c_pr    = ")" .   e_pr    = "\" ")" .
+o_sb    = "[" .   c_sb    = "]" .   e_sb    = "\" "]" .
+o_lab   = "<" .   c_rab   = ">" .   e_rab   = "\" ">" .
+o_ldabq = "«" .   c_rdabq = "»" .   e_rdabq = "\" "»" .
+o_labq  = "‹" .   c_rabq  = "›" .   e_rabq  = "\" "›" .
 
-s_em = "!"  .       e_em = "\" "!"  .
-s_bq = "`"  .       e_bq = "\" "`"  .
-s_vb = "|"  .       e_vb = "\" "|"  .
-s_dq = """" .       e_bq = "\" """" .
-s_sq = "'"  .       e_sq = "\" "'"  .
-s_sl = "/"  .       e_sl = "\" "/"  .
-s_cm = ","  .       e_cm = "\" ","  .
+s_em = "!"  .   e_em = "\" "!"  .
+s_bq = "`"  .   e_bq = "\" "`"  .
+s_vb = "|"  .   e_vb = "\" "|"  .
+s_dq = """" .   e_bq = "\" """" .
+s_sq = "'"  .   e_sq = "\" "'"  .
+s_sl = "/"  .   e_sl = "\" "/"  .
+s_cm = ","  .   e_cm = "\" ","  .
 
 string_lit = str_default | str_q_with_delim | here_doc .
 
@@ -297,7 +299,7 @@ val_single_q = vsq .
 vsq = esc_sq_char       | uni_codepoint_utf8_encoded .
 vdq = exp_interpolation | esc_char | ascii_codepoint | uni_codepoint | uni_codepoint_utf8_encoded .
 
-exp_interpolation = special_var | "#" ( "{" Exp "}" | fq_) .
+exp_interpolation = special_var | "#" ( "{" Exp "}" | fq_ ) .
 
 esc_sq_char = "\" "'" .
 esc_char    = "\" ( "#" | "@" | "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | """" ) .
@@ -317,56 +319,68 @@ uni_codepoint_utf8_encoded = well_formed_utf8_byte_seq | ill_formed_utf8_byte_se
 well_formed_utf8_byte_seq  = --- --- .
 ill_formed_utf8_byte_seq   = --- --- .
 
-str_q_with_delim = "%" ( single_q_p | double_q_p | back_q_p | regex_q_p ) .
-single_q_p      = "q" delim__s_q__delim .
-double_q_p      = "Q" delim__d_q__delim .
-back_q_p        = "x" delim__b_q__delim .
-regex_q_p       = "r" delim__r_q__delim .
+str_q_with_delim = single_q_p | double_q_p | back_q_p | regex_q_p .
 
-delim__b_q__delim = delim__d_q__delim .
-
-delim__r_q__delim = _delim__r_q_delim [ regex_modifier ] .
-
-_delim__r_q__delim = _delim__d_q__delim | sq__r_q__sq .
-sq__r_q__sq        = s_sq { vsq | e_sq } s_sq .
+single_q_p = "%" "q" delim__s_q__delim .
+double_q_p = "%" "Q" delim__d_q__delim .
+back_q_p   = "%" "x" delim__b_q__delim .
+regex_q_p  = "%" "r" delim__r_q__delim .
 
 delim__d_q__delim = _delim__d_q__delim | sq__d_q__sq .
+sq__d_q__sq       = s_sq { vdq | e_sq } s_sq .
 
-_delim__d_q__delim = d_q_single_char_delim | d_q_pair_delim .
-sq__d_q__sq        = s_sq { vdq | e_sq } s_sq .
+_delim__d_q__delim = d_q__single_char_delim | d_q__pair_delim .
 
-d_q_single_char_delim =   s_em { vdq | e_em } s_em
-                        | s_bq { vdq | e_bq } s_bq
-                        | s_dl { vdq | e_dl } s_dl
-                        | s_vb { vdq | e_vb } s_vb
-                        | s_dq { vdq        } s_dq
-                        | s_sl { vdq | e_sl } s_sl
-                        | s_cm { vdq | e_cm } s_cm .
+d_q__single_char_delim =   s_em { vdq | e_em } s_em
+                         | s_bq { vdq | e_bq } s_bq
+                         | s_dl { vdq | e_dl } s_dl
+                         | s_vb { vdq | e_vb } s_vb
+                         | s_dq { vdq        } s_dq
+                         | s_sl { vdq | e_sl } s_sl
+                         | s_cm { vdq | e_cm } s_cm .
 
-d_p_pair_delim =   o_cb    { vdq | e_cb    } c_cb
-                 | o_pr    { vdq | e_pr    } c_pr
-                 | o_sb    { vdq | e_sb    } c_sb
-                 | o_lab   { vdq | e_rab   } c_rab
-                 | o_ldabq { vdq | e_rdabq } c_rdabq
-                 | o_lapq  { vdq | e_lapq  } c_lapq .
+d_q__pair_delim =   o_cb    { vdq | e_cb    } c_cb
+                  | o_pr    { vdq | e_pr    } c_pr
+                  | o_sb    { vdq | e_sb    } c_sb
+                  | o_lab   { vdq | e_rab   } c_rab
+                  | o_ldabq { vdq | e_rdabq } c_rdabq
+                  | o_labq  { vdq | e_labq  } c_labq .
 
-delim__s_q__delim = s_q_single_char_delim | s_q_pair_delim .
+delim__b_q__delim = delim__d_q__delim | sq__b_q__sq .
+sq__b_q__sq       = sq__s_q__sq .
 
-s_q_single_char_delim =   s_em { vsq | e_em } s_em
-                        | s_bq { vsq | e_bq } s_bq
-                        | s_dl { vsq | e_dl } s_dl
-                        | s_vb { vsq | e_vb } s_vb
-                        | s_dq { vsq | e_dq } s_dq
-                        | s_sq { vsq        } s_sq
-                        | s_sl { vsq | e_sl } s_sl
-                        | s_cm { vsq | e_cm } s_cm .
+delim__r_q__delim = ( _delim__d_q__delim | sq__r_q__sq ) [ regex_modifier ] .
+sq__r_q__sq       = sq__s_q__sq .
+sq__s_q__sq       = s_sq { vsq } s_sq .
 
-s_q_pair_delim =   o_cb    { vsq | e_cb    } c_cb
-                 | o_pr    { vsq | e_pr    } c_pr
-                 | o_sb    { vsq | e_sb    } c_sb
-                 | o_lab   { vsq | e_rab   } c_rab
-                 | o_ldabq { vsq | e_rdabq } c_rdabq
-                 | o_labq  { vsq | e_rabq  } c_rabq .
+sq__r_q__sq__r_q__sq = sq__s_q__sq { vsq } s_sq .
+
+r_q__single_char_delim =   s_em { vdq | e_em } s_em { vdq | e_em } s_em
+                         | s_bq { vdq | e_bq } s_bq { vdq | e_bq } s_bq
+                         | s_dl { vdq | e_dl } s_dl { vdq | e_dl } s_dl
+                         | s_vb { vdq | e_vb } s_vb { vdq | e_vb } s_vb
+                         | s_dq { vdq | e_dq } s_dq { vdq | e_dq } s_dq
+                         | s_sq { vdq        } s_sq { vdq        } s_sq
+                         | s_sl { vdq | e_sl } s_sl { vdq | e_sl } s_sl
+                         | s_cm { vdq | e_cm } s_cm { vdq | e_cm } s_cm .
+
+delim__s_q__delim = s_q__single_char_delim | s_q__pair_delim .
+
+s_q__single_char_delim =   s_em { vsq | e_em } s_em
+                         | s_bq { vsq | e_bq } s_bq
+                         | s_dl { vsq | e_dl } s_dl
+                         | s_vb { vsq | e_vb } s_vb
+                         | s_dq { vsq | e_dq } s_dq
+                         | s_sq { vsq        } s_sq
+                         | s_sl { vsq | e_sl } s_sl
+                         | s_cm { vsq | e_cm } s_cm .
+
+s_q__pair_delim =   o_cb    { vsq | e_cb    } c_cb
+                  | o_pr    { vsq | e_pr    } c_pr
+                  | o_sb    { vsq | e_sb    } c_sb
+                  | o_lab   { vsq | e_rab   } c_rab
+                  | o_ldabq { vsq | e_rdabq } c_rdabq
+                  | o_labq  { vsq | e_rabq  } c_rabq .
 
 here_doc    = hd_no_q | hd_single_q | hd_double_q | hd_back_q .
 hd_no_q     = "<<"      tok      nl vsq nl tok .
