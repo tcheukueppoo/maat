@@ -147,66 +147,76 @@ Exp =   nil_lit
       | prefix_op Exp
       | StatExp .
 
-PostfixExp =   Exp
+PostfixExp =   Tenary
              | RegexMatch
              | RegexSub
-             | RegexTrans
+             | RegexTr
              | OpRegexMatch
              | OpRegexSub
-             | OpRegexTrans .
+             | OpRegexTr .
 
-OpRegexMatch = PostfixExp "=~" RegexMatch .
-OpRegexSub   = PostfixExp "=~" RegexSub .
-OpRegexTrans = PostfixExp "=~" RegexTrans .
-
-RegexMatch = ( "m" delim__r_q__delim | s_sl { vdq | e_sl } s_sl ) m_regex_modifer | regex_q_p .
-RegexSub   = "s" RegexSubArg s_regex_modifier .
-RegexTr    = "y" RegexTrArg  y_regex_modifier .
-RegeSubArg = d_q__pair_delim delim__r_q__delim | delim__r_q__delim d_q__pair_delim | r_q__single_char_delim .
-RegexTrArg = RegexSubArg .
+Tenary   = Exp OpTenary .
+OpTenary = "?" ExpList ":" ExpList .
            
+RegexMatch = Exp OpRegexMatch .
+RegexSub   = Exp OpRegexSub .
+RegexTr    = Exp OpRegexTr .
 
-PrefixExp =
+OpRegexMatch = "=~" regex_q_p | ( "m" delim__r_q__delim | sl__r_q__sl ) m_regex_modifer .
+OpRegexSub   = "=~" "s" OpRegexSubArg s_regex_modifier .
+OpRegexTr    = "=~" "y" OpRegexTrArg  y_regex_modifier .
+
+OpRegexTrArg  = RegexSubArg .
+OpRegexSubArg =   d_q__pair_delim         delim__r_q__delim
+                | delim__r_q__delim       d_q__pair_delim
+                | r_q__single_char_delim .
+
+Var = Exp | PrefixExp
+
+PrefixExp  = ArrayIndex | MapKey | GroupExp | FnCall .
+ArrayAcess = Exp "[" ExpList "]" .
+MapEntry   = Exp ( o_lab uni_e_rab { uni_e_rab } c_rab | "{" ExpList "}" ) .
+GroupExp   = "(" ExpList ")" .
+FnCall     = Exp [ "(" [ FnCallArgs ] ")" | FnCallArgs ].
+FnCallArgs = 
 
 AnonyFn = [ "fn" ] "{" [ "|" FnArgs "|" ] [ Stats ] "}" .
-
-Map        = MapDefault | MapQuoted .
-MapDefault = "{" [ Exp "=>" Exp { Commas Exp "=>" Exp } { "," } ] "}" .
-MapQuoted  = "%m" MapPairTokensPair .
-
-MapPairTokensPair =   o_cb    { uni__e_cb    uni__e_cb    } c_cb
-                    | o_pr    { uni__e_pr    uni__e_pr    } c_pr
-                    | o_sb    { uni__e_sb    uni__e_sb    } c_sb
-                    | o_lab   { uni__e_rab   uni__e_rab   } c_rab
-                    | o_ldabq { uni__e_rdabq uni__e_rdabq } c_rdabq
-                    | o_labq  { uni__e_rabq  uni__e_rabq  } c_rabq
-                    | s_em    { uni__e_em    uni__e_em    } s_em
-                    | s_bq    { uni__e_bq    uni__e_bq    } s_bq
-                    | s_dl    { uni__e_dl    uni__e_dl    } s_dl
-                    | s_vb    { uni__e_vb    uni__e_vb    } s_vb
-                    | s_dq    { uni__e_dq    uni__e_dq    } s_dq
-                    | s_sq    { uni__e_sq    uni__e_sq    } s_sq
-                    | s_sl    { uni__e_sl    uni__e_sl    } s_sl
-                    | s_cm    { uni__e_cm    uni__e_cm    } s_cm .
 
 Array        = ArrayDefault | ArrayQuoted .
 ArrayDefault = "[" [ ExpList ] "]" .
 ArrayQuoted  = "%a" ArrayPairTokensPair .
 
-ArrayPairTokensPair =   o_cb    { uni__e_cb    } c_cb
-                      | o_pr    { uni__e_pr    } c_pr
-                      | o_sb    { uni__e_sb    } c_sb
-                      | o_lab   { uni__e_rab   } c_rab
-                      | o_ldabq { uni__e_rdabq } c_rdabq
-                      | o_labq  { uni__e_rabq  } c_rabq
-                      | s_em    { uni__e_em    } s_em
-                      | s_bq    { uni__e_bq    } s_bq
-                      | s_dl    { uni__e_dl    } s_dl
-                      | s_vb    { uni__e_vb    } s_vb
-                      | s_dq    { uni__e_dq    } s_dq
-                      | s_sq    { uni__e_sq    } s_sq
-                      | s_sl    { uni__e_sl    } s_sl
-                      | s_cm    { uni__e_cm    } s_cm .
+ArrayPairTokensPair =   o_cb    { uni_e_cb    } c_cb
+                      | o_pr    { uni_e_pr    } c_pr
+                      | o_sb    { uni_e_sb    } c_sb
+                      | o_lab   { uni_e_rab   } c_rab
+                      | o_labq  { uni_e_rabq  } c_rabq
+                      | o_ldabq { uni_e_rdabq } c_rdabq
+                      | s_em    { uni_e_em    } s_em
+                      | s_bq    { uni_e_bq    } s_bq
+                      | s_vb    { uni_e_vb    } s_vb
+                      | s_dq    { uni_e_dq    } s_dq
+                      | s_sq    { uni_e_sq    } s_sq
+                      | s_sl    { uni_e_sl    } s_sl
+                      | s_cm    { uni_e_cm    } s_cm .
+
+Map        = MapDefault | MapQuoted .
+MapDefault = "{" [ Exp "=>" Exp { Commas Exp "=>" Exp } { "," } ] "}" .
+MapQuoted  = "%m" MapPairTokensPair .
+
+MapPairTokensPair =   o_cb    { uni_e_cb    uni_e_cb    } c_cb
+                    | o_pr    { uni_e_pr    uni_e_pr    } c_pr
+                    | o_sb    { uni_e_sb    uni_e_sb    } c_sb
+                    | o_lab   { uni_e_rab   uni_e_rab   } c_rab
+                    | o_labq  { uni_e_rabq  uni_e_rabq  } c_rabq
+                    | o_ldabq { uni_e_rdabq uni_e_rdabq } c_rdabq
+                    | s_em    { uni_e_em    uni_e_em    } s_em
+                    | s_bq    { uni_e_bq    uni_e_bq    } s_bq
+                    | s_vb    { uni_e_vb    uni_e_vb    } s_vb
+                    | s_dq    { uni_e_dq    uni_e_dq    } s_dq
+                    | s_sq    { uni_e_sq    uni_e_sq    } s_sq
+                    | s_sl    { uni_e_sl    uni_e_sl    } s_sl
+                    | s_cm    { uni_e_cm    uni_e_cm    } s_cm .
 
 StatExp = DoStatExp | MaStatExp .
 
@@ -215,22 +225,52 @@ MaStatExp = "ma" ( ForLoop | FnCall ) .
 
 --- Below is the WSN of all lexical tokens ---
 
-scope        = "let" | "our" .
-loop_keyword = "for" | "until"  | "while" .
-cond_keyword = "if"  | "unless" | "unless" | "when" | "with" | "given" .
-
 end = ";" .
-
-infix_op = "," | ":" |
-
-postfix_op = .
-
-prefix_op = .
 
 unimpl = "…" | "..." .
 
 im   = ":" "i" .
 main = ":" "m" .
+
+scope        = "let" | "our" .
+loop_keyword = "for" | "until"  | "while" .
+cond_keyword = "if"  | "unless" | "unless" | "when" | "with" | "given" .
+
+special_name = main_package_spec_name | lex_scope_spec_name .
+
+main_package_spec_name =   "V" | "O" | "," | "/" | "|" | """"
+                         | "@" | "0" | "(" | "<" | "F" | "*"
+                         | "." | "!" .
+
+lex_scoped_spec_name = dec_int | "N" | "*" | "." .
+
+name =  .
+
+var = name .
+
+namespace   = name { "::" name } .
+fq_var      = namespace "::" name .
+fq_var_main = [ namespace ] ":::" name .
+
+special_var = "@" ( "{" special_name "}" | special_name ) .
+any_var     = var | fq_var | special_var .
+
+
+infix_op =   "="  | "."   | ".^"  | "!." | "!.^" | ","  | "=>"
+           | "//" | "=="  | "⩵"   | "!=" | "≠"   | ">"  | ">="
+           | "≥"  | "<"   | "<="  | "≤"  | "+"   | "-"  | "/"
+           | "÷"  | "*"   | "%"   | ".." | ""    | "+=" | "/="
+           | "÷=" | "-="  | "//=" | "*=" | "%="  | "<<" | ">>"
+           | "^"  | "&"   | "|"   | "^=" | "&="  | "|=" | "&&"
+           | "||" | "&&=" | "||=" | "≅"  | "=~"  | "~~" | "∉"
+           | "∈"  | "∊"   | "∍"   | "∋"  | "∌"   | "⊂"  | "⊄"
+           | "⊆"  | "⊈"   | "⊃"   | "⊅"  | "⊇"   | "⊉"  | "≡"
+           | "≢"  | "⊖"   | "∩"   | "⊍"  | "∪"   | "⊖"  | "⊎"
+           | "∖"  | "<=>" | "∘"   | "?:" | "<-"  | "->" .
+
+postfix_op = .
+
+prefix_op = ":" .
 
 regex_modifier   = "i" | "m" | "s" | "a" | "n" | "x" | "xx" .
 s_regex_modifier = regex_modifier | "g" | "e" | "c"
@@ -259,11 +299,11 @@ hex_digits = hex_digit { [ "_" ] hex_digit } .
 
 float_lit = hex_float | dec_float .
 
-dec_float =   dec_int [ "." [ dec_digits ] ]   dec_exp
-            | dec_int                          dec_exp
-            |           "."   dec_digits     [ dec_exp ] .
+dec_float =   dec_int [ "." [ dec_digits ] ]   dec_expo
+            | dec_int                          dec_expo
+            |           "."   dec_digits     [ dec_expo ] .
 
-dec_exp = ( "e" | "E" ) [ "-" | "+" ] dec_digits .
+dec_expo = ( "e" | "E" ) [ "-" | "+" ] dec_digits .
 
 hex_float    = "0" ( "x" | "X" ) hex_mantissa ( "p" | "P" ) [ "-" | "+" ] dec_digits .
 hex_mantissa =   [ "_" ] hex_digits "." [ hex_digits ]
@@ -333,7 +373,6 @@ _delim__d_q__delim = d_q__single_char_delim | d_q__pair_delim .
 
 d_q__single_char_delim =   s_em { vdq | e_em } s_em
                          | s_bq { vdq | e_bq } s_bq
-                         | s_dl { vdq | e_dl } s_dl
                          | s_vb { vdq | e_vb } s_vb
                          | s_dq { vdq        } s_dq
                          | s_sl { vdq | e_sl } s_sl
@@ -343,21 +382,21 @@ d_q__pair_delim =   o_cb    { vdq | e_cb    } c_cb
                   | o_pr    { vdq | e_pr    } c_pr
                   | o_sb    { vdq | e_sb    } c_sb
                   | o_lab   { vdq | e_rab   } c_rab
-                  | o_ldabq { vdq | e_rdabq } c_rdabq
                   | o_labq  { vdq | e_labq  } c_labq .
+                  | o_ldabq { vdq | e_rdabq } c_rdabq
 
 delim__b_q__delim = delim__d_q__delim | sq__b_q__sq .
 sq__b_q__sq       = sq__s_q__sq .
+sq__s_q__sq       = s_sq { vsq } s_sq .
 
 delim__r_q__delim = ( _delim__d_q__delim | sq__r_q__sq ) [ regex_modifier ] .
 sq__r_q__sq       = sq__s_q__sq .
-sq__s_q__sq       = s_sq { vsq } s_sq .
+sl__r_q__sl       = s_sl { vdq | e_sl } s_sl .
 
 sq__r_q__sq__r_q__sq = sq__s_q__sq { vsq } s_sq .
 
 r_q__single_char_delim =   s_em { vdq | e_em } s_em { vdq | e_em } s_em
                          | s_bq { vdq | e_bq } s_bq { vdq | e_bq } s_bq
-                         | s_dl { vdq | e_dl } s_dl { vdq | e_dl } s_dl
                          | s_vb { vdq | e_vb } s_vb { vdq | e_vb } s_vb
                          | s_dq { vdq | e_dq } s_dq { vdq | e_dq } s_dq
                          | s_sq { vdq        } s_sq { vdq        } s_sq
@@ -368,7 +407,6 @@ delim__s_q__delim = s_q__single_char_delim | s_q__pair_delim .
 
 s_q__single_char_delim =   s_em { vsq | e_em } s_em
                          | s_bq { vsq | e_bq } s_bq
-                         | s_dl { vsq | e_dl } s_dl
                          | s_vb { vsq | e_vb } s_vb
                          | s_dq { vsq | e_dq } s_dq
                          | s_sq { vsq        } s_sq
@@ -379,8 +417,8 @@ s_q__pair_delim =   o_cb    { vsq | e_cb    } c_cb
                   | o_pr    { vsq | e_pr    } c_pr
                   | o_sb    { vsq | e_sb    } c_sb
                   | o_lab   { vsq | e_rab   } c_rab
-                  | o_ldabq { vsq | e_rdabq } c_rdabq
                   | o_labq  { vsq | e_rabq  } c_rabq .
+                  | o_ldabq { vsq | e_rdabq } c_rdabq
 
 here_doc    = hd_no_q | hd_single_q | hd_double_q | hd_back_q .
 hd_no_q     = "<<"      tok      nl vsq nl tok .
@@ -389,57 +427,38 @@ hd_double_q = "<<" """" tok """" nl vdq nl tok .
 hd_back_q   = "<<" "`"  tok "`"  nl vsq nl tok .
 tok         = name .
 
-nl = [ carriage_return ] new_line .
+generic_nl      = [ carriage_return ] new_line .
+carriage_return = --- UTF-8-encoded unicode codepoint U+XXXX --- .
+new_line        = --- UTF-8-encoded unicode codepoint U+XXXX --- .
 
-
-uni__e_cb    = ( uni___space__cb    | e_cb    ) { uni___space__cb    | e_cb     } .
-uni__e_sb    = ( uni___space__sb    | e_sb    ) { uni___space__sb    | e_sb     } .
-uni__e_rdabq = ( uni___space__rdabq | e_rdabq ) { uni___space__rdabq | e_rdabq  } .
-uni__e_em    = ( uni___space__em    | e_em    ) { uni___space__em    | e_em     } .
-uni__e_dl    = ( uni___space__dl    | e_dl    ) { uni___space__dl    | e_dl     } .
-uni__e_dq    = ( uni___space__dq    | e_dq    ) { uni___space__dq    | e_dq     } .
-uni__e_sl    = ( uni___space__sl    | e_sl    ) { uni___space__sl    | e_sl     } .
-uni__e_pr    = ( uni___space__pr    | e_pr    ) { uni___space__pr    | e_pr     } .
-uni__e_rab   = ( uni___space__rab   | e_rab   ) { uni___space__rab   | e_rab    } .
-uni__e_lapq  = ( uni___space__lapq  | e_lapq  ) { uni___space__lapq  | e_lapq   } .
-uni__e_bq    = ( uni___space__bt    | e_bq    ) { uni___space__bt    | e_bq     } .
-uni__e_vb    = ( uni___space__vb    | e_vb    ) { uni___space__vb    | e_vb     } .
-uni__e_sq    = ( uni___space__sq    | e_sq    ) { uni___space__sq    | e_sq     } .
-uni__e_cm    = ( uni___space__cm    | e_cm    ) { uni___space__cm    | e_cm     } .
+uni_e_cb    = ( uni___space__cb    | e_cb    ) { uni___space__cb    | e_cb    } .
+uni_e_pr    = ( uni___space__pr    | e_pr    ) { uni___space__pr    | e_pr    } .
+uni_e_sb    = ( uni___space__sb    | e_sb    ) { uni___space__sb    | e_sb    } .
+uni_e_rab   = ( uni___space__rab   | e_rab   ) { uni___space__rab   | e_rab   } .
+uni_e_rabq  = ( uni___space__rabq  | e_rabq  ) { uni___space__rabq  | e_rapq  } .
+uni_e_rdabq = ( uni___space__rdabq | e_rdabq ) { uni___space__rdabq | e_rdabq } .
+uni_e_em    = ( uni___space__em    | e_em    ) { uni___space__em    | e_em    } .
+uni_e_bq    = ( uni___space__bq    | e_bq    ) { uni___space__bq    | e_bq    } .
+uni_e_vb    = ( uni___space__vb    | e_vb    ) { uni___space__vb    | e_vb    } .
+uni_e_dq    = ( uni___space__dq    | e_dq    ) { uni___space__dq    | e_dq    } .
+uni_e_sq    = ( uni___space__sq    | e_sq    ) { uni___space__sq    | e_sq    } .
+uni_e_sl    = ( uni___space__sl    | e_sl    ) { uni___space__sl    | e_sl    } .
+uni_e_cm    = ( uni___space__cm    | e_cm    ) { uni___space__cm    | e_cm    } .
 
 uni___space__cb    = --- UTF-8-encoded unicode codepoint except U+0020 and U+007D --- .
-uni___space__sb    = --- UTF-8-encoded unicode codepoint except U+0020 and U+005D --- .
-uni___space__rdabq = --- UTF-8-encoded unicode codepoint except U+0020 and U+00BB --- .
-uni___space__em    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0021 --- .
-uni___space__dl    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0024 --- .
-uni___space__dq    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0022 --- .
-uni___space__sl    = --- UTF-8-encoded unicode codepoint except U+0020 and U+002F --- .
 uni___space__pr    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0029 --- .
+uni___space__sb    = --- UTF-8-encoded unicode codepoint except U+0020 and U+005D --- .
 uni___space__rab   = --- UTF-8-encoded unicode codepoint except U+0020 and U+003E --- .
 uni___space__rabq  = --- UTF-8-encoded unicode codepoint except U+0020 and U+203A --- .
+uni___space__rdabq = --- UTF-8-encoded unicode codepoint except U+0020 and U+00BB --- .
+uni___space__em    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0021 --- .
 uni___space__bq    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0060 --- .
 uni___space__vb    = --- UTF-8-encoded unicode codepoint except U+0020 and U+007C --- .
+uni___space__dq    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0022 --- .
 uni___space__sq    = --- UTF-8-encoded unicode codepoint except U+0020 and U+0027 --- .
+uni___space__sl    = --- UTF-8-encoded unicode codepoint except U+0020 and U+002F --- .
 uni___space__cm    = --- UTF-8-encoded unicode codepoint except U+0020 and U+002C --- .
 
-special_name = main_package_spec_name | lex_scope_spec_name .
-
-main_package_spec_name =   "V" | "O" | "," | "/" | "|" | """"
-                         | "@" | "0" | "(" | "<" | "F" | "*"
-                         | "." | "!" .
-
-lex_scoped_spec_name = dec_int | "N" | "*" | "." .
-
-name =  .
-
-var = name .
-
-namespace   = name { "::" name } .
-fq_var      = namespace "::" name .
-fq_var_main = [ namespace ] ":::" name .
-
-special_var = "@" ( "{" special_name "}" | special_name ) .
-any_var     = var | fq_var | special_var .
 ```
 
 An expession is a special case of statement that returns a value.
@@ -448,10 +467,11 @@ say ((2,,,4) + 1) # outputs 5 it implies that an expression list is an expressio
 say ((2,,) + 1)   # outputs 3, is ',' also a postfix operator?
 
 # ambiguity
-loop (); k; k { }
-exp, exp, exp if exp, exp, exp ... === exp, exp, exp if (exp, exp, exp ...)
-hex_float (_.)
-code_interpolation
+1. loop (); k; k { }
+2. exp, exp, exp if exp, exp, exp ... === exp, exp, exp if (exp, exp, exp ...)
+3. hex_float (_.)
+4. code_interpolation
+5. =~ is not an infix operator
 
 `PostfixExp` isn't solely dedicated to regexes but it turns out that regexes are
 the only postfix expressions of this kind. Also, the presence of `RegexMatch`,
@@ -463,4 +483,5 @@ starting with `/^Ku.p{2}[0o]/` is equivalent to `_ =~ /^Ku.p{2}[0o]/`.
 The reason why the regex operator `=~` isn't a normal infix operator like its
 brothers is due to the designed decisions of the compiler and also how exactly
 regular expressions are used in Maat
+
 
