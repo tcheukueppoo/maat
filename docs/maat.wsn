@@ -46,29 +46,30 @@ ExpList = Exp { Commas Exp } { "," } .
 
 Commas = "," { "," } .
 
-VarDef = ( [ "const" ] ( [ scope ] | "state" ) Vars | "const" Vars | "temp" AnyVars ) [ "=" Exp ] .
+VarDef = ( [ "const" ] ( Scope | "state" ) Names | "const" Names | "temp" AnyNames ) [ "=" Exp ] .
+Scope  = "export" [ "?" ] "our" | "let" .
 
-Vars    = "(" VarList ")" | var .
-VarList = { Var_ } [ "*" ] var [ im ] { _Var } { "," } .
+Names = "(" NameList ")" | name [ im ] .
 
-Var_ =        var [ im ] Commas .
-_Var = Commas var [ im ] .
+NameList = { Name_ } [ "*" ] name [ im ] { _Name } { "," } .
 
-AnyVars    = "(" AnyVarList ")" | any_var .
-AnyVarList = { AnyVar_ } [ "*" ] any_var [ im ] { _AnyVar } { "," } .
+Name_ =        name [ im ] Commas .
+_Name = Commas name [ im ] .
 
-AnyVar_ =        any_var [ im ] Commas .
-_AnyVar = Commas any_var [ im ] .
+AnyNames = "(" AnyNameList ")" | any_name [ im ] .
 
-Flow =   "given"  Cond [ TopicVar ] Block
-       | "when"   Cond              Block
+AnyNameList = { AnyName_ } [ "*" ] any_name [ im ] { _AnyName } { "," } .
+
+AnyName_ =        any_name [ im ] Commas .
+_AnyName = Commas any_name [ im ] .
+
+Flow =   "when"   Cond              Block
        | "unless" Cond [ TopicVar ] Block { elseif Cond [ TopicVar ] Block } [ else Block ]
        | "if"     Cond [ TopicVar ] Block { elseif Cond [ TopicVar ] Block } [ else Block ]
        | "with"   Cond [ TopicVar ] Block { orwith Cond [ TopicVar ] Block } [ else Block ] .
 
-TopicVar = "->" var .
-
-Cond = ExpList .
+Cond     = ExpList .
+TopicVar = "->" name .
 
 StatMod = ExpList ( cond_keyword | loop_keyword ) Cond .
 
@@ -86,7 +87,7 @@ Loop =   ForLoop
        | "until"   Cond            Block .
 
 ForLoop    = "for" ExpList [ TopicVars ] Block .
-TopicVars  = "->" var [ DefaultVal ] { "," var [ DefaultVal ] } .
+TopicVars  = "->" name [ DefaultVal ] { "," name [ DefaultVal ] } .
 DefaultVal = ( "=" | "=//" ) Exp .
 
 LoopCondStats = "(" [ ExpList ] ";" [ ExpList ] ";" [ ExpList ] ")" .
@@ -95,18 +96,18 @@ LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
 
 Try = "try" Block { "catch" Exp Block } [ "finally" Block ] .
 
-Fn     = [ "const" ] [ scope ] [ "mul" ] "fn" name [ "(" [ FnArgs ] ")" ] [ ":s" | ":g" ] FnBody .
+Fn     = [ "const" ] [ Scope ] [ "mul" ] "fn" name [ "(" [ FnArgs ] ")" ] [ ":save" | ":gen" ] FnBody .
 FnBody = Block .
 FnArgs =   NormArg { "," NormArg } [ "," AccArg ] [ "," MapArg ]
          | AccArg "," MapArg
          | AccArg
          | MapArg .
 
-NormArg = var [ DefaultVal ] .
-AccArg  =     "*" var .
-HashArg = "*" "*" var .
+NormArg = name [ DefaultVal ] .
+AccArg  =     "*" name .
+HashArg = "*" "*" name .
 
-Class = [ "const" ] [ scope ] "class" name { Is | Does } [ main ] ClassBody .
+Class = [ "const" ] [ Scope ] "class" name { Is | Does } [ main ] ClassBody .
 
 Is   = ":is"   IsArg .
 Does = ":does" DoesArg .
@@ -114,7 +115,7 @@ Does = ":does" DoesArg .
 DoesArg = IsArg .
 IsArg   = RelClass { "," RelClass } .
 
-RelClass = any_var | fq_name_main | PrefixExp .
+RelClass = any_name | fq_name_main | PrefixExp .
 
 ClassBody = "{" ( FieldAndOthers | FieldAndOthers end { end } MethsAndOthers ) "}" .
 
@@ -128,7 +129,7 @@ Field = "field" name [ ":rw" | ":ro" | ":built" ] [ DefaultVal ] .
 Meth     = [ "mul" ] "meth" ( "<" custom_op ">" | name [ "(" [ FnArgs ] ")" ] ) [ ":io" ] MethBody .
 MethBody = FnBody .
 
-Role     = [ "const" ] [ scope ] "role" name { Does } [ main ] RoleBody .
+Role     = [ "const" ] [ Scope ] "role" name { Does } [ main ] RoleBody .
 RoleBody = ClassBody .
 
 Exp =   nil_lit
@@ -136,12 +137,15 @@ Exp =   nil_lit
       | number_lit
       | string_lit
       | regex_lit
+      | Var
+      | VarAssign
       | AnonyFn
       | Array
       | Map
       | VarDef
       | PrefixExp
       | PostfixExp
+      | SmartMatch
       | Exp infix_op Exp
       | Exp postfix_op
       | prefix_op Exp
@@ -149,6 +153,7 @@ Exp =   nil_lit
 
 PostfixExp =   Tenary
              | RegexMatch
+             | RegexSmartMatch
              | RegexSub
              | RegexTr
              | OpRegexMatch
@@ -158,24 +163,27 @@ PostfixExp =   Tenary
 Tenary   = Exp OpTenary .
 OpTenary = "?" ExpList ":" ExpList .
            
-RegexMatch = Exp OpRegexMatch .
-RegexSub   = Exp OpRegexSub .
-RegexTr    = Exp OpRegexTr .
+RegexMatch      = Exp regex_sign OpRegexMatch .
+RegexSmartMatch = Exp smartmatch_sign OpRegexMatch.  
+RegexSub        = Exp regex_sign OpRegexSub .
+RegexTr         = Exp regex_sign OpRegexTr .
 
-OpRegexMatch = "=~" regex_q_p | ( "m" delim__r_q__delim | sl__r_q__sl ) m_regex_modifer .
-OpRegexSub   = "=~" "s" OpRegexSubArg s_regex_modifier .
-OpRegexTr    = "=~" "y" OpRegexTrArg  y_regex_modifier .
+OpRegexMatch = regex_q_p | ( "m" delim__r_q__delim | sl__r_q__sl ) m_regex_modifer .
+OpRegexSub   = "s"  OpRegexSubArg s_regex_modifier .
+OpRegexTr    = "tr" OpRegexTrArg  tr_regex_modifier .
 
 OpRegexTrArg  = RegexSubArg .
-OpRegexSubArg =   d_q__pair_delim         delim__r_q__delim
-                | delim__r_q__delim       d_q__pair_delim
-                | r_q__single_char_delim .
+OpRegexSubArg =   r_q__single_char_delim
+                | d_q__pair_delim   delim__r_q__delim
+                | delim__r_q__delim d_q__pair_delim .
 
-Var = Exp | PrefixExp
+Var          = any_name | fq_name_main | object_field | ArrayElement | MapEntry .
+ArrayElement = Exp "[" ExpList "]" .
+MapEntry     = Exp ( o_lab uni_e_rab { uni_e_rab } c_rab | "{" ExpList "}" ) .
 
-PrefixExp  = ArrayIndex | MapKey | GroupExp | FnCall .
-ArrayAcess = Exp "[" ExpList "]" .
-MapEntry   = Exp ( o_lab uni_e_rab { uni_e_rab } c_rab | "{" ExpList "}" ) .
+VarAssign = 
+
+PrefixExp  = GroupExp | FnCall .
 GroupExp   = "(" ExpList ")" .
 FnCall     = Exp [ "(" [ FnCallArgs ] ")" | FnCallArgs ].
 FnCallArgs = 
@@ -225,44 +233,44 @@ MaStatExp = "ma" ( ForLoop | FnCall ) .
 
 --- Below is the WSN of all lexical tokens ---
 
-end = ";" .
-
+end    = ";" .
 unimpl = "…" | "..." .
 
-im   = ":" "i" .
-main = ":" "m" .
+im   = ":" "im" .
+main = ":" "main" .
 
-scope        = "let" | "our" .
+regex_sign      = "=~" | "≅" .
+smartmatch_sign = "~~" .
+
 loop_keyword = "for" | "until"  | "while" .
-cond_keyword = "if"  | "unless" | "unless" | "when" | "with" | "given" .
+cond_keyword = "if"  | "unless" | "when" | "with" .
 
-special_name = main_package_spec_name | lex_scope_spec_name .
+special_name = spec_lex_scoped | spec_main_package .
 
-main_package_spec_name =   "V" | "O" | "," | "/" | "|" | """"
-                         | "@" | "0" | "(" | "<" | "F" | "*"
-                         | "." | "!" .
+spec_lex_scoped   = dec_int | "N" | "*" | "." .
+spec_main_package =   "V"  | "O" | "," | "/" | "|"
+                    | """" | "@" | "0" | "(" | "<"
+                    | "F"  | "*" | "." | "!" .
 
-lex_scoped_spec_name = dec_int | "N" | "*" | "." .
 
 name =  .
 
-var = name .
+namespace    = name { "::" name } .
+fq_name      = namespace "::" name .
+fq_name_main = [ namespace ] ":::" name .
 
-namespace   = name { "::" name } .
-fq_var      = namespace "::" name .
-fq_var_main = [ namespace ] ":::" name .
+special_name = "@" ( "{" special_name "}" | special_name ) .
+any_name     = name | fq_name | special_name .
 
-special_var = "@" ( "{" special_name "}" | special_name ) .
-any_var     = var | fq_var | special_var .
-
+object_field = name "." name .
 
 infix_op =   "="  | "."   | ".^"  | "!." | "!.^" | ","  | "=>"
-           | "//" | "=="  | "⩵"   | "!=" | "≠"   | ">"  | ">="
+           | "//" | "=="  | "⩵"   | "===" | "⩶ " | "!=" | "≠"   | ">"  | ">="
            | "≥"  | "<"   | "<="  | "≤"  | "+"   | "-"  | "/"
            | "÷"  | "*"   | "%"   | ".." | ""    | "+=" | "/="
            | "÷=" | "-="  | "//=" | "*=" | "%="  | "<<" | ">>"
            | "^"  | "&"   | "|"   | "^=" | "&="  | "|=" | "&&"
-           | "||" | "&&=" | "||=" | "≅"  | "=~"  | "~~" | "∉"
+           | "||" | "&&=" | "||=" | "~~" | "∉"
            | "∈"  | "∊"   | "∍"   | "∋"  | "∌"   | "⊂"  | "⊄"
            | "⊆"  | "⊈"   | "⊃"   | "⊅"  | "⊇"   | "⊉"  | "≡"
            | "≢"  | "⊖"   | "∩"   | "⊍"  | "∪"   | "⊖"  | "⊎"
@@ -272,27 +280,28 @@ postfix_op = .
 
 prefix_op = ":" .
 
-regex_modifier   = "i" | "m" | "s" | "a" | "n" | "x" | "xx" .
-s_regex_modifier = regex_modifier | "g" | "e" | "c"
-y_regex_modifier = regex_modifier | "d"
-m_regex_modifier = regex_modifier 
+regex_mod   = "i" | "m" | "s" | "a" | "n" | "x" | "xx" .
+s_regex_mod = regex_mod | "g" | "e" | "c"
+y_regex_mod = regex_mod | "d"
+m_regex_mod = regex_mod 
 
 nil_lit  = "nil" .
 bool_lit = "true" | "false" .
 
-bin_digit      = "0" | "1" .
-non_zero_digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" .
-oct_digit      = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" .
 dec_digit      = "0" | non_zero_digit .
+non_zero_digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" .
+bin_digit      = "0" | "1" .
+oct_digit      = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" .
 hex_digit      = dec_digit | "A" | "B" | "C" | "D" | "E" | "F" | "a" | "b" | "c" | "d" | "e" | "f" .
 
 num_lit = int_lit | float_lit .
 
 int_lit = bin_int | oct_int | dec_int | hex_int .
+
+dec_int = "0" | non_zero_digit [ [ "_" ] dec_digits ] .
 bin_int = "0" ( "b" | "B" ) [ "_" ] bin_digit { [ "_" ] bin_digit } .
 oct_int = "0" [ "o" | "O" ] [ "_" ] oct_digit { [ "_" ] oct_digit } .
-dec_int = "0" | non_zero_digit [ [ "_" ] dec_digits ] .
-hex_int = "0" ( "x" | "X" )      [ "_" ] hex_digits .
+hex_int = "0" ( "x" | "X" ) [ "_" ] hex_digits .
 
 dec_digits = dec_digit { [ "_" ] dec_digit } .
 hex_digits = hex_digit { [ "_" ] hex_digit } .
@@ -302,8 +311,7 @@ float_lit = hex_float | dec_float .
 dec_float =   dec_int [ "." [ dec_digits ] ]   dec_expo
             | dec_int                          dec_expo
             |           "."   dec_digits     [ dec_expo ] .
-
-dec_expo = ( "e" | "E" ) [ "-" | "+" ] dec_digits .
+dec_expo  = ( "e" | "E" ) [ "-" | "+" ] dec_digits .
 
 hex_float    = "0" ( "x" | "X" ) hex_mantissa ( "p" | "P" ) [ "-" | "+" ] dec_digits .
 hex_mantissa =   [ "_" ] hex_digits "." [ hex_digits ]
@@ -336,10 +344,10 @@ back_q   = s_bq { val_double_q } s_bq .
 val_double_q = vdq .
 val_single_q = vsq .
 
-vsq = esc_sq_char       | uni_codepoint_utf8_encoded .
-vdq = exp_interpolation | esc_char | ascii_codepoint | uni_codepoint | uni_codepoint_utf8_encoded .
+vsq = esc_sq_char     | uni_codepoint_utf8_enc .
+vdq = exp_interpolate | esc_char | ascii_codepoint | uni_codepoint | uni_codepoint_utf8_enc .
 
-exp_interpolation = special_var | "#" ( "{" Exp "}" | fq_ ) .
+exp_interpolate = special_name | "#" ( "{" Exp "}" | Var ) .
 
 esc_sq_char = "\" "'" .
 esc_char    = "\" ( "#" | "@" | "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | """" ) .
@@ -355,7 +363,7 @@ normative_name =
 codepoint =   hex_digit      _hex_digit   [ _hex_digit ] [ _hex_digit ]
             [ _hex_digit ] [ _hex_digit ] [ _hex_digit ] [ _hex_digit ] .
 
-uni_codepoint_utf8_encoded = well_formed_utf8_byte_seq | ill_formed_utf8_byte_seq .
+uni_codepoint_utf8_enc = well_formed_utf8_byte_seq | ill_formed_utf8_byte_seq .
 well_formed_utf8_byte_seq  = --- --- .
 ill_formed_utf8_byte_seq   = --- --- .
 
