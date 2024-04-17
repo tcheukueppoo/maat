@@ -48,6 +48,7 @@ This is the list of all operators supported by the Maat programming language.
 * `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`: **(b)** Power operators.
 * `Σ`: **(p)** Summation operator.
 * `Π`: **(p)** Product operator.
+* `!`: **(p)** Negation operator ex: `!true == false`.
 
 ## Named unary operators
 
@@ -72,14 +73,15 @@ This is the list of all operators supported by the Maat programming language.
 * `die`: **(b)** Raise an exception and exit program if there is no handler.
 * `warn`: **(b)** Warn by sending a message to the stderr.
 
-## Binary operators for maat objects
+## Binary operators
 
 * `=`: **(i)** Assignment operator.
 * `.`: **(i)** Method call operator on objects and classes.
 * `.^`: **(i)** Method call operator for meta-programming.
+* `!.`: **(i)** 
+* `!.^`: **(i)** 
 * `,`: **(i)** Comma separator operator.
 * `=>`: **(i)** Key-value separator operator.
-* `!`: **(p)** Negation operator ex: `!true == false`.
 * `//`: **(i)** A variant of the `||` operator that tests for definedness, `a // b`, returns `a` if it isn't `nil` otherwise `b`.
 * `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: **(i)** Basic infix operators.
 * `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: **(i)** Add, sub, div, mul, remainder and range operator.
@@ -165,7 +167,7 @@ We also have a restricted set of single character delimiters for quoted values
 and regex operators.
 
 ```
-/ `` | % " ' , $ !
+/ `` | % " ' , !
 ```
 
 ### Examples
@@ -735,12 +737,13 @@ for ar -> i, j = "none" {
 .say for ar,;
 
 # Output: 2
-for (((2, (2, 10)), 2)) { .say }
+for ((2, (2, 10)), 2)  { .say }
+for ((2, (2, 10)), 2), { .say }
 
-# syntax error
-for ((2, (2, 10)), 2),  { .say }
+# Output: 10, 2
+for (2, (2, 10)), 2 { .say }
 
-let points = { kueppo => @a(10 30 9), monthe => [100, 39, 10] };
+let points = { kueppo => %a(10 30 9), monthe => [100, 39, 10] };
 
 # Output: ['10', '30', '9']
 for points<kueppo>,   { .say }
@@ -749,10 +752,6 @@ for (points<kueppo>,) { .say }
 # Output: 100, 39, 10
 for points<month> { .say }
 
-# Output: 10, 2
-# it's so as parenthese are optionals, this means that the first
-# encountered parenthese is part of the `for' syntax.
-for ((2, (2, 10)), 2) { .say }
 ```
 
 For lazy evaluation, we iterate over a lazy object. A lazy object implements a
@@ -783,19 +782,16 @@ condition is tested if COND is just an expression, then CODE gets executed if
 the value of the topic variable smartmatch the result of EXPR
 
 
-6. The `given` topicalizer
+6. The `for` topicalizer
 
 ```
-given EXPR { CODE }
-
-EXPR given EXPR
 ```
 
 
 
 ```
 # output: Num, 42
-given 34 {
+for 34 {
     when Num { say "Num"; proceed }
     when 42  { say "42" }
     default  { say "Default" }
@@ -806,11 +802,11 @@ For topicalization, you can also use `given` as a standalone statement
 
 ```
 let x = [2, 5];
-given x {
-    say "variable x has two elements" if .len == 2
+for (x) {
+    say "variable x has two elements" if .len == 2;
 }
 
-print .map {|rx| rx ** 2 } given x
+print .map:_ ** 2 for (x);
 ```
 
 7. looping with the `loop` construct
@@ -931,9 +927,9 @@ regardless of the number of iterations. One great advantage it offers is freeing
 us from using a conditional construct to avoid the execution of a statement.
 
 ```
-let amap = @m(one 1 two 2 three 3);
+let amap = %m(one 1 two 2 three 3);
 
-amap.each_kv {|k,v|
+amap.kv {|k,v|
     once say 'only once!';
     printf "%s => %d\n", k, v;
 }
@@ -1130,7 +1126,7 @@ call when doing recursive calls. This trait can help you do dynamic programming
 with less overhead.
 
 ```
-fn fib(n) :s {
+fn fib(n) :save {
     n < 2 ? n : __FN__(n - 1) + __FN__(n - 2)
 }
 ```
@@ -1142,7 +1138,7 @@ an iterable object where each iteration resumes from where the generator
 function was paused by a `take` call.
 
 ```
-fn factors(n) :g {
+fn factors(n) :gen {
     let k = 1;
 
     while k ** 2 < n {
