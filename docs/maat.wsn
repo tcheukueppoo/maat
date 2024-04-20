@@ -20,7 +20,8 @@ NonBlockStat =   unimpl
                | LoopCtrl
                | DeferExpList
                | OnceExpList
-               | Return .
+               | Return
+               | Exit .
 
 BlockStat =   PackageBlock
             | Label
@@ -40,7 +41,7 @@ Label = name ":" .
 
 Use = "use" namespace [ "(" [ name { "," name } ] ")" ] .
 
-Load = "load" string_lit .
+Load = "load" str_lit .
 
 ExpList = Exp { Commas Exp } { "," } .
 Commas  = "," { "," } .
@@ -83,6 +84,7 @@ DeferBlock   = "defer" Block .
 DeferExpList = "defer" ExpList .
 
 Return = "return" ExpList .
+Exit   = "exit"   Exp .
 
 Loop =   ForLoop
        | "loop"  [ LoopCondStats ] Block
@@ -126,17 +128,16 @@ ClassNonBlockStat = Field | NonBlockStat .
 
 Field = "field" name [ rw | ro | built ] [ DefaultVal ] .
 
-Meth      = [ "mul" ] "meth" ( op_type "<" op_sym ">" | name [ "(" [ FnArgs ] ")" ] ) [ MethTrait ] MethBody .
-MethTrait = oi save | save oi .
-MethBody  = FnBody .
+Meth     = [ "mul" ] "meth" MethName [ oi save | save oi ] FnBody .
+MethName = name [ "(" [ FnArgs ] ")" ] | op_type "<" op_sym ">" .
 
 Role     = [ "const" ] [ Scope ] "role" name { Does } [ main ] RoleBody .
 RoleBody = ClassBody .
 
 Exp =   nil_lit
       | bool_lit
-      | number_lit
-      | string_lit
+      | num_lit
+      | str_lit
       | regex_lit
       | Var
       | VarAssign
@@ -151,7 +152,9 @@ Exp =   nil_lit
       | prefix_op Exp
       | StatExp .
 
-PostfixExp =   Ternary
+PostfixExp =   NamedUnaryExp
+             | NamedListExp
+             | Ternary
              | RegexMatch
              | RegexSmartMatch
              | RegexSub
@@ -162,11 +165,14 @@ PostfixExp =   Ternary
 
 Ternary   = Exp OpTernary .
 OpTernary = "?" ExpList ":" ExpList .
-           
-RegexMatch      = Exp regex_sign       ( regex_q_p | OpRegexMatch ) .
-RegexSmartMatch = Exp smartmatch_sign    OpRegexMatch .
-RegexSub        = Exp regex_sign         OpRegexSub .
-RegexTr         = Exp regex_sign         OpRegexTr .
+
+NamedUnaryExp = unary_op_name Exp .
+NamedListExp  = list_op_name  ExpList .
+
+RegexMatch      = Exp regex_sign  ( regex_q_p | OpRegexMatch ) .
+RegexSmartMatch = Exp smart_sign  OpRegexMatch .
+RegexSub        = Exp regex_sign  OpRegexSub .
+RegexTr         = Exp regex_sign  OpRegexTr .
 
 OpRegexMatch = ( "m"  delim__r_q__delim | sl__r_q__sl ) m_regex_mod .
 OpRegexSub   =   "s"  OpRegexSubArg                     s_regex_mod .
@@ -182,9 +188,13 @@ AccessField = Exp "." name .
 ArrayElem   = Exp "[" ExpList "]" .
 MapEntry    = Exp ( o_lab uni_e_rab { uni_e_rab } c_rab | "{" ExpList "}" ) [ "!" ] .
 
-VarAssign = { Var_ } [ "*" ] Var [ im ] { _Var } { "," } "=" Exp .
-Var_      =        Var [ im ] Commas .
-_Var      = Commas Var [ im ] .
+VarAssign = Vars [ "=" Exp ] .
+Vars      = Var [ im ] | "(" VarList ")" .
+
+VarList = { Var_ } [ "*" ] Var [ im ] { _Var } { "," } .
+
+Var_ =        Var [ im ] Commas .
+_Var = Commas Var [ im ] .
 
 PrefixExp = GroupExp | FnCall .
 
@@ -200,14 +210,15 @@ AnonyFn = [ "fn" ] "{" [ "|" FnArgs "|" ] [ Stats ] "}" .
 
 Array        = ArrayDefault | ArrayQuoted .
 ArrayDefault = "[" [ ExpList ] "]" .
-ArrayQuoted  = "@a" ArrayPairTokensPair .
+ArrayQuoted  = "@a" ArrayPairTokensPair | [ "@a" ] ArrayQuotedWithOptA .
+
+ArrayQuotedWithOptA =   o_lab   { uni_e_rab   } c_rab
+                      | o_labq  { uni_e_rabq  } c_rabq
+                      | o_ldabq { uni_e_rdabq } c_rdabq .
 
 ArrayPairTokensPair =   o_cb    { uni_e_cb    } c_cb
                       | o_pr    { uni_e_pr    } c_pr
                       | o_sb    { uni_e_sb    } c_sb
-                      | o_lab   { uni_e_rab   } c_rab
-                      | o_labq  { uni_e_rabq  } c_rabq
-                      | o_ldabq { uni_e_rdabq } c_rdabq
                       | s_em    { uni_e_em    } s_em
                       | s_bq    { uni_e_bq    } s_bq
                       | s_vb    { uni_e_vb    } s_vb
@@ -219,7 +230,7 @@ ArrayPairTokensPair =   o_cb    { uni_e_cb    } c_cb
 Map = MapDefault | MapQuoted .
 
 MapDefault = "{" [ KeyValue { Commas KeyValue } { "," } ] "}" .
-KeyValue   = ( string_lit | uni__space | ":" Exp ) "=>" Exp .
+KeyValue   = ( str_lit | uni___space | ":" Exp ) "=>" Exp .
 
 MapQuoted         = "@m" MapPairTokensPair .
 MapPairTokensPair =   o_cb    { uni_e_cb    uni_e_cb    } c_cb
@@ -243,26 +254,30 @@ MaStatExp = "ma" ( ForLoop | FnCall ) .
 
 /* Below is the WSN of all lexical tokens */
 
-end    = ";" .
-unimpl = "…" | "..." .
+end = ";" .
 
-im    = ":im"    .
-main  = ":main"  .
-is    = ":is"    .
-does  = ":does"  .
+im   = ":im"   .
+main = ":main" .
+
 ro    = ":ro"    .
 rw    = ":rw"    .
 built = ":built" .
-save  = ":save"  .
-gen   = ":gen"   .
-oi    = ":oi"    .
+
+is   = ":is"   .
+does = ":does" .
+oi   = ":oi"   .
+
+save = ":save" .
+gen  = ":gen"  .
 
 export = "export" [ "?" ] .
 
-smartmatch_sign = "~~" .
-regex_sign      = "=~" | "≅" .
+smart_sign = "~~" .
+regex_sign = "=~" | "≅" .
 
-cond_keyword = "if"  | "unless" | "when"  | "with" .
+unimpl = "…" | "..." .
+
+cond_keyword = "if"  | "unless" | "when"  | "with"  .
 loop_keyword = "for" | "until"  | "while" | "given" .
 
 op_type = ( "infix" | "postfix" | "prefix" ) ":" .
@@ -286,11 +301,15 @@ ascii_alpha =   "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i"
               | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S"
               | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" .
 
-name      = ( "_" | ascii_alpha ) { "_" | ascii_digit | ascii_alpha } .
-namespace = name { "::" name } .
+name = ( "_" | ascii_alpha ) { "_" | ascii_digit | ascii_alpha } .
 
-fq_name      =   namespace   "::"  name .
-fq_name_main = [ namespace ] ":::" name .
+ss_name      = "::" name .
+name_ss      = name "::" .
+name_ss_name = name ss_name { ss_name } .
+namespace    = name_ss | name_ss_name .
+
+fq_name      = name_ss_name .
+fq_name_main = name_ss ":" | name { ss_name } ":::" name .
 
 any_name = name | fq_name | "#" special_name .
 
@@ -301,7 +320,7 @@ prefix_op =   "!" | "++" | "--" | "-" | "+" | "~"  | "*"
             | "^" | "√"  | "Σ"  | "Π" | ":" | "<-" .
 
 infix_op =   "="   | "."   | ".^"  | ","  | "==" | "⩵"  | "==="
-           | "⩶ "  | "!="  | "≠"   | ">"  | ">=" | "≥"  | "<"
+           | "⩶"   | "!="  | "≠"   | ">"  | ">=" | "≥"  | "<"
            | "<="  | "≤"   | "+"   | "-"  | "/"  | "÷"  | "*"
            | "%"   | "+="  | "/="  | "÷=" | "-=" | "\\" | "\\="
            | "*="  | "%="  | "<<"  | ">>" | "^"  | "&"  | "|"
@@ -311,9 +330,14 @@ infix_op =   "="   | "."   | ".^"  | ","  | "==" | "⩵"  | "==="
            | "≡"   | "≢"   | "⊖"   | "∩"  | "⊍"  | "∪"  | "⊖"
            | "⊎"   | "∖"   | "<=>" | "∘"  | "<-" | "~~" | ".." .
 
+unary_op_name = "sleep" | "defined" | "rand"   | "len"     | "clone" .
+list_op_name  =   "say" | "print"   | "printf" | "sprintf" | "grep"
+                | "map" | "lmap"    | "join"   | "run"     | "warn"
+                | "die" .
+
 regex_mod   = "i" | "m" | "s" | "a" | "n" | "x" .
 s_regex_mod = regex_mod | "g" | "e" | "c"
-y_regex_mod = regex_mod | "d"
+t_regex_mod = regex_mod | "d"
 m_regex_mod = regex_mod 
 
 nil_lit  = "nil" .
@@ -364,7 +388,7 @@ s_sq = "'"  .   e_sq = "\" "'"  .
 s_sl = "/"  .   e_sl = "\" "/"  .
 s_cm = ","  .   e_cm = "\" ","  .
 
-string_lit = str_default | str_q_with_delim | here_doc .
+str_lit = str_default | str_q_with_delim | here_doc .
 
 str_default = single_q | double_q | back_q .
 
@@ -400,10 +424,10 @@ ill_formed_utf8_byte_seq   = /* */ .
 
 str_q_with_delim = single_q_p | double_q_p | back_q_p | regex_q_p .
 
-single_q_p = "@" "q" delim__s_q__delim .
-double_q_p = "@" "Q" delim__d_q__delim .
-back_q_p   = "@" "x" delim__b_q__delim .
-regex_q_p  = "@" "r" delim__r_q__delim .
+single_q_p = "@q" delim__s_q__delim .
+double_q_p = "@Q" delim__d_q__delim .
+back_q_p   = "@x" delim__b_q__delim .
+regex_q_p  = "@r" delim__r_q__delim .
 
 delim__d_q__delim = _delim__d_q__delim | sq__d_q__sq .
 sq__d_q__sq       = s_sq { vdq | e_sq } s_sq .
@@ -515,6 +539,10 @@ say ((2,,) + 1)   # outputs 3, is ',' also a postfix operator?
 6. special case of the smartmatch operator which is a postfix operator
 7. issue with function and anonymous function calls (function do not have the .call method for the issues to be fixed).
 8. commas and comments in quoted words have no special meanings
+9. Point where stuffs are executed in list and others in scalar context
+10. should the function defined like `fn <name>(*k) {` when called act as a list operator?
+11. Any function call without the use of parentheses like act like a named list operator and
+    thus the call is taken to be of highest precedence.
 
 `PostfixExp` isn't solely dedicated to regexes but it turns out that regexes are
 the only postfix expressions of this kind. Also, the presence of `RegexMatch`,
