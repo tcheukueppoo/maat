@@ -399,8 +399,8 @@ back_q   = s_bq { val_double_q } s_bq .
 val_double_q = vdq .
 val_single_q = vsq .
 
-vsq = esc_sq_char | uni_codepoint_utf8_enc .
-vdq = interpolate | esc_char | ascii_codepoint | uni_codepoint | uni_codepoint_utf8_enc .
+vsq = esc_sq_char | byte_seq .
+vdq = interpolate | esc_char | ascii_codepoint | uni_codepoint | byte_seq .
 
 interpolate = "#" ( "{" special_name "}" | special_name ) | "{" Exp "}" .
 
@@ -410,17 +410,22 @@ esc_char    = "\" ( "{" | "#" | "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | 
 ascii_codepoint = "\" "x" hex_digit _hex_digit .
 _hex_digit      = [ "_" ] hex_digit .
 
-uni_codepoint  = uni_u_val | uni_n_val .
-uni_u_val      = "\" "u" ( hex_digit _hex_digit | "{" codepoint "}" ) .
-uni_n_val      = "\" "N" "{" ( "U" "+" codepoint ) | normative_name "}" .
-normative_name = 
+uni_codepoint = uni_u_val | uni_n_val .
+
+uni_u_val = "\" "u"     ( hex_digit _hex_digit | "{"      codepoint "}" ) .
+uni_n_val = "\" "N" "{" ( codepoint_name       |     "U+" codepoint     ) "}" .
+
+codepoint_name = normative_name | name_alias .
+normative_name = /* normative name of a codepoint based on the UCD. */ .
+name_alias     = /* Name alias of a codepoint based on the UCD. */ .
 
 codepoint =   hex_digit      _hex_digit   [ _hex_digit ] [ _hex_digit ]
             [ _hex_digit ] [ _hex_digit ] [ _hex_digit ] [ _hex_digit ] .
 
-uni_codepoint_utf8_enc = well_formed_utf8_byte_seq | ill_formed_utf8_byte_seq .
-well_formed_utf8_byte_seq  = /* */ .
-ill_formed_utf8_byte_seq   = /* */ .
+byte_seq = uni_codepoint_utf8_enc | ill_formed_utf8_byte_seq .
+
+uni_codepoint_utf8_enc   = /* A well-formed UTF-8 byte seq that represents a unicode codepoint. */ .
+ill_formed_utf8_byte_seq = /* An ill-formed UTF-8 byte seq not matching any specific UTF-8 pattern. */ .
 
 str_q_with_delim = single_q_p | double_q_p | back_q_p | regex_q_p .
 
@@ -483,16 +488,28 @@ s_q__pair_delim =   o_cb    { vsq | e_cb    } c_cb
                   | o_labq  { vsq | e_rabq  } c_rabq .
                   | o_ldabq { vsq | e_rdabq } c_rdabq
 
-here_doc    = hd_no_q | hd_single_q | hd_double_q | hd_back_q .
+here_doc = here_doc_default | here_doc_indent .
+
+here_doc_default = hd_no_q | hd_single_q | hd_double_q | hd_back_q .
+
 hd_no_q     = "<<"      tok      nl vsq nl tok .
 hd_single_q = "<<" "'"  tok "'"  nl vsq nl tok .
 hd_double_q = "<<" """" tok """" nl vdq nl tok .
-hd_back_q   = "<<" "`"  tok "`"  nl vsq nl tok .
-tok         = name .
+hd_back_q   = "<<" "`"  tok "`"  nl vdq nl tok .
 
-generic_nl      = [ carriage_return ] new_line .
-carriage_return = /* UTF-8-encoded unicode codepoint U+XXXX */ .
-new_line        = /* UTF-8-encoded unicode codepoint U+XXXX */ .
+here_doc_indent = hd_no_q_i | hd_single_q_i | hd_double_q_i | hd_back_q_i
+
+hd_no_q_i     = "<<~"      tok      nl vsq nl { space } tok .
+hd_single_q_i = "<<~" "'"  tok "'"  nl vsq nl { space } tok .
+hd_double_q_i = "<<~" """" tok """" nl vsq nl { space } tok .
+hd_back_q_i   = "<<~" "`"  tok "`"  nl vsq nl { space } tok .
+
+tok = name .
+nl  = [ carriage_ret ] new_line .
+
+carriage_ret = /* UTF-8-encoded unicode codepoint U+000D */ .
+new_line     = /* UTF-8-encoded unicode codepoint U+000A */ .
+space        = /* UTF-8-encoded unicode codepoint U+0020 */ .
 
 uni_e_cb    = ( uni___space__cb    | e_cb    ) { uni___space__cb    | e_cb    } .
 uni_e_pr    = ( uni___space__pr    | e_pr    ) { uni___space__pr    | e_pr    } .
