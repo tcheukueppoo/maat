@@ -92,7 +92,8 @@ Loop =   ForLoop
        | "until"   Cond            Block
        | "given"   Cond            Block .
 
-ForLoop    = "for" ExpList [ TopicVars ] Block .
+ForLoop = "for" ExpList [ TopicVars ] Block .
+
 TopicVars  = "->" name [ DefaultVal ] { "," name [ DefaultVal ] } .
 DefaultVal = ( "=" | "\\=" ) Exp .
 
@@ -102,22 +103,20 @@ LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
 
 Try = "try" Block { "catch" Exp Block } [ "finally" Block ] .
 
-Fn      = [ "const" ] [ Scope ] [ "mul" ] "fn" name [ "(" [ FnArgs ] ")" ] [ FnTrait ] FnBody .
-FnTrait = gen save | save gen .
+Fn = [ "const" ] [ Scope ] [ "mul" ] "fn" name [ "(" [ FnArgs ] ")" ] [ FnTrait ] FnBody .
+
 FnBody  = Block .
+FnTrait = gen save | save gen .
 FnArgs  =   PosParam { "," PosParam } [ "," AccParam ] [ "," NamedParam ]
           | AccParam "," NamedParam 
           | AccParam
           | NamedParam .
 
-PosParam   = name [ DefaultVal ] .
+PosParam   =         name [ DefaultVal ] .
 AccParam   =     "*" name .
 NamedParam = "*" "*" name .
 
-Class = [ "const" ] [ Scope ] "class" name { Is | Does } [ main ] ClassBody .
-
-Is   = is   Exp .
-Does = does Exp .
+Class = [ "const" ] [ Scope ] "class" name { ( is | does ) Exp } [ main ] ClassBody .
 
 ClassBody = "{" ( FieldAndOthers | FieldAndOthers end { end } MethsAndOthers ) "}" .
 
@@ -126,12 +125,14 @@ MethsAndOthers    = { NonBlockStat      end { end } | ClassBlockStat } [ NonBloc
 ClassBlockStat    = Meth  | BlockStat .
 ClassNonBlockStat = Field | NonBlockStat .
 
-Field = "field" name [ rw | ro | built ] [ DefaultVal ] .
+Field         = InstanceField | StaticField .
+InstanceField = "field" name [ rw | ro | built ] [ DefaultVal ] .
+StaticField   = "state" name ( rw | ro )         [ DefaultVal ] .
 
 Meth     = [ "mul" ] "meth" MethName [ oi save | save oi ] FnBody .
 MethName = name [ "(" [ FnArgs ] ")" ] | op_type "<" op_sym ">" .
 
-Role     = [ "const" ] [ Scope ] "role" name { Does } [ main ] RoleBody .
+Role     = [ "const" ] [ Scope ] "role" name { does Exp } [ main ] RoleBody .
 RoleBody = ClassBody .
 
 Exp =   nil_lit
@@ -155,8 +156,8 @@ Exp =   nil_lit
 PostfixExp =   NamedUnaryExp
              | NamedListExp
              | Ternary
-             | RegexMatch
              | RegexSmartMatch
+             | RegexMatch
              | RegexSub
              | RegexTr
              | OpRegexMatch
@@ -169,10 +170,10 @@ OpTernary = "?" ExpList ":" ExpList .
 NamedUnaryExp = unary_op_name Exp .
 NamedListExp  = list_op_name  ExpList .
 
-RegexMatch      = Exp regex_sign  ( regex_q_p | OpRegexMatch ) .
-RegexSmartMatch = Exp smart_sign  OpRegexMatch .
-RegexSub        = Exp regex_sign  OpRegexSub .
-RegexTr         = Exp regex_sign  OpRegexTr .
+RegexSmartMatch = Exp   "~~"          ( regex_q_p | OpRegexMatch ) .
+RegexMatch      = Exp ( "=~" | "!~" ) ( regex_q_p | OpRegexMatch ) .
+RegexSub        = Exp ( "=~" | "!~" )   OpRegexSub .
+RegexTr         = Exp ( "=~" | "!~" )   OpRegexTr .
 
 OpRegexMatch = ( "m"  delim__r_q__delim | sl__r_q__sl ) m_regex_mod .
 OpRegexSub   =   "s"  OpRegexSubArg                     s_regex_mod .
@@ -186,15 +187,15 @@ OpRegexSubArg =   r_q__single_char_delim
 Var         = any_name | fq_name_main | AccessField | ArrayElem | MapEntry .
 AccessField = Exp "." name .
 ArrayElem   = Exp "[" ExpList "]" .
-MapEntry    = Exp ( o_lab uni_e_rab { uni_e_rab } c_rab | "{" ExpList "}" ) [ "!" ] .
+MapEntry    = Exp ( o_lab uni_e_rab { uni_e_rab } c_rab | "{" ExpList "}" ) .
 
 VarAssign = Vars [ "=" Exp ] .
-Vars      = Var [ im ] | "(" VarList ")" .
+Vars      = Var | "(" VarList ")" .
 
-VarList = { Var_ } [ "*" ] Var [ im ] { _Var } { "," } .
+VarList = { Var_ } [ "*" ] Var { _Var } { "," } .
 
-Var_ =        Var [ im ] Commas .
-_Var = Commas Var [ im ] .
+Var_ =        Var Commas .
+_Var = Commas Var .
 
 PrefixExp = GroupExp | FnCall .
 
@@ -216,16 +217,16 @@ ArrayQuotedWithOptA =   o_lab   { uni_e_rab   } c_rab
                       | o_labq  { uni_e_rabq  } c_rabq
                       | o_ldabq { uni_e_rdabq } c_rdabq .
 
-ArrayPairTokensPair =   o_cb    { uni_e_cb    } c_cb
-                      | o_pr    { uni_e_pr    } c_pr
-                      | o_sb    { uni_e_sb    } c_sb
-                      | s_em    { uni_e_em    } s_em
-                      | s_bq    { uni_e_bq    } s_bq
-                      | s_vb    { uni_e_vb    } s_vb
-                      | s_dq    { uni_e_dq    } s_dq
-                      | s_sq    { uni_e_sq    } s_sq
-                      | s_sl    { uni_e_sl    } s_sl
-                      | s_cm    { uni_e_cm    } s_cm .
+ArrayPairTokensPair =   o_cb { uni_e_cb } c_cb
+                      | o_pr { uni_e_pr } c_pr
+                      | o_sb { uni_e_sb } c_sb
+                      | s_em { uni_e_em } s_em
+                      | s_bq { uni_e_bq } s_bq
+                      | s_vb { uni_e_vb } s_vb
+                      | s_dq { uni_e_dq } s_dq
+                      | s_sq { uni_e_sq } s_sq
+                      | s_sl { uni_e_sl } s_sl
+                      | s_cm { uni_e_cm } s_cm .
 
 Map = MapDefault | MapQuoted .
 
@@ -259,21 +260,12 @@ end = ";" .
 im   = ":im"   .
 main = ":main" .
 
-ro    = ":ro"    .
-rw    = ":rw"    .
-built = ":built" .
-
-is   = ":is"   .
-does = ":does" .
-oi   = ":oi"   .
-
 save = ":save" .
 gen  = ":gen"  .
 
-export = "export" [ "?" ] .
-
-smart_sign = "~~" .
-regex_sign = "=~" | "≅" .
+ro    = ":ro"    .   is   = ":is"   .
+rw    = ":rw"    .   does = ":does" .
+built = ":built" .   oi   = ":oi"   .
 
 unimpl = "…" | "..." .
 
@@ -300,6 +292,8 @@ ascii_alpha =   "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i"
               | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
               | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S"
               | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" .
+
+export = "export" [ "?" ] .
 
 name = ( "_" | ascii_alpha ) { "_" | ascii_digit | ascii_alpha } .
 
@@ -328,7 +322,8 @@ infix_op =   "="   | "."   | ".^"  | ","  | "==" | "⩵"  | "==="
            | "&&=" | "||=" | "∉"   | "∈"  | "∋"  | "∌"  | "⊂"
            | "⊄"   | "⊆"   | "⊈"   | "⊃"  | "⊅"  | "⊇"  | "⊉"
            | "≡"   | "≢"   | "⊖"   | "∩"  | "⊍"  | "∪"  | "⊖"
-           | "⊎"   | "∖"   | "<=>" | "∘"  | "<-" | "~~" | ".." .
+           | "⊎"   | "∖"   | "<=>" | "∘"  | "<-" | "~~" | ".."
+           | "!" .
 
 unary_op_name = "sleep" | "defined" | "rand"   | "len"     | "clone" .
 list_op_name  =   "say" | "print"   | "printf" | "sprintf" | "grep"
@@ -501,15 +496,15 @@ here_doc_indent = hd_no_q_i | hd_single_q_i | hd_double_q_i | hd_back_q_i
 
 hd_no_q_i     = "<<~"      tok      nl vsq nl { space } tok .
 hd_single_q_i = "<<~" "'"  tok "'"  nl vsq nl { space } tok .
-hd_double_q_i = "<<~" """" tok """" nl vsq nl { space } tok .
-hd_back_q_i   = "<<~" "`"  tok "`"  nl vsq nl { space } tok .
+hd_double_q_i = "<<~" """" tok """" nl vdq nl { space } tok .
+hd_back_q_i   = "<<~" "`"  tok "`"  nl vdq nl { space } tok .
 
 tok = name .
 nl  = [ carriage_ret ] new_line .
 
-carriage_ret = /* UTF-8-encoded unicode codepoint U+000D */ .
-new_line     = /* UTF-8-encoded unicode codepoint U+000A */ .
-space        = /* UTF-8-encoded unicode codepoint U+0020 */ .
+carriage_ret = /* UTF-8-encoded unicode codepoint U+000D. */ .
+new_line     = /* UTF-8-encoded unicode codepoint U+000A. */ .
+space        = /* UTF-8-encoded unicode codepoint U+0020. */ .
 
 uni_e_cb    = ( uni___space__cb    | e_cb    ) { uni___space__cb    | e_cb    } .
 uni_e_pr    = ( uni___space__pr    | e_pr    ) { uni___space__pr    | e_pr    } .
