@@ -46,8 +46,8 @@ Load = "load" str_lit .
 ExpList = Exp { Commas Exp } { "," } .
 Commas  = "," { "," } .
 
-VarDef = ( [ "const" ] ( Scope | "state" ) Names | "const" Names | "temp" AnyNames ) [ "=" Exp ] .
-Scope  = "let" | export "our" .
+VarDef = ( [ "const" ] Scope Names | "const" Names | "temp" AnyNames ) [ "=" Exp ] .
+Scope  = export "our" | "let" | "state" .
 
 Names = name [ im ] | "(" NameList ")" .
 
@@ -103,7 +103,9 @@ LoopCtrl = ( "break" | "next" | "redo" | "goto" ) [ name | loop_id ] .
 
 Try = "try" Block { "catch" Exp Block } [ "finally" Block ] .
 
-Fn = [ "const" ] [ Scope ] [ "mul" ] "fn" name [ "(" [ FnArgs ] ")" ] [ FnTrait ] FnBody .
+Fn = [ "const" ]
+     [  Scope  ]
+     [ "mul"   ] "fn" name [ "(" [ FnArgs ] ")" ] [ FnTrait ] FnBody .
 
 FnBody  = Block .
 FnTrait = gen save | save gen .
@@ -129,7 +131,7 @@ Field         = InstanceField | StaticField .
 InstanceField = "field" name [ rw | ro | built ] [ DefaultVal ] .
 StaticField   = "state" name ( rw | ro )         [ DefaultVal ] .
 
-Meth     = [ "mul" ] "meth" MethName [ oi save | save oi ] FnBody .
+Meth     = [ "state" ] [ "mul" ] "meth" MethName [ oi save | save oi ] FnBody .
 MethName = name [ "(" [ FnArgs ] ")" ] | op_type "<" op_sym ">" .
 
 Role     = [ "const" ] [ Scope ] "role" name { does Exp } [ main ] RoleBody .
@@ -140,15 +142,15 @@ Exp =   nil_lit
       | num_lit
       | str_lit
       | regex_lit
-      | Var
+      | VarDef
+      | Vars
       | VarAssign
       | AnonyFn
       | Array
       | Map
-      | VarDef
       | PrefixExp
       | PostfixExp
-      | Exp infix_op Exp
+      | Exp [ "!" ] infix_op Exp
       | Exp postfix_op
       | prefix_op Exp
       | StatExp .
@@ -165,13 +167,13 @@ PostfixExp =   NamedUnaryExp
              | OpRegexTr .
 
 Ternary   = Exp OpTernary .
-OpTernary = "?" ExpList ":" ExpList .
+OpTernary = "?" Exp ":" Exp .
 
 NamedUnaryExp = unary_op_name Exp .
 NamedListExp  = list_op_name  ExpList .
 
-RegexSmartMatch = Exp   "~~"          ( regex_q_p | OpRegexMatch ) .
-RegexMatch      = Exp ( "=~" | "!~" ) ( regex_q_p | OpRegexMatch ) .
+RegexSmartMatch = Exp   "~~"          ( OpRegexMatch | Exp ) .
+RegexMatch      = Exp ( "=~" | "!~" ) ( OpRegexMatch | Exp ) .
 RegexSub        = Exp ( "=~" | "!~" )   OpRegexSub .
 RegexTr         = Exp ( "=~" | "!~" )   OpRegexTr .
 
@@ -189,7 +191,7 @@ AccessField = Exp "." name .
 ArrayElem   = Exp "[" ExpList "]" .
 MapEntry    = Exp ( o_lab uni_e_rab { uni_e_rab } c_rab | "{" ExpList "}" ) .
 
-VarAssign = Vars [ "=" Exp ] .
+VarAssign = Vars "=" Exp .
 Vars      = Var | "(" VarList ")" .
 
 VarList = { Var_ } [ "*" ] Var { _Var } { "," } .
@@ -203,9 +205,9 @@ GroupExp = "(" ExpList ")" .
 
 FnCall    = Var [ "(" [ CallArgs ] ")" | CallArgs ] .
 CallArgs  = PosArgs [ "," NamedArgs ] .
-PosArgs   = Exp     { "," Exp     } .
-NamedArgs = NameArg { "," NameArg } .
-NameArg   = name "=>" Exp .
+PosArgs   = Exp      { "," Exp      } .
+NamedArgs = NamedArg { "," NamedArg } .
+NamedArg  = name "=>" Exp .
 
 AnonyFn = [ "fn" ] "{" [ "|" FnArgs "|" ] [ Stats ] "}" .
 
@@ -250,10 +252,10 @@ MapPairTokensPair =   o_cb    { uni_e_cb    uni_e_cb    } c_cb
 
 StatExp = DoStatExp | MaStatExp .
 
-DoStatExp = "do" ( Loop    | Flow   ) .
-MaStatExp = "ma" ( ForLoop | FnCall ) .
+DoStatExp = "do"  ( Loop    | Flow   ) .
+MaStatExp = "maa" ( ForLoop | FnCall ) .
 
-/* Below is the WSN of all lexical tokens */
+/** Below is the WSN of all lexical tokens. **/
 
 end = ";" .
 
@@ -273,7 +275,7 @@ cond_keyword = "if"  | "unless" | "when"  | "with"  .
 loop_keyword = "for" | "until"  | "while" | "given" .
 
 op_type = ( "infix" | "postfix" | "prefix" ) ":" .
-op_sym  =
+op_sym  = /* UTF-8-encoded string except Maat keywords, ",", "(", and ")". */ .
 
 special_name = spec_lex_scoped | spec_main_package .
 
@@ -281,7 +283,7 @@ spec_lex_scoped   = dec_int | "N"  | "*" | "." .
 spec_main_package =   "V"   | "O"  | "," | "/"
                     | "|"   | """" | "@" | "0"
                     | "("   | "<"  | "F" | "*"
-                    | "."   | "!" .
+                    | "."   | "!"  | "N" .
 
 non_zero_digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" .
 ascii_digit    = "0" | non_zero_digit .
@@ -310,8 +312,8 @@ any_name = name | fq_name | "#" special_name .
 postfix_op =   "++" | "--" | "*" | "⁰" | "¹" | "²" | "³"
              | "⁴"  | "⁵"  | "⁶" | "⁷" | "⁸" | "⁹" .
 
-prefix_op =   "!" | "++" | "--" | "-" | "+" | "~"  | "*"
-            | "^" | "√"  | "Σ"  | "Π" | ":" | "<-" .
+prefix_op =   "!" | "++" | "--" | "-" | "+"  | "~" | "^"
+            | "√" | "Σ"  | "Π"  | ":" | "<-" .
 
 infix_op =   "="   | "."   | ".^"  | ","  | "==" | "⩵"  | "==="
            | "⩶"   | "!="  | "≠"   | ">"  | ">=" | "≥"  | "<"
@@ -321,19 +323,20 @@ infix_op =   "="   | "."   | ".^"  | ","  | "==" | "⩵"  | "==="
            | "<<=" | ">>=" | "^="  | "&=" | "|=" | "&&" | "||"
            | "&&=" | "||=" | "∉"   | "∈"  | "∋"  | "∌"  | "⊂"
            | "⊄"   | "⊆"   | "⊈"   | "⊃"  | "⊅"  | "⊇"  | "⊉"
-           | "≡"   | "≢"   | "⊖"   | "∩"  | "⊍"  | "∪"  | "⊖"
-           | "⊎"   | "∖"   | "<=>" | "∘"  | "<-" | "~~" | ".."
-           | "!" .
+           | "≡"   | "≢"   | "⊖"   | "∩"  | "⊍"  | "∪"  | "⊎"
+           | "⊖"   | "∖"   | "<=>" | "∘"  | "<-" | "~~" | ".." .
 
-unary_op_name = "sleep" | "defined" | "rand"   | "len"     | "clone" .
-list_op_name  =   "say" | "print"   | "printf" | "sprintf" | "grep"
-                | "map" | "lmap"    | "join"   | "run"     | "warn"
+unary_op_name =   "sleep" | "defined" | "rand" | "len" | "clone"
+                | "eval" .
+
+list_op_name  =   "say" | "print" | "printf" | "sprintf" | "grep"
+                | "map" | "lmap"  | "join"   | "run"     | "warn"
                 | "die" .
 
 regex_mod   = "i" | "m" | "s" | "a" | "n" | "x" .
-s_regex_mod = regex_mod | "g" | "e" | "c"
-t_regex_mod = regex_mod | "d"
-m_regex_mod = regex_mod 
+m_regex_mod = regex_mod | 
+s_regex_mod = regex_mod | "c" | "g" | "e" .
+t_regex_mod = "c" | "d" | "s" .
 
 nil_lit  = "nil" .
 bool_lit = "true" | "false" .
@@ -341,8 +344,9 @@ bool_lit = "true" | "false" .
 dec_digit = "0" | non_zero_digit .
 bin_digit = "0" | "1" .
 oct_digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" .
-hex_digit = dec_digit | "A" | "B" | "C" | "D" | "E" | "F"
-                      | "a" | "b" | "c" | "d" | "e" | "f" .
+
+hex_digit =   dec_digit | "A" | "B" | "C" | "D" | "E" | "F"
+            |   "a"     | "b" | "c" | "d" | "e" | "f" .
 
 num_lit = int_lit | float_lit .
 
@@ -411,7 +415,7 @@ uni_u_val = "\" "u"     ( hex_digit _hex_digit | "{"      codepoint "}" ) .
 uni_n_val = "\" "N" "{" ( codepoint_name       |     "U+" codepoint     ) "}" .
 
 codepoint_name = normative_name | name_alias .
-normative_name = /* normative name of a codepoint based on the UCD. */ .
+normative_name = /* Normative name of a codepoint based on the UCD. */ .
 name_alias     = /* Name alias of a codepoint based on the UCD. */ .
 
 codepoint =   hex_digit      _hex_digit   [ _hex_digit ] [ _hex_digit ]
@@ -419,7 +423,7 @@ codepoint =   hex_digit      _hex_digit   [ _hex_digit ] [ _hex_digit ]
 
 byte_seq = uni_codepoint_utf8_enc | ill_formed_utf8_byte_seq .
 
-uni_codepoint_utf8_enc   = /* A well-formed UTF-8 byte seq that represents a unicode codepoint. */ .
+uni_codepoint_utf8_enc   = /* A well-formed UTF-8 byte seq that represents a Unicode codepoint. */ .
 ill_formed_utf8_byte_seq = /* An ill-formed UTF-8 byte seq not matching any specific UTF-8 pattern. */ .
 
 str_q_with_delim = single_q_p | double_q_p | back_q_p | regex_q_p .
@@ -427,7 +431,7 @@ str_q_with_delim = single_q_p | double_q_p | back_q_p | regex_q_p .
 single_q_p = "@q" delim__s_q__delim .
 double_q_p = "@Q" delim__d_q__delim .
 back_q_p   = "@x" delim__b_q__delim .
-regex_q_p  = "@r" delim__r_q__delim .
+regex_q_p  = "@r" delim__r_q__delim [ regex_mod ] .
 
 delim__d_q__delim = _delim__d_q__delim | sq__d_q__sq .
 sq__d_q__sq       = s_sq { vdq | e_sq } s_sq .
@@ -445,14 +449,14 @@ d_q__pair_delim =   o_cb    { vdq | e_cb    } c_cb
                   | o_pr    { vdq | e_pr    } c_pr
                   | o_sb    { vdq | e_sb    } c_sb
                   | o_lab   { vdq | e_rab   } c_rab
-                  | o_labq  { vdq | e_labq  } c_labq .
-                  | o_ldabq { vdq | e_rdabq } c_rdabq
+                  | o_labq  { vdq | e_labq  } c_rabq
+                  | o_ldabq { vdq | e_rdabq } c_rdabq .
 
-delim__b_q__delim = delim__d_q__delim | sq__b_q__sq .
+delim__b_q__delim = _delim__d_q__delim | sq__b_q__sq .
 sq__b_q__sq       = sq__s_q__sq .
 sq__s_q__sq       = s_sq { vsq } s_sq .
 
-delim__r_q__delim = ( _delim__d_q__delim | sq__r_q__sq ) [ regex_mod ] .
+delim__r_q__delim = _delim__d_q__delim | sq__r_q__sq .
 sq__r_q__sq       = sq__s_q__sq .
 sl__r_q__sl       = s_sl { vdq | e_sl } s_sl .
 
@@ -555,6 +559,7 @@ say ((2,,) + 1)   # outputs 3, is ',' also a postfix operator?
 10. should the function defined like `fn <name>(*k) {` when called act as a list operator?
 11. Any function call without the use of parentheses like act like a named list operator and
     thus the call is taken to be of highest precedence.
+12. The accumulator operator (*var) is not a prefix operator
 
 `PostfixExp` isn't solely dedicated to regexes but it turns out that regexes are
 the only postfix expressions of this kind. Also, the presence of `RegexMatch`,
