@@ -333,10 +333,10 @@ list_op_name  =   "say" | "print" | "printf" | "sprintf" | "grep"
                 | "map" | "lmap"  | "join"   | "run"     | "warn"
                 | "die" .
 
-regex_mod   = "i" | "m" | "s" | "a" | "n" | "x" .
-m_regex_mod = regex_mod | 
-s_regex_mod = regex_mod | "c" | "g" | "e" .
-t_regex_mod = "c" | "d" | "s" .
+regex_mod   =         "i" | "m" | "s" | "a" | "n" | "x" | "p" | "l" .
+m_regex_mod =   regex_mod | "g" | "c" .
+s_regex_mod = m_regex_mod | "e" .
+t_regex_mod =         "c" | "d" | "s" .
 
 nil_lit  = "nil" .
 bool_lit = "true" | "false" .

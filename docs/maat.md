@@ -46,9 +46,9 @@ This is the list of all operators supported by the Maat programming language.
 * `^`: **(p)** Range operator, `^5` returns a `Range` object, i.e `Range.new(0, 5)`.
 * `√`: **(p)** Sqaure root operator.
 * `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`: **(b)** Power operators.
-* `Σ`: **(p)** Summation operator.
-* `Π`: **(p)** Product operator.
-* `!`: **(p)** Negation operator ex: `!true == false`.
+* `Σ`: **(b)** Summation operator.
+* `Π`: **(b)** Product operator.
+* `!`: **(b)** Negation operator ex: `!true == false`.
 
 ## Named unary operators
 
@@ -1267,6 +1267,30 @@ Maat uses Perl compatible regular expressions(PCRE2).
 
 ```
 ```
+
+### Regex Operators
+
+1. `tr`
+
+Additional flags to the `tr` regex operator are:
+
+* `c`: Transliterates all ocurrences of the characters not found in the search list.
+* `d`: Delete characters found in the search list.
+* `s`: Shrink duplicate replaced characters adjacent to each other.
+
+2. `s`: 
+
+*
+*
+*
+*
+
+3. 
+
+*
+*
+*
+
 
 See section on the [Regex](./types/Regex.md) type for more information.
 
