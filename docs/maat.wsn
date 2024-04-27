@@ -32,10 +32,13 @@ BlockStat =   PackageBlock
             | Role
             | Try
             | DeferBlock
-            | OnceBlock .
+            | OnceBlock
+            | Phasers .
 
 Package      = "package" namespace .
 PackageBlock = Package Block .
+
+Phasers = ( "BEGIN" | "END" ) Block .
 
 Label = name ":" .
 
@@ -120,18 +123,17 @@ NamedParam = "*" "*" name .
 
 Class = [ "const" ] [ Scope ] "class" name { ( is | does ) Exp } [ main ] ClassBody .
 
-ClassBody = "{" ( FieldAndOthers | FieldAndOthers end { end } MethsAndOthers ) "}" .
+ClassBody = "{" ( Fields | Fields end { end } Meths ) "}" .
 
-FieldAndOthers    = { ClassNonBlockStat end { end } | BlockStat      } [ ClassNonBlockStat ] .
-MethsAndOthers    = { NonBlockStat      end { end } | ClassBlockStat } [ NonBlockStat      ] .
-ClassBlockStat    = Meth  | BlockStat .
-ClassNonBlockStat = Field | NonBlockStat .
+Fields = { ClsNonBlockStat end { end } | BlockStat    } [ ClsNonBlockStat ] .
+Meths  = { NonBlockStat    end { end } | ClsBlockStat } [ NonBlockStat    ] .
 
-Field         = InstanceField | StaticField .
-InstanceField = "field" name [ rw | ro | built ] [ DefaultVal ] .
-StaticField   = "state" name ( rw | ro )         [ DefaultVal ] .
+ClsBlockStat    = Meth  | BlockStat .
+ClsNonBlockStat = Field | NonBlockStat .
 
-Meth     = [ "state" ] [ "mul" ] "meth" MethName [ oi save | save oi ] FnBody .
+Field = "field" name [ built | rw | ro | oi ] [ DefaultVal ] .
+
+Meth     = [ "mul" ] "meth" MethName [ oi save | save oi ] FnBody .
 MethName = name [ "(" [ FnArgs ] ")" ] | op_type "<" op_sym ">" .
 
 Role     = [ "const" ] [ Scope ] "role" name { does Exp } [ main ] RoleBody .
@@ -141,7 +143,6 @@ Exp =   nil_lit
       | bool_lit
       | num_lit
       | str_lit
-      | regex_lit
       | VarDef
       | Vars
       | VarAssign
@@ -155,16 +156,28 @@ Exp =   nil_lit
       | prefix_op Exp
       | StatExp .
 
-PostfixExp =   NamedUnaryExp
+PrefixExp = GroupExp | FnCall .
+
+GroupExp = "(" ExpList ")" .
+
+FnCall   = Var [ "(" [ CallArgs ] ")" | CallArgs ] .
+CallArgs = PosArgs [ "," NamedArgs ] .
+
+PosArgs = Exp { "," Exp } .
+
+NamedArgs = NamedArg { "," NamedArg } .
+NamedArg  = name "=>" Exp .
+
+PostfixExp =   ReSmartMatch
+             | ReMatch
+             | ReSub
+             | ReTr
+             | OpReMatch
+             | OpReSub
+             | OpReTr
+             | NamedUnaryExp
              | NamedListExp
-             | Ternary
-             | RegexSmartMatch
-             | RegexMatch
-             | RegexSub
-             | RegexTr
-             | OpRegexMatch
-             | OpRegexSub
-             | OpRegexTr .
+             | Ternary .
 
 Ternary   = Exp OpTernary .
 OpTernary = "?" Exp ":" Exp .
@@ -172,19 +185,19 @@ OpTernary = "?" Exp ":" Exp .
 NamedUnaryExp = unary_op_name Exp .
 NamedListExp  = list_op_name  ExpList .
 
-RegexSmartMatch = Exp   "~~"          ( OpRegexMatch | Exp ) .
-RegexMatch      = Exp ( "=~" | "!~" ) ( OpRegexMatch | Exp ) .
-RegexSub        = Exp ( "=~" | "!~" )   OpRegexSub .
-RegexTr         = Exp ( "=~" | "!~" )   OpRegexTr .
+ReSmartMatch = Exp   "~~"          ( OpReMatch | Exp ) .
+ReMatch      = Exp ( "=~" | "!~" ) ( OpReMatch | Exp ) .
+ReSub        = Exp ( "=~" | "!~" )   OpReSub .
+ReTr         = Exp ( "=~" | "!~" )   OpReTr .
 
-OpRegexMatch = ( "m"  delim__r_q__delim | sl__r_q__sl ) m_regex_mod .
-OpRegexSub   =   "s"  OpRegexSubArg                     s_regex_mod .
-OpRegexTr    =   "tr" OpRegexTrArg                      t_regex_mod .
+OpReMatch = ( "m"  delim__r_q__delim | sl__r_q__sl ) m_re_mod .
+OpReSub   =   "s"  OpReSubArg                        s_re_mod .
+OpReTr    =   "tr" OpReTrArg                         t_re_mod .
 
-OpRegexTrArg  = RegexSubArg .
-OpRegexSubArg =   r_q__single_char_delim
-                | d_q__pair_delim    delim__r_q__delim
-                | delim__r_q__delim  d_q__pair_delim .
+OpReTrArg  = ReSubArg .
+OpReSubArg =   r_q__single_char_delim
+             | d_q__pair_delim    delim__r_q__delim
+             | delim__r_q__delim  d_q__pair_delim .
 
 Var         = any_name | fq_name_main | AccessField | ArrayElem | MapEntry .
 AccessField = Exp "." name .
@@ -199,19 +212,10 @@ VarList = { Var_ } [ "*" ] Var { _Var } { "," } .
 Var_ =        Var Commas .
 _Var = Commas Var .
 
-PrefixExp = GroupExp | FnCall .
-
-GroupExp = "(" ExpList ")" .
-
-FnCall    = Var [ "(" [ CallArgs ] ")" | CallArgs ] .
-CallArgs  = PosArgs [ "," NamedArgs ] .
-PosArgs   = Exp      { "," Exp      } .
-NamedArgs = NamedArg { "," NamedArg } .
-NamedArg  = name "=>" Exp .
-
 AnonyFn = [ "fn" ] "{" [ "|" FnArgs "|" ] [ Stats ] "}" .
 
-Array        = ArrayDefault | ArrayQuoted .
+Array = ArrayDefault | ArrayQuoted .
+
 ArrayDefault = "[" [ ExpList ] "]" .
 ArrayQuoted  = "@a" ArrayPairTokensPair | [ "@a" ] ArrayQuotedWithOptA .
 
@@ -327,16 +331,16 @@ infix_op =   "="   | "."   | ".^"  | ","  | "==" | "⩵"  | "==="
            | "⊖"   | "∖"   | "<=>" | "∘"  | "<-" | "~~" | ".." .
 
 unary_op_name =   "sleep" | "defined" | "rand" | "len" | "clone"
-                | "eval" .
+                | "eval"  | "pos" .
 
 list_op_name  =   "say" | "print" | "printf" | "sprintf" | "grep"
                 | "map" | "lmap"  | "join"   | "run"     | "warn"
                 | "die" .
 
-regex_mod   =         "i" | "m" | "s" | "a" | "n" | "x" | "p" | "l" .
-m_regex_mod =   regex_mod | "g" | "c" .
-s_regex_mod = m_regex_mod | "e" .
-t_regex_mod =         "c" | "d" | "s" .
+re_mod   =         "i" | "m" | "s" | "a" | "n" | "x" | "p" | "l" .
+m_re_mod =   re_mod | "g" | "c" .
+s_re_mod = m_re_mod | "e" .
+t_re_mod =         "c" | "d" | "s" .
 
 nil_lit  = "nil" .
 bool_lit = "true" | "false" .
@@ -426,12 +430,12 @@ byte_seq = uni_codepoint_utf8_enc | ill_formed_utf8_byte_seq .
 uni_codepoint_utf8_enc   = /* A well-formed UTF-8 byte seq that represents a Unicode codepoint. */ .
 ill_formed_utf8_byte_seq = /* An ill-formed UTF-8 byte seq not matching any specific UTF-8 pattern. */ .
 
-str_q_with_delim = single_q_p | double_q_p | back_q_p | regex_q_p .
+str_q_with_delim = single_q_p | double_q_p | back_q_p | re_q_p .
 
 single_q_p = "@q" delim__s_q__delim .
 double_q_p = "@Q" delim__d_q__delim .
 back_q_p   = "@x" delim__b_q__delim .
-regex_q_p  = "@r" delim__r_q__delim [ regex_mod ] .
+re_q_p  = "@r" delim__r_q__delim [ re_mod ] .
 
 delim__d_q__delim = _delim__d_q__delim | sq__d_q__sq .
 sq__d_q__sq       = s_sq { vdq | e_sq } s_sq .
@@ -561,10 +565,10 @@ say ((2,,) + 1)   # outputs 3, is ',' also a postfix operator?
     thus the call is taken to be of highest precedence.
 12. The accumulator operator (*var) is not a prefix operator
 
-`PostfixExp` isn't solely dedicated to regexes but it turns out that regexes are
-the only postfix expressions of this kind. Also, the presence of `RegexMatch`,
-`RegexSub` and `RegexTrans` as possible values to `PostfixExp` is due to the
-fact that a regex expression starting with its left operand implies the
+`PostfixExp` isn't solely dedicated to rees but it turns out that rees are
+the only postfix expressions of this kind. Also, the presence of `ReMatch`,
+`ReSub` and `ReTrans` as possible values to `PostfixExp` is due to the
+fact that a re expression starting with its left operand implies the
 operation is done on the default topic variable `_`, for instance an expression
 starting with `/^Ku.p{2}[0o]/` is equivalent to `_ =~ /^Ku.p{2}[0o]/`.
 
