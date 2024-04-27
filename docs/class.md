@@ -19,9 +19,12 @@ instance has a unique index to a slot of a stack part of that instance. Setting
 and getting the value of an field within an instance is respectively about
 reading and writing to a particular slot.
 
-The idea of compiling fields into a buffer to speed up access is quite
-efficient but has drawbacks when dealing with inheritance and roles and not to
-count the (significant?) slowdown at compilation.
+The idea of compiling fields into a buffer to speed up access is quite efficient
+but has drawbacks when dealing with inheritance and roles.
+
+## Roles
+
+A Role
 
 ### Resolving Role Attributes
 
@@ -36,60 +39,113 @@ composition is done at class creation which is at runtime.
 Pseudo-code:
 
 ```
-fn compose(A, R) {
-   // Methods declared in R use this offset to
-   // properly access their fields.
-   offsets(A).append(len(A));
-   for buf(R) -> r {
-      for buf(A) -> a {
-         if r.name == a.name {
-            error "conflict";
-         }
+fn _compose(A, r) {
+   let offset = len A;
+
+   // Go through attributes of A to detect conflicts.
+   for buf(r) -> f {
+      if buf(A).first: .name == f.name {
+         error "({r.name}, {A.name}): conflict with {f.name}";
+         exit 0;
       }
-      buf(A).append(r);
+      buf(A).append(clone f);
+   }
+
+   // Bind role methods and set offset for accessors
+   // to correctly read/write to buf(A).
+   for meths(r) -> m {
+      let cm = clone m;
+      cm.offset = offset;
+      bind_to(A, m);
    }
 }
-```
 
-```
-for roles(A) -> R {
-   next
-     if already composed R in A or a role composed in A;
-   compose(A, R);
+fn compose(A, r) {
+   _compose(A, r) if ! already_composed(A, r);
+   for roles(r) -> r1 {
+      _compose(A, r1) if ! already_composed(A, r1);
+   }
 }
-```
-When a role does another role, the same process described above happens, this is
-why we performed the `if` conditional check to avoid rejoins which may cause
-unwanted conflicts. Wow, this is three for-loops! does it impact performance?
-Not at a huge scale!! The first loop iterates over the superclasses/roles which
-in practice are quite small in number and at the end we have O(1) access to
-fields which is very critical for concurrent code.
 
-### Resolving Inherited Attributes
-
-Instead of raising conflicts like we do in roles, fields of the derived class
-take predecence over those from the based classes. If fields of the same name
-that do not exist in the derived class coexist among the base classes, the most
-recently encountered one takes precedence over the others. To avoid patching
-bytecode of methods of these based classes to refer to fields that took prece
-dence over their respective ones, we'll simply modify the buffer to refer to the
-field that took precedence so that whenever the derived class calls methods
-from the based classes, auto-generated accessors access the correct slots.
-
-```
-// Do this after you've already composed all the roles in A.
-fn inherit(A, B) {
-   
-}
+for roles(A) -> r { compose(A, r) }
 ```
 
-## Roles
+To reduce complexity, nothing actually happens when a role does other roles and
+all the work is done when compositing roles in classes.
 
+Meaning that
+
+```
+role R1 {}
+role R :does R1 {}
+class A :does R {}
+```
+
+is basically just doing
+
+```
+role R1 {}
+role R :does R1 {}
+class A :does R :does R1 {}
+```
+
+because `R1` is not really composed in `R` but rather registered in `R` so that
+`R1` is later on composed in `A`.
+
+Wow, this is a lot of for-loops! does it impact performance? Not really, not at
+a huge scale!! The first loop from the entry point of the resolution process
+iterates over the roles of `A` which in practice are quite small in number and
+at the end we have O(1) access to fields which is very critical for concurrent
+code.
 
 ## Inheritances
 
 Maat implements c3 linearization, it c3 linearizes at compile time to speed
 runtime execution of super method calls.
+
+* Classes never inherit (`:is`) roles.
+* A class can inherit (`:is`) classes and at the same time do (`:does`) roles.
+* A class can do (`:does`) multiple roles and inherit (`:is`) multiple classes.
+* A role can do (`:does`) other roles but never it does inherit (`:is`) a role
+  or a class.
+
+Instead of raising conflicts like we do in roles, resolution of an inherited
+field is done by traversing the c3 linearization list of the derived class. The
+first matching field is registered in the the derived class' field buffer and
+accessors to this field is auto-generated and cached into the derived class to
+optimize subsequent retrievals. Given that fields are resolved at compiled time,
+its advisable to use roles or redefine fields instead of relying on inherited
+fields as it may hinder runtime performance even worser than a first call to a
+super method. All these slowdowns are not noticeable and probably insignificant
+but it does not exclude the fact that we are constandly striving for an ideal
+performance especially in a concurrent environment which is even why we decided
+to compile time resolve access to fields.
+
+Pseudo-code:
+
+```
+fn search_field(A, name) {
+   return accessor(A, name) if exists_meth(A, name);
+
+   for C3(A) -> i {
+      for buf(i) -> i {
+         next unless i.name == name;
+
+         // Set default value
+         buf(A).append(clone i);
+         let accessor = { |v|
+            state l = len(A);
+            buf(A)[l] = v if v;
+            return buf(A)[l]
+         };
+         cache_accessor(A, name, accessor);
+         return accessor;
+      }
+   }
+
+   return nil;
+}
+```
 
 ## Static Attributes and Method
 
@@ -151,16 +207,8 @@ Variables in classes declared with `state` work exactly the same way with those
 declared with `let`. That said, one could've leverage `state` to properly
 implement static fields and method.
 
-Lexical variables declared with `let` in a class are only accessible within it,
-you'll have to define their accessors in order to access them from outside their
-classes.
+Lexically scoped variables declared with `let` in a class are only accessible
+within it, you'll have to define their accessors in order to access them from
+outside their classes.
 
-
-### What to know.
-
-* A class can inherit (`:is`) classes and at the same time do (`:does`) roles.
-* A class can do (`:does`) multiple roles and inherit (`:is`) multiple classes.
-* A class can't inherit (`:is`) roles.
-* A role can do (`:does`) other roles but never it does inherit (`:is`) a role
-  or a class.
 
