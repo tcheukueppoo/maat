@@ -26,77 +26,140 @@ but has drawbacks when dealing with inheritance and roles.
 
 A Role
 
-### Resolving Role Attributes
+### Composing Roles with Classes
 
-The rule with roles in maat is that at composition we should not encounter two
-fields have the same name and so if ever there is an field conflict when
-composing a role with other role or class, the program reports an error.
-Resolving attributes when a class does a role is done by simple joining their
-two field buffers with zero conflicts, we keep the name of each fields in each
-slot giving us the possibility to check conflicts and report them. The
-composition is done at class creation which is at runtime.
+A role is said to be composable with a class if no duplicate fields exist among
+their respective field buffers, meaning none of the fields out of their buffers
+have identical names, otherwise the program reports an error. Composing a role
+with a class is simple done by joining their two respectives field buffers with
+zero conflicts. In a field's structure there is its name which aids us on
+checking conflicts. The composition of a class with its roles is done at runtime
+which is after each of these entities have been allocated and initialized.
 
-Pseudo-code:
-
-```
-fn _compose(A, r) {
-   let offset = len A;
-
-   // Go through attributes of A to detect conflicts.
-   for buf(r) -> f {
-      if buf(A).first: .name == f.name {
-         error "({r.name}, {A.name}): conflict with {f.name}";
-         exit 0;
-      }
-      buf(A).append(clone f);
-   }
-
-   // Bind role methods and set offset for accessors
-   // to correctly read/write to buf(A).
-   for meths(r) -> m {
-      let cm = clone m;
-      cm.offset = offset;
-      bind_to(A, m);
-   }
-}
-
-fn compose(A, r) {
-   _compose(A, r) if ! already_composed(A, r);
-   for roles(r) -> r1 {
-      _compose(A, r1) if ! already_composed(A, r1);
-   }
-}
-
-for roles(A) -> r { compose(A, r) }
-```
-
-To reduce complexity, nothing actually happens when a role does other roles and
+To reduce complexity, we actually do nothing when a role does other roles and
 all the work is done when compositing roles in classes.
+
+```maat
+role R1         {}
+role R :does R1 {}
+```
 
 Meaning that
 
-```
-role R1 {}
-role R :does R1 {}
+```maat
 class A :does R {}
 ```
 
 is basically just doing
 
-```
-role R1 {}
-role R :does R1 {}
+```maat
 class A :does R :does R1 {}
 ```
 
 because `R1` is not really composed in `R` but rather registered in `R` so that
-`R1` is later on composed in `A`.
+`R1` is later on composed in `A`. This implies that the relationship between
+roles is represented as a directed graph and determining all the roles to be
+composed in a class requires a graph traversal.
 
-Wow, this is a lot of for-loops! does it impact performance? Not really, not at
-a huge scale!! The first loop from the entry point of the resolution process
-iterates over the roles of `A` which in practice are quite small in number and
-at the end we have O(1) access to fields which is very critical for concurrent
-code.
+```
+ A------+
+        |
+        +-----+-----+
+        |     |     |
+        v     v     v
+        R1    R2--->R3------>R7
+        |     |     |        |
+        |     v     +-->R8<--+
+        +---->R4    |
+              |     |
+              v     v
+              R5--->R6
+```
+
+
+
+R = R1 R2 R3 R4 R6 R5 R8 R7
+
+
+The above is a class `A` which does roles which are connected to a network of
+other roles, I believe this rarely occurs in practice though it looks correct.
+Some folks can't stop doing crazy things and I can't stop thinking of crazy
+possibilities which is why I believe doing a graph traversal to determine all
+the roles that need to be composed in A is necessary.
+
+The above translates to the following Maat code:
+
+```maat
+role R6                            {}
+role R8                            {}
+role R7 :does R8                   {}
+role R5 :does R6                   {}
+role R4 :does R5                   {}
+role R3 :does R7 :does R8 :does R6 {}
+role R2 :does R3 :does R4          {}
+role R1 :does R4                   {}
+class A :does R1 :does R2 :does R3 {}
+```
+
+A naive traversal can seriouly hinder runtime performance because one of the
+most important features of roles is it reusability, I might be trying to
+prematurely optimize role composition but I think this risk is worth taking.
+
+When a role does other roles, we could do more than just referencing, we could
+compute the graph traversal of that role and record it in its internal struture
+so any other role/class that does him can use result as a subsolution to compute
+other traversals/compose, this is more of a dynamice programming approach which
+turns out to be viable and efficient. This also looks similar to the
+c3-linearization algorithm.
+
+So for the above relationship diagram, we have:
+
+```
+Traverse(R6) =                                                   [R6]
+Traverse(R8) =                                                   [R8]
+Traverse(R7) = R7 + Traverse(R8)                               = [R7, R8]
+Traverse(R3) = R3 + Traverse(R6) + Traverse(R8) + Traverse(R7) = [R3, R6, R8, R7]
+Traverse(R5) = R5 + Traverse(R6)                               = [R5, R6]
+Traverse(R4) = R4 + Traverse(R5)                               = [R4, R5, R6]
+Traverse(R2) = R2 + Traverse(R4) + Traverse(R3)                = [R2, R4, R3, R5, R6, R8, R7]
+Traverse(R1) = R1 + Traverse(R4)                               = [R1, R4, R5, R6]
+Traverse(A)  =      Traverse(R1) + Traverse(R2) + Traverse(R3) = [R1, R2, R3, R4, R6, R5, R8, R7]
+```
+
+This looks good because there's no need to use an external data structure as
+dynamic table to keep track of the sub-solutions.
+
+Pseudo-code:
+
+```maat
+fn linearize_roles_of(R) {
+   let role_list = roles(R);
+
+   return linearized_roles(role_list[0]) if role_list.len == 1;
+
+   let result  = [];
+   let max_len = role_list.map(:.len).max;
+
+   loop (let i = 0; i < max_len; i++) {
+      let cands = role_list.map(:linearized_roles(_)).grep(:.len <= i).map: _[i];
+      result.push(_) unless result.has(_) for cands;
+   }
+
+   return result;
+}
+```
+
+No worries on the performace of `.map` as in practice `role_list.len` is not
+even greater than `5` but Wooooy! we still have these two loops! does it impact
+performance? Not really, not at a huge scale!! The merging process is done in a
+way that the result obtained is the same as what we could've obtained if we did
+a bread-first traversal on the graph but in this case the cost of linearization
+is propergated over the nodes of the graph which reduces pauses at runtime
+because having to traverse the whole graph for each class can potentially introduce
+pauses since the computation has nothing to do with the program's goal.
+
+The real work is not yet done and that's pretty sad! 
+
 
 ## Inheritances
 
@@ -123,13 +186,13 @@ to compile time resolve access to fields.
 
 Pseudo-code:
 
-```
+```maat
 fn search_field(A, name) {
    return accessor(A, name) if exists_meth(A, name);
 
    for C3(A) -> i {
       for buf(i) -> i {
-         next unless i.name == name;
+         next unless i.name == name && i.priv == false;
 
          // Set default value
          buf(A).append(clone i);
@@ -155,7 +218,7 @@ simply closing over them. There will be no over-head with static methods when
 doing roles or inheriting class, only inherited methods of a base class can
 access lexicals declared in superclasses.
 
-```
+```maat
 class A {
    let x = 20;
    meth a {
@@ -170,16 +233,17 @@ class B :is A {
 
 B.new.b;
 ```
-I believe it's rare to find yourself in a situation where you'd want `B.new.b`
-to output `21` knowing that in principle static fields are bounded to the class
-in which they were declared and it'll be awkward to also have to resolve
-conflicts between static vars from superclasses, Well this is my logic of how OO
-should be implement because other programming languages do it the reverse.
-Declaring static variables with `let` in roles plays nicely with roles
-themselves, especially when we don't want a role's field to take part in a
-class-role or role-role composition.
 
-```
+I believe it's rare to find yourself in a situation where you'd want `B.new.b`
+to output `21` while knowing that in principle a static field is bounded to the
+class in which is was declared and it'll be awkward to also have to resolve
+conflicts between static fields from superclasses. I'm saying so based on maat's
+own view of OO programming as implementations differs across programming
+languages. Declaring static variables with `let` in roles plays nicely with
+roles themselves, especially when we don't want a role's field to take part in a
+class-role composition.
+
+```maat
 role R {
    field c :rw = 2;
    meth say(s \\= "wooy!") { say join(' ', str(s) x c) }
@@ -191,7 +255,7 @@ A.new.say;
 A.new(x => 3).say; // output: wooy! wooy! wooy!
 ```
 
-```
+```maat
 role R {
    const let c = 2;
    meth say(s \\= "wooy!") { /* same code. */ }
@@ -203,12 +267,10 @@ A.new.say;         // output: wooy! wooy!
 A.new(x => 3).say; // error, 'x' is not declared.
 ```
 
-Variables in classes declared with `state` work exactly the same way with those
+Variables in classes declared with `state` work exactly the same way as those
 declared with `let`. That said, one could've leverage `state` to properly
 implement static fields and method.
 
 Lexically scoped variables declared with `let` in a class are only accessible
 within it, you'll have to define their accessors in order to access them from
-outside their classes.
-
-
+outside their classes which is less common in practice as `field` is there!
