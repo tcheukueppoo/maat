@@ -152,19 +152,47 @@ fn linearize_roles_of(R) {
 No worries on the performace of `.map` as in practice `role_list.len` is not
 even greater than `5` but Wooooy! we still have these two loops! does it impact
 performance? Not really, not at a huge scale!! The merging process is done in a
-way that the result obtained is the same as what we could've obtained if we did
-a bread-first traversal on the graph but in this case the cost of linearization
-is propergated over the nodes of the graph which reduces pauses at runtime
-because having to traverse the whole graph for each class can potentially introduce
-pauses since the computation has nothing to do with the program's goal.
+way that the cost of linearization is propergated over the nodes of the graph
+which reduces pauses at runtime because having to traverse the whole graph for
+each class can potentially introduces pauses since the computation has nothing
+to do with the program's goal.
 
-The real work is not yet done and that's pretty sad! 
+The real work is not yet done and that's pretty sad! we now need to compose
+by going through the linearization result and join the field buffer of each
+role to that of the class.
 
+```
+fn compose(A) {
+   for linearize_roles_of(A) -> r {
+      let offset = len buf(A);
+
+      // Bind methods of 'r' to 'A'.
+      for meths(r) -> m {
+         next if exist_meth(A, m.name);
+         let cm = clone m;
+         cm.offset = offset;
+         bind_to(A, cm);
+      }
+
+      // Join field buffers.
+      for buf(r) -> f {
+         error "conflict with {f.name} on {r.name}"
+            if buf(A).first: f.name = .name;
+         buf(A).append(f);
+      }
+   }
+}
+```
+
+Having to iterate over `buf(r)` to check conflicts reveals itself to be very
+computationally expensive but since identifiers are mostly short strings,
+they'll probably get internalized and thus testing for string equality fallbacks
+to pointer equality.
 
 ## Inheritances
 
-Maat implements c3 linearization, it c3 linearizes at compile time to speed
-runtime execution of super method calls.
+Maat implements c3 linearization, it c3 linearizes at runtime time by using
+the dynamic programming approach.
 
 * Classes never inherit (`:is`) roles.
 * A class can inherit (`:is`) classes and at the same time do (`:does`) roles.
