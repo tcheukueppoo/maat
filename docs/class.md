@@ -4,20 +4,20 @@
 
 (To Draw)
 
-## Attributes
+## Instance' Field
 
 Having an `O(1)` access to an instance' field is critical for system's
-performance since shared instances might require synchronization when maatines
-in a multi-threaded environment concurrently access their fields which is
-probably via a ticket-based spinlock from `librs`. This is why critical section
-needs to be as small as possible. Class' fields are handled the same way we do
-with lexical variables, i.e by allocating on a stack, but in this case it's each
-class that holds it own fixed size non-growable stack. For this reason fields
-can only be accessed internally/externally using auto-generated accessors. This
-will imply that a field resolution is done at compile time, each field of an
-instance has a unique index to a slot of a stack part of that instance. Setting
-and getting the value of an field within an instance is respectively about
-reading and writing to a particular slot.
+performance since concurrent access to a field of a shared instance by maatines
+in a multi-threaded environment requires synchronization probably via a
+ticket-based spinlock from `librs`. This is why critical section needs to be as
+small as possible. Class' fields are handled the same way we do with lexical
+variables, i.e by allocating on a stack, but in this case it's each class that
+holds its own stack called a field buffer. For this reason fields can only be
+accessed internal/external to its instance using accessors auto-generated at
+compile-time. This will imply that a field resolution is done at compile-time,
+each field of an instance has a unique index to a slot of a field buffer part of
+that instance. Setting and getting the value of an field within an instance is
+respectively about reading and writing to a particular slot.
 
 The idea of compiling fields into a buffer to speed up access is quite efficient
 but has drawbacks when dealing with inheritance and roles.
@@ -36,15 +36,12 @@ zero conflicts. In a field's structure there is its name which aids us on
 checking conflicts. The composition of a class with its roles is done at runtime
 which is after each of these entities have been allocated and initialized.
 
-To reduce complexity, we actually do nothing when a role does other roles and
-all the work is done when compositing roles in classes.
-
 ```maat
 role R1         {}
 role R :does R1 {}
 ```
 
-Meaning that
+To reduce complexity, we actually do not compose roles with roles, meaning that
 
 ```maat
 class A :does R {}
@@ -76,16 +73,11 @@ composed in a class requires a graph traversal.
               R5--->R6
 ```
 
-
-
-R = R1 R2 R3 R4 R6 R5 R8 R7
-
-
 The above is a class `A` which does roles which are connected to a network of
 other roles, I believe this rarely occurs in practice though it looks correct.
 Some folks can't stop doing crazy things and I can't stop thinking of crazy
 possibilities which is why I believe doing a graph traversal to determine all
-the roles that need to be composed in A is necessary.
+the roles that need to be composed in `A` is necessary.
 
 The above translates to the following Maat code:
 
@@ -107,10 +99,10 @@ prematurely optimize role composition but I think this risk is worth taking.
 
 When a role does other roles, we could do more than just referencing, we could
 compute the graph traversal of that role and record it in its internal struture
-so any other role/class that does him can use result as a subsolution to compute
-other traversals/compose, this is more of a dynamice programming approach which
-turns out to be viable and efficient. This also looks similar to the
-c3-linearization algorithm.
+so that any other role/class that does him can use the result to compose it in a
+class or  as a subsolution to compute other traversals, this is more of a
+dynamice programming approach which turns out to be viable and efficient. This
+also looks similar to the c3-linearization algorithm.
 
 So for the above relationship diagram, we have:
 
@@ -150,16 +142,16 @@ fn linearize_roles_of(R) {
 ```
 
 No worries on the performace of `.map` as in practice `role_list.len` is not
-even greater than `5` but Wooooy! we still have these two loops! does it impact
+even greater than `5` but Wooooy! We still have these two loops! does it impact
 performance? Not really, not at a huge scale!! The merging process is done in a
-way that the cost of linearization is propergated over the nodes of the graph
+way that the cost of linearization is propagated over the nodes of the graph
 which reduces pauses at runtime because having to traverse the whole graph for
 each class can potentially introduces pauses since the computation has nothing
-to do with the program's goal.
+to do with the program's main goal.
 
 The real work is not yet done and that's pretty sad! we now need to compose
 by going through the linearization result and join the field buffer of each
-role to that of the class.
+role to that of the class and also bind methods.
 
 ```
 fn compose(A) {
@@ -184,17 +176,17 @@ fn compose(A) {
 }
 ```
 
-Having to iterate over `buf(r)` to check conflicts reveals itself to be very
-computationally expensive but since identifiers are mostly short strings,
+Having to iterate over `buf(r)` to check conflicts reveals how computationally
+expensive this solution is but since identifiers are mostly short strings,
 they'll probably get internalized and thus testing for string equality fallbacks
 to pointer equality.
 
 ## Inheritances
 
-Maat implements c3 linearization, it c3 linearizes at runtime time by using
-the dynamic programming approach.
+Maat implements c3 linearization, it c3 linearizes at runtime time by using the
+dynamic programming approach.
 
-* Classes never inherit (`:is`) roles.
+* A Class cannot inherit (`:is`) roles.
 * A class can inherit (`:is`) classes and at the same time do (`:does`) roles.
 * A class can do (`:does`) multiple roles and inherit (`:is`) multiple classes.
 * A role can do (`:does`) other roles but never it does inherit (`:is`) a role
@@ -202,20 +194,21 @@ the dynamic programming approach.
 
 Instead of raising conflicts like we do in roles, resolution of an inherited
 field is done by traversing the c3 linearization list of the derived class. The
-first matching field is registered in the the derived class' field buffer and
+first matching field is registered in the derived class' field buffer and
 accessors to this field is auto-generated and cached into the derived class to
-optimize subsequent retrievals. Given that fields are resolved at compiled time,
-its advisable to use roles or redefine fields instead of relying on inherited
-fields as it may hinder runtime performance even worser than a first call to a
-super method. All these slowdowns are not noticeable and probably insignificant
-but it does not exclude the fact that we are constandly striving for an ideal
-performance especially in a concurrent environment which is even why we decided
-to compile time resolve access to fields.
+optimize subsequent recalls. Given that access to fields of a class' instance is
+resolved at compile-time, it is advisable to use roles or redefine fields in
+the derived class instead of relying on inherited fields as it may hinder
+runtime performance even worser than a first call to a super method. All these
+slowdowns are not noticeable and probably insignificant but it does not exclude
+the fact that we are constantly striving for an ideal performance especially in
+a concurrent environment which is even why we decided to compile-time resolve
+access to fields.
 
 Pseudo-code:
 
 ```maat
-fn search_field(A, name) {
+fn search_field (A, name) {
    return accessor(A, name) if exists_meth(A, name);
 
    for C3(A) -> i {
@@ -224,10 +217,9 @@ fn search_field(A, name) {
 
          // Set default value
          buf(A).append(clone i);
+         let l = len(A) - 1;
          let accessor = { |v|
-            state l = len(A);
-            buf(A)[l] = v if v;
-            return buf(A)[l]
+            return __NARGS__ == 1 ? buf(A)[l] = v : buf(A)[l];
          };
          cache_accessor(A, name, accessor);
          return accessor;
@@ -238,12 +230,17 @@ fn search_field(A, name) {
 }
 ```
 
-## Static Attributes and Method
+Supercalls are also resolved by walking down the c3-mro list and caching the
+results in the mro cache of the class concerned to optimize subsequent recalls,
+the `^.augment` meta method called on a class invalidates all affected classes
+which is why it should be used with great care.
 
-You can declared lexically scoped variables in a class using `let`, this look
+## Static Attributes and Methods
+
+You can declared lexically scoped variables in a class using `let`, this looks
 similar to static variables and methods in a class acesses these variables by
 simply closing over them. There will be no over-head with static methods when
-doing roles or inheriting class, only inherited methods of a base class can
+doing roles or inheriting classes, only inherited methods of a base class can
 access lexicals declared in superclasses.
 
 ```maat
@@ -297,7 +294,7 @@ A.new(x => 3).say; // error, 'x' is not declared.
 
 Variables in classes declared with `state` work exactly the same way as those
 declared with `let`. That said, one could've leverage `state` to properly
-implement static fields and method.
+implement static fields and methods.
 
 Lexically scoped variables declared with `let` in a class are only accessible
 within it, you'll have to define their accessors in order to access them from

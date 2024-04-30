@@ -370,10 +370,9 @@ This feature is taken from Perl.
 
 ## Constants
 
-* `π`: Pi
-* `ℇ`: Euler constant
-* `ℎ`: Planck constant
-* `ℏ`: Planck constant over 2 pi
+* `#PI`: Pi
+* `#E`: Euler constant
+* `#PL`: Planck constant
 
 ## Assignments
 
