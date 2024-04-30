@@ -1,6 +1,6 @@
 /*
  * License: MAATL, see LICENSE file for copyright and license details.
- * $$$$Definition of Maat Values.
+ * @@@@Definition of Maat Values.
  */
 
 #ifndef ma_val_h
@@ -22,17 +22,17 @@
 #define with_variant(v)      (raw_type(v) & 0x7F)
 #define check_vartype(v, t)  (with_variant(v) == t)
 
-/* $$Value: Repr of a Maat value.
+/* @@Value: Repr of a Maat value.
  *
- * - $val: The value itself, which is a union of
- *   - $n: Maat's repr of a number, see 'ma_conf.h'.
- *   - $gc_obj: Pointer to a collectable object.
- *   - $p: Pointer to a memory location representing the data of
+ * - @val: The value itself, which is a union of
+ *   - @n: Maat's repr of a number, see 'ma_conf.h'.
+ *   - @gc_obj: Pointer to a collectable object.
+ *   - @p: Pointer to a memory location representing the data of
  *     a foreign class.
- *   - $f: Pointer to a C function, it either represents a
+ *   - @f: Pointer to a C function, it either represents a
  *     cvalue's method or just a standalone function.
  *
- * - $type: Determines $val's type, its bits are segmented into
+ * - @type: Determines @val's type, its bits are segmented into
  *   three parts. This variable already gots all what is
  *   necessary to represent values of the boolean and nil types.
  *
@@ -45,7 +45,7 @@
  *   can have at most 3 variants for each base type which also
  *   suffices.
  *
- * - Bit 7: It is '1' if $val stores a collectable object; '0'
+ * - Bit 7: It is '1' if @val stores a collectable object; '0'
  *   otherwise.
  */
 #define Valuefields  _Value val; UByte type
@@ -70,7 +70,7 @@ typedef struct Value {
 /*
  * Define types of all non-collectable objects.
  *
- * A value 'v' is collectable if the MSB of its $type is '1' in
+ * A value 'v' is collectable if the MSB of its @type is '1' in
  * otherwords, it stores a collectable object.
  */
 #define V_NIL     0
@@ -144,13 +144,13 @@ typedef struct Value {
                 UByte mark
 
 /*
- * $$Object struct inherited by all collectable objects.
+ * @@Object struct inherited by all collectable objects.
  *
- * - $type: Type of the object.
- * - $mark: To mark the object during collection.
- * - $class: The object's class.
- * - $next: Next obj, to keep track of all objects.
- * - $mid: The id of the maatine that created the object.
+ * - @type: Type of the object.
+ * - @mark: To mark the object during collection.
+ * - @class: The object's class.
+ * - @next: Next obj, to keep track of all objects.
+ * - @mid: The id of the maatine that created the object.
  */
 typedef struct Object {
    Header;
@@ -200,7 +200,7 @@ typedef struct Object {
 /* O_VNS */
 #define O_NS     19
 
-/* $$$Repr of all type of string objects. */
+/* @@@Repr of all type of string objects. */
 #define O_VLNGSTR   vary(O_STR, 0)
 #define O_VSHTSTR   vary(O_STR, 1)
 #define O_VUSHTSTR  vary(O_U8STR, 0)
@@ -231,15 +231,15 @@ typedef struct Object {
                       UInt hash
 
 /*
- * $$Str: Repr of an ASCII Maat string.
+ * @@Str: Repr of an ASCII Maat string.
  *
- * - $sl: For short strings, last 3 bits of $sl are for $str'
- *   length whereas its first bit determines whether $str is
- *   reserved. For long strings, $sl serves as a boolean value
- *   to check if $str already has its $hash.
- * - $u: For short strings $u is $snext, a pointer to $str's
- *   next string in our hash map of short strings ($$SMap); for
- *   long strings, $u is the $len of $str.
+ * - @sl: For short strings, last 3 bits of @sl are for @str'
+ *   length whereas its first bit determines whether @str is
+ *   reserved. For long strings, @sl serves as a boolean value
+ *   to check if @str already has its @hash.
+ * - @u: For short strings @u is @snext, a pointer to @str's
+ *   next string in our hash map of short strings (@@SMap); for
+ *   long strings, @u is the @len of @str.
  */
 typedef struct Str {
    Header;
@@ -247,10 +247,10 @@ typedef struct Str {
 } Str;
 
 /*
- * $$U8Str: Object repr of an UTF-8 encoded string.
+ * @@U8Str: Object repr of an UTF-8 encoded string.
  *
- * - $ngraph: The total size of the subparts of the grapheme
- *   clusters of $str.
+ * - @ngraph: The total size of the subparts of the grapheme
+ *   clusters of @str.
  */
 typedef struct U8Str {
    Header;
@@ -259,11 +259,11 @@ typedef struct U8Str {
 } U8Str;
 
 /*
- * $$Range object with each bound inclusive.
+ * @@Range object with each bound inclusive.
  *
- * - $a: The start.
- * - $b: The end.
- * - $c: The step.
+ * - @a: The start.
+ * - @b: The end.
+ * - @c: The step.
  */
 #define O_VRANGE  vary(O_RANGE, 0)
 
@@ -282,7 +282,7 @@ typedef struct Range {
    Int c;
 } Range;
 
-/* $$$Repr of Map objects. */
+/* @@@Repr of Map objects. */
 #define O_VMAP   vary(O_MAP, 0)
 #define O_VCMAP  vary(O_MAP, 1)
 
@@ -297,14 +297,14 @@ typedef struct Range {
 #define as_cmap(v)  (ma_assert(is_map(v)), cast(CMap *, as_gcobj(v)))
 
 /*
- * $$Node: Node of a map object.
+ * @@Node: Node of a map object.
  *
- * - $val: Direct access to the node value from $k.
- * - $k: The node key with other searching parameters.
- *   - $key_t: The node key type.
- *   - $key_v: The node key value.
- *   - $next: Offset to next node in case of collision.
- *   - $prev: Offset to the previous node, used for tracking back
+ * - @val: Direct access to the node value from @k.
+ * - @k: The node key with other searching parameters.
+ *   - @key_t: The node key type.
+ *   - @key_v: The node key value.
+ *   - @next: Offset to next node in case of collision.
+ *   - @prev: Offset to the previous node, used for tracking back
  *     to the first entry, it's indispensable for synced access
  *     operations if ever the map eventually ends up shared.
  */
@@ -320,23 +320,23 @@ typedef union Node {
 } Node;
 
 /*
- * $$Map: Repr of a Map object.
+ * @@Map: Repr of a Map object.
  *
  * Map has two parts: an array and a hash part, its array part
  * is used in an optimized way to store nodes with non-negative
  * integer keys. This array is allocated such that more than
  * half of its slots are in use. Its hash part stores the rest
- * of the nodes obtained after $array's size was optimized.
+ * of the nodes obtained after @array's size was optimized.
  *
- * - $array: Array part of the Map.
- * - $asize: Size of the array part of the Map.
+ * - @array: Array part of the Map.
+ * - @asize: Size of the array part of the Map.
  *
- * - $rasize: Boolean value to check if $asize is actually its
+ * - @rasize: Boolean value to check if @asize is actually its
  *   real size.
  *
- * - $node: Hash part of the Map.
- * - $last: The last free node in $node.
- * - $lg2size: log2 of the size of $node.
+ * - @node: Hash part of the Map.
+ * - @last: The last free node in @node.
+ * - @lg2size: log2 of the size of @node.
  */
 #define MapPointerFields Value *array;     \
                          Node *node;        \
@@ -353,7 +353,7 @@ typedef struct Map {
 } Map;
 
 /*
- * $$CMap: A thread-safe version of the Map object.
+ * @@CMap: A thread-safe version of the Map object.
  *
  * TODO: doc fields.
  */
@@ -367,7 +367,7 @@ typedef struct CMap {
 } CMap;
 
 /*
- * $$Repr of an Array object. Though we got a Map optimized to
+ * @@Repr of an Array object. Though we got a Map optimized to
  * be kind-of an array for fast access, Maat still got a true
  * Array object.
  *
@@ -394,11 +394,11 @@ typedef struct CMap {
                      size_t cap;          \
                      size_t size
 /*
- * $$Array: Repr of an Array object.
+ * @@Array: Repr of an Array object.
  *
- * - $size: The size of $array.
- * - $cap: The capacity of $array.
- * - $array: The array itself.
+ * - @size: The size of @array.
+ * - @cap: The capacity of @array.
+ * - @array: The array itself.
  */
 typedef struct Array {
    Header;
@@ -406,7 +406,7 @@ typedef struct Array {
 } Array;
 
 /*
- * $$CArray: A thread-safe lock-free version of $$Array.
+ * @@CArray: A thread-safe lock-free version of @@Array.
  *
  * TODO: doc fields.
  */
@@ -417,12 +417,12 @@ typedef struct CArray {
 } CArray;
 
 /*
- * $$Fn: Repr of a Maat function object.
+ * @@Fn: Repr of a Maat function object.
  *
- * - $arity: The number of arguments the function takes.
- * - $code: Its bytecode.
- * - $cons: The function's constant values.
- * - $ns: Access index to namespace of the function in $NSBuf.
+ * - @arity: The number of arguments the function takes.
+ * - @code: Its bytecode.
+ * - @cons: The function's constant values.
+ * - @ns: Access index to namespace of the function in @NSBuf.
  */
 #define O_VFN  vary(O_FN, 0)
 
@@ -441,23 +441,23 @@ typedef struct Fn {
    ValueBuf cons;
 } Fn;
 
-/* $$$Repr of upvalues. */
+/* @@@Repr of upvalues. */
 
 /*
- * $$Upval: An upvalue isn't a first class value, it simply
+ * @@Upval: An upvalue isn't a first class value, it simply
  * points to a value (of a lexical) in the stack of a callframe
  * so that this function can still keep a reference to it when
  * the executing function associated to that callframe finishes
  * its execution.
  *
- * - $ncl: Boolean value, is '0' if only one closure closes over
+ * - @ncl: Boolean value, is '0' if only one closure closes over
  *   it; '1' otherwise.
- * - $p: Pointer to the value. When an upvalue is opened, it
+ * - @p: Pointer to the value. When an upvalue is opened, it
  *   points to a living value in a vm register but when closed,
- *   it points to $state.
- * - $state: A pointer to the $next open upvalue when this one
+ *   it points to @state.
+ * - @state: A pointer to the @next open upvalue when this one
  *   is still opened otherwise it'll contain the vm register
- *   value $p points to.
+ *   value @p points to.
  */
 #define O_VUPVAL  vary(O_UPVAL, 0)
 
@@ -473,7 +473,7 @@ typedef struct Upval {
    Upvalfields;
 } Upval;
 
-/* $$SUpval: Repr of shared upvalues */
+/* @@SUpval: Repr of shared upvalues */
 #define O_VSUPVAL  vary(O_UPVAL, 1)
 
 /* Upvalues aren't first class values! here are utils for sync ops. */
@@ -487,13 +487,13 @@ typedef struct SUpval {
 } SUpval;
 
 /*
- * $$Closure: A closure is a variant of a function which keep
+ * @@Closure: A closure is a variant of a function which keep
  * tracks of its upvalues, functions are never used directly.
  *
- * - $fn: A pointer to the closure's function.
- * - $state: Value buffer to keep values of static lexicals.
- * - $upvals: The List of upvalues the function has.
- * - $nuv: The number of upvalues.
+ * - @fn: A pointer to the closure's function.
+ * - @state: Value buffer to keep values of static lexicals.
+ * - @upvals: The List of upvalues the function has.
+ * - @nuv: The number of upvalues.
  */
 #define O_VCLOSURE  vary(O_FN, 1)
 
@@ -504,124 +504,85 @@ typedef struct SUpval {
 #define is_clo(v)  check_rtype(v, ctb(O_VCLOSURE))
 #define as_clo(v)  (ma_assert(is_clo(v)), cast(Closure *, as_gcobj(v)))
 
+#define Closurefields  UByte nuv;        \
+                       Fn *fn;            \
+                       Object *next_sobj;  \
+                       ValueBuf state;      \
+                       Upval *upvals[flex]
+
+
 typedef struct Closure {
    Header;
-   UByte nuv;
-   Fn *fn;
-   Object *next_sobj;
-   ValueBuf state;
-   Upval *upvals[flex];
+   Closurefields;
 } Closure;
 
 /*
- * $$Meth: Repr of a class method. Since $offset/$c3i naturally
- * does not belong to any closure and is defined per class, this
- * implies methods should better be objects on their own.
- * Unfornately, for correct access to attributes, binding an
- * inherited or role method to a class requires a copy of the
- * to-be-binded method since $offset/$c3i is class dependent.
  *
- * - $clo: The method's closure.
- * - $u: For a given class method that was initially a method
- *   defined in a Role, $u is $offset which is the offset used
- *   by the method when binded to a class so as to correctly
- *   refer to the attributes it uses from that class' instance
- *   attribute buffer; on the other side, if it's an inherited
- *   method, $u is $c3i which is the index to access its offset
- *   in the $offsets field of its base class where $offsets is
- *   gotten after that based class' attribute linearization.
- *   In other words if a supercall of that class resolves to
- *   this method, the method uses its $c3i (the index to the
- *   class c3 list where we found the method) to index its
- *   offset in that class. "c3i" because each class in a c3list
- *   of a class has its offset at the $offsets field of that
- *   class.
  */
-#define O_VMETH  vary(O_FN, 2)
+#define O_VRCLOSURE vary(O_FN, 2)
 
-#define meth2v(c, v)  gco2val(c, v)
-#define v2meth(v)     (ma_assert(is_meth(v)), gco2meth((v).gc_obj))
-#define v2meth_rw(v)  gco2meth((v).gc_obj)
+#define rclo2v(c, v)  gco2val(c, v)
+#define v2rclo(v)     (ma_assert(is_rclo(v)), gco2rclo((v).gc_obj))
+#define v2rclo_rw(v)  gco2rclo((v).gc_obj)
 
-#define is_meth(v)  check_rtype(v, ctb(O_VMETH))
-#define as_meth(v)  (ma_assert(is_meth(v)), cast(Meth *, as_gcobj(v)))
+#define is_rclo(v)  check_rtype(v, ctb(O_VRCLOSURE))
+#define as_rclo(v)  (ma_assert(is_rclo(v)), cast(RClosure *, as_gcobj(v)))
 
-typedef struct Meth {
+typedef struct RClosure {
    Header;
-   Closure *clo;
-   union {
-      UByte c3i;
-      UByte offset;
-   } u;
-} Meth;
+   Closurefields;
+   UByte offset;
+} Closure;
 
 /*
- * $$$Repr of various classes, every collectable object has a
+ * @@@Repr of various classes, every collectable object has a
  * class, even the class object itself since a class is also
  * collectable. Class header of objects that aren't first class
  * values are probably not useful, e.g Upvalues.
  *
- * $$Attr: Repr of a class attribute.
+ * @@Attr: Repr of a class attribute.
  *
- * - $name: The attribute name.
- * - $type: '1' if it's an attribute reference; '0' otherwise.
- * - $u: To get the attribute's value. When $type is '1', $u is
- *   $delta which is the distance from the attribute reference
- *   to the attribute it references, its sign depends on opcode;
- *   When $type is '0' $u is $v, the attribute's value itself.
+ * - @name: The field's name.
+ * - @val: The field's value.
  */
-#define is_attref(a)     ((a)->type == 1)
-#define is_nilattref(a)  (ma_likely(is_attref(a) && (a)->u.delta == 0))
-#define attval(a)        ((a)->u.val)
-#define attvalc(a, op)   (ma_assert(is_attref(a)), ((a) op (a)->u.delta)->u.val)
-#define attvalf(a)       attvalc(a, +)
-#define attvalb(a)       attvalc(a, -)
+#define fieldval(a)  ((a)->val)
 
-#define attref(a, d)       _set_attref(a, d)
-#define nilattref(a)       _set_attref(a, 0)
-#define _set_attref(a, d)  ((a)->u.delta = d); \
-                           ((a)->type = 1)
-
-typedef struct Attr {
+typedef struct Field {
+   Value val;
    Str *name;
-   union {
-      UByte delta;
-      Value val;
-   } u;
-   UByte type;
-} Attr;
+} Field;
 
 /*
- * $$Class: Repr of a Maat class with the variant type 'Role'.
+ * @@Class: Repr of a Maat class with the variant type 'Role'.
  *
- * - $name: The class' name.
- * - $attrs: A buffer of attributes, holds attributes' default
+ * - @name: The class' name.
+ * - @attrs: A buffer of attributes, holds attributes' default
  *   values, includes all inherited and roles attributes.
  *   Conflicts are resolved at class creation. This field is
  *   copied into the instance object at instanciation.
- * - $asize: Size of the attribute buffer.
+ * - @asize: Size of the attribute buffer.
  *
- * - $c3: Buffer of classes, the class' c3 linearization.
- * - $offsets: The attribute buffer offset of each class in the
+ * - @c3: Buffer of classes, the class' c3 linearization.
+ * - @offsets: The attribute buffer offset of each class in the
  *   c3 list. A method found in a class of the c3 list at an
- *   index `i' uses the offset at index `i' in $offsets to
+ *   index `i' uses the offset at index `i' in @offsets to
  *   properly access its attributes from the instance attribute
  *   buffer.
- * - $csize: Size of the c3 list and the offset list since they
+ * - @csize: Size of the c3 list and the offset list since they
  *   both must have the same size.
  *
- * - $roles: Keeps the list of roles the class ':does' regardless
+ * - @roles: Keeps the list of roles the class ':does' regardless
  *   of which class variant the class is.
- * - $rsize: Size of the role list.
+ * - @rsize: Size of the role list.
  *
- * - $sups: Keeps the list of directly inherited superclasses.
- *   $sups exists mainly for the runtime build of the $c3 list
- *   as it's $c3 that handles super calls.
- * - $ssize: Size of the super list.
- * - $meths: A map to store the class' methods (not the inherited
- *   ones). A value to a key here is a pointer to a Meth.
+ * - @sups: Keeps the list of directly inherited superclasses.
+ *   @sups exists mainly for the runtime build of the @c3 list
+ *   as it's @c3 that handles super calls.
+ * - @ssize: Size of the super list.
+ * - @meths: A map to store the class' methods (not the inherited
+ *   ones). A value to a key here is a pointer to a Closure.
  *
- * - $mro_cache:
+ * - @mro_cache:
  */
 #define O_VCLASS  vary(O_CLASS, 0)
 #define O_VROLE   vary(O_CLASS, 1)
@@ -643,8 +604,7 @@ typedef struct Attr {
 typedef struct Class {
    Header;
    Str *name;
-   Attr *abuf;
-   UByte *offsets;
+   Field *fbuf;
    Map *meths;
    Map *mro_cache;
    struct Class *roles;
@@ -658,12 +618,12 @@ typedef struct Class {
 } Class;
 
 /*
- * $$FClass: Repr of a foreign class, an FClass is a class whose
+ * @@FClass: Repr of a foreign class, an FClass is a class whose
  * implemention is done in foreign languages like C and C++.
  *
- * - $name: Foreign class name.
- * - $size: Length of the allocated bytes referenced by $fdata.
- * - $meths: Foreign class methods.
+ * - @name: Foreign class name.
+ * - @size: Length of the allocated bytes referenced by @fdata.
+ * - @meths: Foreign class methods.
  */
 #define O_VFCLASS  vary(O_CLASS, 2)
 
@@ -682,18 +642,18 @@ typedef struct FClass {
 } FClass;
 
 /*
- * $$$Repr of classes instance, both for Maat and other foreign
+ * @@@Repr of classes instance, both for Maat and other foreign
  * languages like C/C++.
  */
 #define is_ins(v)  check_type(v, O_INS)
 
 /*
- * $$MIns: Instance of a Maat class. If this object somehow ends
+ * @@MIns: Instance of a Maat class. If this object somehow ends
  * up shared then attributes themselves are marked shared since
  * they are the only mutable part of this object.
  *
- * - $attrs: A copy of the instance's class $attrs.
- * - $sup_level:
+ * - @attrs: A copy of the instance's class @attrs.
+ * - @sup_level:
  *
  * "self.SUPER::<method_name>(...)" Where SUPER is a pseudo
  * class that resolves to the next class in the instance's class
@@ -715,12 +675,12 @@ typedef struct MIns {
 } MIns;
 
 /*
- * $$FIns: Instance of an FClass, this object doesn't have a
+ * @@FIns: Instance of an FClass, this object doesn't have a
  * thread-safe lock-free variant, it's of the responsibility of
- * the foreign code to provide synchronization in case $fvalue
+ * the foreign code to provide synchronization in case @fvalue
  * has to be concurrently accessed via its foreign methods.
  *
- * - $fvalue: The foreign class' value.
+ * - @fvalue: The foreign class' value.
  */
 #define O_VFINS  vary(O_INS, 1)
 
@@ -738,27 +698,27 @@ typedef struct FIns {
 } FIns;
 
 /*
- * $$Namespace: Repr of a namespace e.g 'FOO::BAR'. A namespace
+ * @@Namespace: Repr of a namespace e.g 'FOO::BAR'. A namespace
  * can either be represented as a package, role or (c)class.
  * 'FOO::BAR::x()' is a call to the function 'x' in 'FOO::BAR'
  * if ever there is.
  *
- * - $ours: Stores the namespace' global symbols, 'x' is a
+ * - @ours: Stores the namespace' global symbols, 'x' is a
  *   global symbol in package namespace 'FOO::BAR' and it can
  *   be fully qualified as in the above call.
  *
- * $ours of the package 'main::' takes care of the following
+ * @ours of the package 'main::' takes care of the following
  * type I & II special variables:
  *
  *   - ENV, ARGC, ARGV, INC, PATH, SIG, DATA
- *   - $v, $o, $,, $/, $\, $|, $", $$, $(, $), $<, $>, $f, $0
+ *   - #v, #o, #,, #/, #\, #|, #", ##, #(, #), #<, #>, #f, #0
  *
  * Accessing any of these variables from the main package most
  * not necessarily be done using a fully qualified form unless
  * a variable of the same name declared in a scope takes
  * precedence when the compiler resolves it.
  *
- * - $exports: Names of to-be-exported globals when this
+ * - @exports: Names of to-be-exported globals when this
  *   namespace is used by another.
  *
  * NB:
@@ -772,7 +732,7 @@ typedef struct FIns {
  *   having identity of a package doesn't imply that 'BAR' is
  *   another package or a class in 'FOO'.
  * 
- * - $val: The namespace value, either a package/class/role.
+ * - @val: The namespace value, either a package/class/role.
  *
  * A namespace is not a first class value as it can bring
  * confusion between its global symbols and other namespaces.
@@ -786,7 +746,7 @@ typedef struct Namespace {
    Value val;
 } Namespace;
 
-/* $$$Definition of below objects are in their respective '.h' files. */
+/* @@@Definition of below objects are in their respective '.h' files. */
 
 /* A thread-safe channel and scheduler ring buffer queue. */
 #define O_VCHAN    vary(O_RBQ, 1)
@@ -795,7 +755,7 @@ typedef struct Namespace {
 #define is_chan(v)    check_type(v, O_VCHAN)
 #define is_schedq(v)  check_type(v, O_VSCHEDQ)
 
-/* $$State object, see 'ma_state.h'. */
+/* @@State object, see 'ma_state.h'. */
 #define O_VSTATE  vary(O_STATE, 0)
 #define O_VCO     vary(O_STATE, 1)
 
@@ -806,19 +766,19 @@ typedef struct Namespace {
 #define as_state(v)  (ma_assert(is_state(v)), cast(State *, as_gcobj(v)))
 #define as_co(v)     as_state(v)
 
-/* $$Work object, see 'ma_work.h'. */
+/* @@Work object, see 'ma_work.h'. */
 #define O_VWORK  vary(O_WORK, 0)
 
 #define is_work(v)  check_rtype(v, ctb(O_VWORK))
 #define as_work(v)  (ma_assert(is_state(v)), cast(Work *, as_gcobj(v)))
 
-/* $$Maatine object, see 'ma_maa.h'. */
+/* @@Maatine object, see 'ma_maa.h'. */
 #define O_VMAA  vary(O_MAA, 0)
 
 #define is_maa(v)  check_rtype(v, ctb(O_VMAA))
 #define as_maa(v)  (ma_assert(is_maa(v)), cast(Maa *, as_gcobj(v)))
 
-/* $$$Union of all collectable objects used for conversion. */
+/* @@@Union of all collectable objects used for conversion. */
 
 #define ounion(o)  cast(OUnion *, o)
 
@@ -834,6 +794,7 @@ typedef struct Namespace {
 #define gco2rg(o)    (ma_assert(check_type(o, O_RANGE)), &(ounion(o)->rng))
 #define gco2fun(o)   (ma_assert(check_rtype(o, O_VFUN)), &(ounion(o)->fun))
 #define gco2clo(o)   (ma_assert(check_rtype(o, O_VCLOSURE)), &(ounion(o)->clo))
+#define gco2rclo(o)  (ma_assert(check_rtype(o, O_VRCLOSURE)), &(ounion(o)->rclo))
 #define gco2meth(o)  (ma_assert(check_rtype(o, O_VMETH)), &(ounion(o)->meth))
 #define gco2uv(o)    (ma_assert(check_type(o, O_UPVAL)), &(ounion(o)->uv))
 #define gco2cls(o)   (ma_assert(check_rtype(o, O_VCLASS) || check_rtype(o, O_VROLE)), &(ounion(o)->cls))
@@ -856,7 +817,7 @@ union OUnion {
    Range rng;
    Fn fn;
    Closure clo;
-   Meth meth;
+   RClosure rclo;
    Upval uv;
    Class cls;
    FClass fcls;

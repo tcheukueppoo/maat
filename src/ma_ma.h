@@ -65,7 +65,7 @@ typedef struct Maa {
 
    /*
     * $state: Initial state of this Maatine as we know Maatines
-    * can switch to that of a coroutine or Gfun.
+    * can switch its state to that of a Coroutine or Gfun.
     */
    State *state;
 
