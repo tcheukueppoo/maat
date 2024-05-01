@@ -71,7 +71,7 @@ Flow =   "when"   Cond              Block
        | "if"     Cond [ TopicVar ] Block { ElseIF } [ Else ]
        | "with"   Cond [ TopicVar ] Block { OrWith } [ Else ] .
 
-ElseIf = "elseif" Cond [ TopicVar ] Block .
+ElseIf = "elsif"  Cond [ TopicVar ] Block .
 OrWith = "orwith" Cond [ TopicVar ] Block .
 Else   = "else"                     Block .
 
@@ -123,7 +123,7 @@ NamedParam = "*" "*" name .
 
 Class = [ "const" ] [ Scope ] "class" name { ( is | does ) Exp } [ main ] ClassBody .
 
-ClassBody = "{" ( Fields | Fields end { end } Meths ) "}" .
+ClassBody = "{" [ Fields | Fields end { end } Meths ] "}" .
 
 Fields = { ClsNonBlockStat end { end } | BlockStat    } [ ClsNonBlockStat ] .
 Meths  = { NonBlockStat    end { end } | ClsBlockStat } [ NonBlockStat    ] .
@@ -131,10 +131,14 @@ Meths  = { NonBlockStat    end { end } | ClsBlockStat } [ NonBlockStat    ] .
 ClsBlockStat    = Meth  | BlockStat .
 ClsNonBlockStat = Field | NonBlockStat .
 
-Field = "field" name [ built | rw | ro | oi ] [ DefaultVal ] .
+Field      = "field" name [ FieldTrait ] [ DefaultVal ] .
+FieldTrait = built | oi | rw | ro .
 
-Meth     = [ "mul" ] "meth" MethName [ oi save | save oi ] FnBody .
-MethName = name [ "(" [ FnArgs ] ")" ] | op_type "<" op_sym ">" .
+Meth = [ "mul" ] "meth" MethName [ "(" [ FnArgs ] ")" ] [ MethTrait ] MethBody .
+
+MethBody  = FnBody .
+MethTrait = oi save | save oi .
+MethName  = name | op_type ":" "<" op_sym ">" .
 
 Role     = [ "const" ] [ Scope ] "role" name { does Exp } [ main ] RoleBody .
 RoleBody = ClassBody .
