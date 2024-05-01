@@ -24,17 +24,31 @@ but has drawbacks when dealing with inheritance and roles.
 
 ## Roles
 
-A Role
+Just like a class, a role constitutes of fields and methods, the main purpose
+of roles is to describe a certain behavoir of objects. Roles favor code reuse
+because objects of different classes can exhibit similar behaviors. Roles are
+used by composing them with classes or even roles. The composition of a role
+in a class is simply done by copying the fields and methods of that role in
+that class.
 
-### Composing Roles with Classes
+### Composing Roles in a Class
 
-A role is said to be composable with a class if no duplicate fields exist among
-their respective field buffers, meaning none of the fields out of their buffers
-have identical names, otherwise the program reports an error. Composing a role
-with a class is simple done by joining their two respectives field buffers with
+A set of roles is said to be composable in a class if the following conditions
+are met otherwise the program reports an error:
+
+1. No duplicate fields exist among their respective field buffers, in other
+   words none of the fields out of their buffers have identical names.
+
+2. No common methods should exists among participating roles, the commonality
+   isn't just measured based on methods' names, this means that multi-methods
+   can be defined anywhere in the participating roles and each of them will be
+   considered unique.
+
+Composing a role in a class is simple done by properly binding the role's
+methods to that class and joining their respectives field buffers with
 zero conflicts. In a field's structure there is its name which aids us on
-checking conflicts. The composition of a class with its roles is done at runtime
-which is after each of these entities have been allocated and initialized.
+checking conflicts. Composition is done at runtime which is after each of these
+entities have been allocated and initialized.
 
 ```maat
 role R1         {}
@@ -104,7 +118,7 @@ class or  as a subsolution to compute other traversals, this is more of a
 dynamice programming approach which turns out to be viable and efficient. This
 also looks similar to the c3-linearization algorithm.
 
-So for the above relationship diagram, we have:
+For the above relationship diagram, we have:
 
 ```
 Traverse(R6) =                                                   [R6]
@@ -149,29 +163,67 @@ which reduces pauses at runtime because having to traverse the whole graph for
 each class can potentially introduces pauses since the computation has nothing
 to do with the program's main goal.
 
-The real work is not yet done and that's pretty sad! we now need to compose
-by going through the linearization result and join the field buffer of each
-role to that of the class and also bind methods.
+The real work is not yet done, we need to compose! By taking into consideration
+the composition rules described above, each role found in the lineariezation
+list has its method bound to the targeting class and its buffer joined with the
+class' buffer.
+
+We can leverage stubs to define abstract interfaces in roles and expect
+classes doing these roles or other roles to be composed in those classes to
+provide their implementation but in all cases, it is methods defined in a class
+that takes precedence over those defined in the roles to be composed in that
+class even if they are just stubs.
 
 ```
+fn bind_to(A, m, offset) {
+   let cm = offset ? clone m : m;
+
+   cm.offset = offset;
+   bind(A, cm);
+}
+
 fn compose(A) {
+   let (stub, debug) = (0, []);
+
    for linearize_roles_of(A) -> r {
       let offset = len buf(A);
 
       // Bind methods of 'r' to 'A'.
       for meths(r) -> m {
-         next if exist_meth(A, m.name);
-         let cm = clone m;
-         cm.offset = offset;
-         bind_to(A, cm);
+         let Am = fetch_meth(A, m.name);
+
+         if defined Am {
+            error "" if is_role_meth(Am) && !is_stub(Am);
+            if !is_stub(m) && is_role_meth(Am) && is_stub(Am) {
+               stub--;
+               bind_to(A, m, offset);
+            }
+         }
+         else {
+            if is_stub(m) {
+               stub++;
+               debug.push([m.name, r.name]);
+               bind_to(A, m);
+            }
+            else {
+               bind_to(A, m, offset);
+            }
+         }
       }
 
-      // Join field buffers.
+      // Join field buffers of 'r' with that of 'A'
       for buf(r) -> f {
          error "conflict with {f.name} on {r.name}"
-            if buf(A).first: f.name = .name;
+           if buf(A).first: f.name = .name;
          buf(A).append(f);
       }
+   }
+
+   if stub {
+      error <<~EOE;
+       {A.name}: 
+       check: [{debug}]
+      EOE
    }
 }
 ```
@@ -230,18 +282,22 @@ fn search_field (A, name) {
 }
 ```
 
-Supercalls are also resolved by walking down the c3-mro list and caching the
-results in the mro cache of the class concerned to optimize subsequent recalls,
-the `^.augment` meta method called on a class invalidates all affected classes
-which is why it should be used with great care.
+Supercalls are also resolved by walking down the c3-mro list to find their
+entries and if found, we cache the results in the mro cache of the object's
+class so as to optimize subsequent recalls by the same object or any other
+object instance of that class. The `^.augment` meta-method call on a class can
+invalidates that class' mro cache and all of that of the affected classes, i.e
+the ones it's directly or indirectly linked to and therefore it's preferable you
+monkey-patch a class before creating any instance of it.
 
 ## Static Attributes and Methods
 
 You can declared lexically scoped variables in a class using `let`, this looks
-similar to static variables and methods in a class acesses these variables by
-simply closing over them. There will be no over-head with static methods when
-doing roles or inheriting classes, only inherited methods of a base class can
-access lexicals declared in superclasses.
+similar to static variables, methods in a class have access to these variables
+by simply closing over them just like normal closures. There will be no
+over-head with static methods when composing with roles or inheriting classes,
+only inherited methods of a base class can access lexicals declared in
+superclasses.
 
 ```maat
 class A {
