@@ -188,12 +188,13 @@ fn compose(A) {
    for linearize_roles_of(A) -> r {
       let offset = len buf(A);
 
-      // Bind methods of 'r' to 'A'.
+      // Bind methods of 'r' to 'A'
       for meths(r) -> m {
          let Am = fetch_meth(A, m.name);
 
          if defined Am {
-            error "" if is_role_meth(Am) && !is_stub(Am);
+            die "{A.name}: conflict with method {m.name} in {r.name}"
+              if is_role_meth(Am) && !is_stub(Am);
             if !is_stub(m) && is_role_meth(Am) && is_stub(Am) {
                stub--;
                bind_to(A, m, offset);
@@ -202,7 +203,7 @@ fn compose(A) {
          else {
             if is_stub(m) {
                stub++;
-               debug.push([m.name, r.name]);
+               debug.push([r.name, m.name]);
                bind_to(A, m);
             }
             else {
@@ -213,16 +214,16 @@ fn compose(A) {
 
       // Join field buffers of 'r' with that of 'A'
       for buf(r) -> f {
-         error "conflict with {f.name} on {r.name}"
+         die "{A.name}: conflict with field {f.name} in {r.name}"
            if buf(A).first: f.name = .name;
          buf(A).append(f);
       }
    }
 
    if stub {
-      error <<~EOE;
-       {A.name}: 
-       check: [{debug}]
+      die <<~EOE;
+       {A.name}: The following methods may have not been implemented:
+          {debug.dump}
       EOE
    }
 }
