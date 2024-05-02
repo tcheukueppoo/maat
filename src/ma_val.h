@@ -28,7 +28,7 @@
  *   - @n: Maat's repr of a number, see 'ma_conf.h'.
  *   - @gc_obj: Pointer to a collectable object.
  *   - @p: Pointer to a memory location representing the data of
- *     a foreign class.
+ *     a foreign class (@fvalue).
  *   - @f: Pointer to a C function, it either represents a
  *     cvalue's method or just a standalone function.
  *
@@ -167,96 +167,76 @@ typedef struct Object {
 /* O_VSHTSTR, O_VLNGSTR */
 #define O_STR    7
 
-/* O_VULNGSTR, O_VUSHTSTR */
-#define O_U8STR  8
-
 /* O_VRANGE, O_VSRANGE? */
-#define O_RANGE  9    
+#define O_RANGE  8
 
 /* O_VARRAY, O_VCARRAY, O_VLIST */
-#define O_ARRAY  10
+#define O_ARRAY  9
 
 /* O_VMAP, O_VCMAP */
-#define O_MAP    11
+#define O_MAP    10
 
 /* O_VCHAN, O_VSCHEDQ */
-#define O_RBQ    13
+#define O_RBQ    12
 
 /* O_VFN, O_VCLOSURE, O_VMETH */
-#define O_FN     14
+#define O_FN     13
 
 /* O_VUPVAL, O_VSUPVAL */
-#define O_UPVAL  15
+#define O_UPVAL  14
 
 /* O_VSTATE, O_VCO, O_VGFUN */
-#define O_STATE  16
+#define O_STATE  15
 
 /* O_VMA */
-#define O_MA     17
+#define O_MA     16
 
 /* O_VWORK */
-#define O_WORK   18
+#define O_WORK   17
 
 /* O_VNS */
-#define O_NS     19
+#define O_NS     18
 
 /* @@@Repr of all type of string objects. */
 #define O_VLNGSTR   vary(O_STR, 0)
 #define O_VSHTSTR   vary(O_STR, 1)
-#define O_VUSHTSTR  vary(O_U8STR, 0)
-#define O_VULNGSTR  vary(O_U8STR, 1)
 
 #define str2v(s, v)  gco2val(s, v)
 #define v2str(v)     (ma_assert(is_str(v)), gco2str((v).gc_obj))
 
-#define is_str(v)   (is_astr(v) || is_ustr(v))
-#define is_astr(v)  check_type(v, O_STR)
-#define is_ustr(v)  check_type(v, O_U8STR)
+#define is_str(v)  check_type(v, O_STR)
 
-#define is_shtstr(v)  (check_rtype(v, ctb(O_VSHTSTR)) || \
-                       check_rtype(v, ctb(O_VUSHTSTR)))
-#define is_lngstr(v)  (check_rtype(v, ctb(O_VLNGSTR)) || \
-                       check_rtype(v, ctb(O_VULNGSTR)))
+#define is_shtstr(v)  (check_rtype(v, ctb(O_VSHTSTR))
+#define is_lngstr(v)  (check_rtype(v, ctb(O_VLNGSTR))
 
-#define as_str(v)    (ma_assert(is_str(v)), cast(Str *, as_gcobj(v)))
-#define as_u8str(v)  (ma_assert(is_u8str(v)), cast(U8Str *, as_gcobj(v)))
-
-#define Stringfields  UByte sl;            \
-                      Object *next_sobj;    \
-                      Byte *str;             \
-                      union {                 \
-                         struct Str *snext;    \
-                         size_t len;            \
-                      } u;                       \
-                      UInt hash
+#define as_str(v)  (ma_assert(is_str(v)), cast(Str *, as_gcobj(v)))
 
 /*
  * @@Str: Repr of an ASCII Maat string.
  *
- * - @sl: For short strings, last 3 bits of @sl are for @str'
- *   length whereas its first bit determines whether @str is
- *   reserved. For long strings, @sl serves as a boolean value
- *   to check if @str already has its @hash.
+ * - @sl: Length of the short string, this field is useless for
+ *   long strings but plays nicely with 4/8-bytes alignment.
+ * - @check: For short strings, check if @str is a reserved word.
+ *   For long strings, check if @str already has its hash.
+ * - @hash: Hash value of @str, trailing pads plays nicely with
+ *   flexible array @str.
  * - @u: For short strings @u is @snext, a pointer to @str's
  *   next string in our hash map of short strings (@@SMap); for
  *   long strings, @u is the @len of @str.
+ * - @str: String value.
  */
 typedef struct Str {
    Header;
-   Stringfields;
+   UByte sl;
+   UByte check;
+   Object *next_sobj;
+   union {
+      struct Str *snext;
+      size_t len;
+   } u;
+   UInt hash;
+   Byte str[flex];            
 } Str;
-
-/*
- * @@U8Str: Object repr of an UTF-8 encoded string.
- *
- * - @ngraph: The total size of the subparts of the grapheme
- *   clusters of @str.
- */
-typedef struct U8Str {
-   Header;
-   Stringfields;
-   size_t ngraph;
-} U8Str;
 
 /*
  * @@Range object with each bound inclusive.
@@ -290,7 +270,8 @@ typedef struct Range {
 #define v2map2(v, m)     (ma_assert(is_map(v)), gco2map((v).gc_obj))
 #define v2map2_rw(v, m)  gco2map((v).gc_obj)
 
-#define is_map(v)   check_rtype(v, ctb(O_VMAP))
+#define is_map(v)   check_type(v, O_MAP)
+#define iss_map(v)  check_rtype(v, ctb(O_VMAP))
 #define is_cmap(v)  check_rtype(v, ctb(O_VCMAP))
 
 #define as_map(v)   (ma_assert(is_map(v)), cast(Map *, as_gcobj(v)))
@@ -307,14 +288,18 @@ typedef struct Range {
  *   - @prev: Offset to the previous node, used for tracking back
  *     to the first entry, it's indispensable for synced access
  *     operations if ever the map eventually ends up shared.
+ *     (This really shits on performance, gotta change things here!)
  */
 typedef union Node {
    struct {
       Valuefields;
-      _Value key_v;
+      /* Int prev; */
+      union {
+        UByte key_t;
+        UByte offset;
+      } u;
       Int next;
-      Int prev;
-      UByte key_t;
+      _Value key_v;
    } k;
    Value val;
 } Node;
@@ -338,18 +323,19 @@ typedef union Node {
  * - @last: The last free node in @node.
  * - @lg2size: log2 of the size of @node.
  */
-#define MapPointerFields Value *array;     \
-                         Node *node;        \
-                         Node *last;         \
-                         Object *next_sobj
+#define MapPointerfields
 
-#define MapUbyteFields  UByte rasize; \
-                        UByte lg2size
+#define MapUBytefields  
+                        
 typedef struct Map {
    Header;
-   MapPointerFields;
+   Value *array;
+   Node *node;
+   Node *last;
+   Object *next_sobj;
    UInt asize;
-   MapUbyteFields;
+   UByte rasize;
+   UByte lg2size;
 } Map;
 
 /*
@@ -359,11 +345,8 @@ typedef struct Map {
  */
 typedef struct CMap {
    Header;
-   MapPointerFields;
-   /* TODO: librs structures */
-   UInt asize;
+   /* Mapfields; */
    /* TODO: librs structures? */
-   MapUbyteFields;
 } CMap;
 
 /*
@@ -417,25 +400,21 @@ typedef struct CArray {
 } CArray;
 
 /*
- * @@Fn: Repr of a Maat function object.
+ * @@Fn: Repr of a Maat function object. A functions will not
+ * be represented as a first class value as they are referenced
+ * by closures which are first class values.
  *
  * - @arity: The number of arguments the function takes.
  * - @code: Its bytecode.
  * - @cons: The function's constant values.
  * - @ns: Access index to namespace of the function in @NSBuf.
  */
-#define O_VFN  vary(O_FN, 0)
 
-#define fn2v(f, v)  gco2val(f, v)
-#define v2fn_rw(v)  gco2fn((v).gc_obj)
-#define v2fn(v)     (ma_assert(is_fn(v)), gco2fn((v).gc_obj))
-
-#define is_fn(v)  check_rtype(v, O_VFN)
-#define as_fn(v)  (ma_assert(is_fn(v)), cast(Fn *, as_gcobj(v)))
+#define is_fn(v)  check_type(v, O_FN)
 
 typedef struct Fn {
    Header;
-   Ubyte arity;
+   UByte arity;
    size_t ns;
    CodeBuf code;
    ValueBuf cons;
@@ -476,7 +455,7 @@ typedef struct Upval {
 /* @@SUpval: Repr of shared upvalues */
 #define O_VSUPVAL  vary(O_UPVAL, 1)
 
-/* Upvalues aren't first class values! here are utils for sync ops. */
+/* UVs aren't first class values! these are utils for syncing ops. */
 #define is_vsupval(o)  check_rtype(o, O_VSUPVAL)
 #define as_vsupval(o)  cast(SUpval *, o)
 
@@ -488,14 +467,15 @@ typedef struct SUpval {
 
 /*
  * @@Closure: A closure is a variant of a function which keep
- * tracks of its upvalues, functions are never used directly.
+ * tracks of its upvalues and this is why we'll not use @@Fn 
+ * directly.
  *
  * - @fn: A pointer to the closure's function.
  * - @state: Value buffer to keep values of static lexicals.
  * - @upvals: The List of upvalues the function has.
  * - @nuv: The number of upvalues.
  */
-#define O_VCLOSURE  vary(O_FN, 1)
+#define O_VCLOSURE  vary(O_FN, 0)
 
 #define clo2v(c, v)  gco2val(c, v)
 #define v2clo_rw(v)  gco2clo((v).gc_obj)
@@ -504,35 +484,41 @@ typedef struct SUpval {
 #define is_clo(v)  check_rtype(v, ctb(O_VCLOSURE))
 #define as_clo(v)  (ma_assert(is_clo(v)), cast(Closure *, as_gcobj(v)))
 
-#define Closurefields  UByte nuv;        \
-                       Fn *fn;            \
-                       Object *next_sobj;  \
-                       ValueBuf state;      \
-                       Upval *upvals[flex]
-
+#define is_stubfn(c)  ((c)->fn == NULL)
+#define STUB_VAL      (UByte)0, NULL, ..., NULL, NULL
 
 typedef struct Closure {
    Header;
-   Closurefields;
+   UByte nuv;
+   Fn *fn;
+   Object *next_sobj;
+   ValueBuf state;
+   Upval *upvals[flex]
 } Closure;
 
 /*
+ * @@RClosure: A wrapper over a closure gotten from a role which
+ * is to be bounded to a class, could this be avoided by using a
+ * wasted field from the targeting class' map of methods for
+ * @offset?
  *
+ * - @clo: The original closure
+ * - @offset: offset to @Fie
  */
-#define O_VRCLOSURE vary(O_FN, 2)
+#define O_VRCLOSURE vary(O_FN, 1)
 
-#define rclo2v(c, v)  gco2val(c, v)
-#define v2rclo(v)     (ma_assert(is_rclo(v)), gco2rclo((v).gc_obj))
-#define v2rclo_rw(v)  gco2rclo((v).gc_obj)
+#define rmeth2v(c, v)  gco2val(c, v)
+#define v2rmeth(v)     (ma_assert(is_rmeth(v)), gco2rmeth((v).gc_obj))
+#define v2rmeth_rw(v)  gco2rmeth((v).gc_obj)
 
-#define is_rclo(v)  check_rtype(v, ctb(O_VRCLOSURE))
-#define as_rclo(v)  (ma_assert(is_rclo(v)), cast(RClosure *, as_gcobj(v)))
+#define is_rmeth(v)  check_rtype(v, ctb(O_VRMETH))
+#define as_rmeth(v)  (ma_assert(is_rmeth(v)), cast(RMeth *, as_gcobj(v)))
 
-typedef struct RClosure {
+typedef struct RMeth {
    Header;
-   Closurefields;
    UByte offset;
-} Closure;
+   Closure *clo;
+} RMeth;
 
 /*
  * @@@Repr of various classes, every collectable object has a
@@ -622,7 +608,7 @@ typedef struct Class {
  * implemention is done in foreign languages like C and C++.
  *
  * - @name: Foreign class name.
- * - @size: Length of the allocated bytes referenced by @fdata.
+ * - @size: Length of the allocated bytes referenced by @fvalue.
  * - @meths: Foreign class methods.
  */
 #define O_VFCLASS  vary(O_CLASS, 2)
@@ -792,7 +778,6 @@ typedef struct Namespace {
 #define gco2arr(o)   (ma_assert(check_type(o, O_ARRAY)), &(ounion(o)->ar))
 #define gco2map(o)   (ma_assert(check_type(o, O_MAP)), &(ounion(o)->map))
 #define gco2rg(o)    (ma_assert(check_type(o, O_RANGE)), &(ounion(o)->rng))
-#define gco2fun(o)   (ma_assert(check_rtype(o, O_VFUN)), &(ounion(o)->fun))
 #define gco2clo(o)   (ma_assert(check_rtype(o, O_VCLOSURE)), &(ounion(o)->clo))
 #define gco2rclo(o)  (ma_assert(check_rtype(o, O_VRCLOSURE)), &(ounion(o)->rclo))
 #define gco2meth(o)  (ma_assert(check_rtype(o, O_VMETH)), &(ounion(o)->meth))
@@ -815,7 +800,6 @@ union OUnion {
    Array arr;
    Map map;
    Range rng;
-   Fn fn;
    Closure clo;
    RClosure rclo;
    Upval uv;
