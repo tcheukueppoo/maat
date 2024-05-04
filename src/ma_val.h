@@ -152,6 +152,9 @@ typedef struct Value {
  * - @next: Next obj, to keep track of all objects.
  * - @mid: The id of the maatine that created the object.
  */
+#define SHARE_BIT     (0b1 << 7)
+#define is_shared(o)  ((o)->mark & SHARE_BIT)
+
 typedef struct Object {
    Header;
 } Object;
@@ -229,7 +232,7 @@ typedef struct Str {
    Header;
    UByte sl;
    UByte check;
-   Object *next_sobj;
+   Object *gcl;
    union {
       struct Str *snext;
       size_t len;
@@ -256,7 +259,7 @@ typedef struct Str {
 
 typedef struct Range {
    Header;
-   Object *next_sobj;
+   Object *gcl;
    Num a;
    Num b;
    Int c;
@@ -265,6 +268,7 @@ typedef struct Range {
 /* @@@Repr of Map objects. */
 #define O_VMAP   vary(O_MAP, 0)
 #define O_VCMAP  vary(O_MAP, 1)
+#define O_VSMAP  vary(O_MAP, 2)
 
 #define map2v(m, v)      gco2val(m, v)
 #define v2map2(v, m)     (ma_assert(is_map(v)), gco2map((v).gc_obj))
@@ -273,8 +277,10 @@ typedef struct Range {
 #define is_map(v)   check_type(v, O_MAP)
 #define iss_map(v)  check_rtype(v, ctb(O_VMAP))
 #define is_cmap(v)  check_rtype(v, ctb(O_VCMAP))
+#define is_smap(v)  check_rtype(v, ctb(O_VSMAP))
 
 #define as_map(v)   (ma_assert(is_map(v)), cast(Map *, as_gcobj(v)))
+#define as_smap(v)  as_map(v)
 #define as_cmap(v)  (ma_assert(is_map(v)), cast(CMap *, as_gcobj(v)))
 
 /*
@@ -282,7 +288,12 @@ typedef struct Range {
  *
  * - @val: Direct access to the node value from @k.
  * - @k: The node key with other searching parameters.
- *   - @key_t: The node key type.
+ *   - @u: It's @u.key_t, the node key type if the node is that of
+ *     an O_(V|C)MAP map object; otherwise it's the field buffer
+ *     offset of the method stored in @val so that accessors
+ *     properly read or write to their slots, the default key type
+ *     here is a short string and hence the node is that of an
+ *     O_VSMAP map object.
  *   - @key_v: The node key value.
  *   - @next: Offset to next node in case of collision.
  *   - @prev: Offset to the previous node, used for tracking back
@@ -293,7 +304,7 @@ typedef struct Range {
 typedef union Node {
    struct {
       Valuefields;
-      /* Int prev; */
+      /* Int prev; ? */
       union {
         UByte key_t;
         UByte offset;
@@ -332,7 +343,7 @@ typedef struct Map {
    Value *array;
    Node *node;
    Node *last;
-   Object *next_sobj;
+   Object *gcl;
    UInt asize;
    UByte rasize;
    UByte lg2size;
@@ -372,7 +383,7 @@ typedef struct CMap {
 #define as_arr(v)   (ma_assert(is_arr(v)), cast(Array *, as_gcobj(v)))
 #define as_list(v)  as_arr(v)
 
-#define Arrayfields  Object *next_sobj; \
+#define Arrayfields  Object *gcl; \
                      Value *array;       \
                      size_t cap;          \
                      size_t size
@@ -491,34 +502,10 @@ typedef struct Closure {
    Header;
    UByte nuv;
    Fn *fn;
-   Object *next_sobj;
+   Object *gcl;
    ValueBuf state;
    Upval *upvals[flex]
 } Closure;
-
-/*
- * @@RClosure: A wrapper over a closure gotten from a role which
- * is to be bounded to a class, could this be avoided by using a
- * wasted field from the targeting class' map of methods for
- * @offset?
- *
- * - @clo: The original closure
- * - @offset: offset to @Fie
- */
-#define O_VRCLOSURE vary(O_FN, 1)
-
-#define rmeth2v(c, v)  gco2val(c, v)
-#define v2rmeth(v)     (ma_assert(is_rmeth(v)), gco2rmeth((v).gc_obj))
-#define v2rmeth_rw(v)  gco2rmeth((v).gc_obj)
-
-#define is_rmeth(v)  check_rtype(v, ctb(O_VRMETH))
-#define as_rmeth(v)  (ma_assert(is_rmeth(v)), cast(RMeth *, as_gcobj(v)))
-
-typedef struct RMeth {
-   Header;
-   UByte offset;
-   Closure *clo;
-} RMeth;
 
 /*
  * @@@Repr of various classes, every collectable object has a
@@ -542,18 +529,13 @@ typedef struct Field {
  * @@Class: Repr of a Maat class with the variant type 'Role'.
  *
  * - @name: The class' name.
- * - @attrs: A buffer of attributes, holds attributes' default
+ * - @fields: A buffer of fields, holds fields' default
  *   values, includes all inherited and roles attributes.
  *   Conflicts are resolved at class creation. This field is
  *   copied into the instance object at instanciation.
- * - @asize: Size of the attribute buffer.
+ * - @fsize: Size of the field buffer.
  *
  * - @c3: Buffer of classes, the class' c3 linearization.
- * - @offsets: The attribute buffer offset of each class in the
- *   c3 list. A method found in a class of the c3 list at an
- *   index `i' uses the offset at index `i' in @offsets to
- *   properly access its attributes from the instance attribute
- *   buffer.
  * - @csize: Size of the c3 list and the offset list since they
  *   both must have the same size.
  *
@@ -565,10 +547,15 @@ typedef struct Field {
  *   @sups exists mainly for the runtime build of the @c3 list
  *   as it's @c3 that handles super calls.
  * - @ssize: Size of the super list.
- * - @meths: A map to store the class' methods (not the inherited
- *   ones). A value to a key here is a pointer to a Closure.
+ * - @meths: A map to store the class' + roles' methods (not the
+ *   inherited ones except accessors gotten by walking through
+ *   the field buffers of classes in the c3 list). 
  *
- * - @mro_cache:
+ * - @mro_cache: Cache methods found in the c3 list to optimize
+ *   subsequent recalls.
+ *
+ * "__SUPER__.<method_name>(...)"
+ * Where __SUPER__ is a pseudo
  */
 #define O_VCLASS  vary(O_CLASS, 0)
 #define O_VROLE   vary(O_CLASS, 1)
@@ -589,18 +576,20 @@ typedef struct Field {
 
 typedef struct Class {
    Header;
+   UByte rsize;
+   UByte lsize;
+   struct Class *roles;
+   struct Class *lroles;
    Str *name;
-   Field *fbuf;
    Map *meths;
    Map *mro_cache;
-   struct Class *roles;
+   Object *gcl;
    struct Class *sups;
    struct Class *c3;
-   Object *next_sobj;
-   UByte rsize;
+   Field *fields;
    UByte ssize;
    UByte csize;
-   UByte asize;
+   UByte fsize;
 } Class;
 
 /*
@@ -608,7 +597,7 @@ typedef struct Class {
  * implemention is done in foreign languages like C and C++.
  *
  * - @name: Foreign class name.
- * - @size: Length of the allocated bytes referenced by @fvalue.
+ * - @fvsize: Size of the allocated bytes referenced by @fvalue.
  * - @meths: Foreign class methods.
  */
 #define O_VFCLASS  vary(O_CLASS, 2)
@@ -622,9 +611,10 @@ typedef struct Class {
 
 typedef struct FClass {
    Header;
+   Object *gcl;
    Str *name;
    Map *meths;
-   size_t len;
+   size_t fvsize;
 } FClass;
 
 /*
@@ -635,15 +625,10 @@ typedef struct FClass {
 
 /*
  * @@MIns: Instance of a Maat class. If this object somehow ends
- * up shared then attributes themselves are marked shared since
- * they are the only mutable part of this object.
+ * up shared then fields themselves are marked shared since they
+ * are the only mutable part of this object.
  *
- * - @attrs: A copy of the instance's class @attrs.
- * - @sup_level:
- *
- * "self.SUPER::<method_name>(...)" Where SUPER is a pseudo
- * class that resolves to the next class in the instance's class
- * c3 list.
+ * - @fields: A copy of the instance's class @fields.
  */
 #define O_VMINS  vary(O_INS, 0)
 
@@ -655,9 +640,8 @@ typedef struct FClass {
 
 typedef struct MIns {
    Header;
-   Object *next_sobj;
-   AttrBuf *attrs;
-   Map *sup_level;
+   Object *gcl;
+   Field *fields;
 } MIns;
 
 /*
@@ -679,7 +663,7 @@ typedef struct MIns {
 
 typedef struct FIns {
    Header;
-   Object *next_sobj;
+   Object *gcl;
    Value fvalue;
 } FIns;
 
@@ -779,8 +763,6 @@ typedef struct Namespace {
 #define gco2map(o)   (ma_assert(check_type(o, O_MAP)), &(ounion(o)->map))
 #define gco2rg(o)    (ma_assert(check_type(o, O_RANGE)), &(ounion(o)->rng))
 #define gco2clo(o)   (ma_assert(check_rtype(o, O_VCLOSURE)), &(ounion(o)->clo))
-#define gco2rclo(o)  (ma_assert(check_rtype(o, O_VRCLOSURE)), &(ounion(o)->rclo))
-#define gco2meth(o)  (ma_assert(check_rtype(o, O_VMETH)), &(ounion(o)->meth))
 #define gco2uv(o)    (ma_assert(check_type(o, O_UPVAL)), &(ounion(o)->uv))
 #define gco2cls(o)   (ma_assert(check_rtype(o, O_VCLASS) || check_rtype(o, O_VROLE)), &(ounion(o)->cls))
 #define gco2fcls(o)  (ma_assert(check_rtype(o, O_VFCLASS)), &(ounion(o)->fcls))
@@ -801,7 +783,6 @@ union OUnion {
    Map map;
    Range rng;
    Closure clo;
-   RClosure rclo;
    Upval uv;
    Class cls;
    FClass fcls;
