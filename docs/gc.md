@@ -111,11 +111,7 @@ require an additional field in the header common to all objects.
 ### Linked-List of Shared Objects (LSO)
 
 To safely collect objects shared across maatines, maat introduces a linked-list
-of shared objects each hold by every maatine.
-
-A concurrently running program is said to have done a complete GC round when all
-its maatines have at least done a single GC cycle whether in incremental or
-generational mode.
+of shared objects. Each maatine hold an LSO.
 
 A running maat program in a multi-threaded environment identifies all the GC
 object sharing points to efficiently mark each root object **shared**. A root
@@ -128,9 +124,9 @@ of implementing [built-in auto-synchronization](./concurrency.md).
 Maatines should only free objects they have allocated, no other maatine should
 do it! That said, we should find a way to know if a shared object unreachable to
 the maatine that created it is not referenced by a living object in another
-maatine and we can only be sure of this by making sure that at the sweeping
-phase of a gc of maatine, unreachable shared objects instead of being freed,
-they are rather it added to that maatine's LSO. The collection of objects in the
+maatine and we can only be sure of this by making sure that at every sweep
+phase of the gc of a maatine, unreachable shared objects instead of being freed,
+they are rather it added to the maatine's LSO. The collection of objects in the
 LSO of each maatine will be done when all maatines have performed a collection
 since this assures us on the reachable of all shared objects.
 
@@ -139,12 +135,12 @@ process that maatine' worklist of objects which at the start logically should
 contain rooted objects, these objects belong to that maatine. In normal
 circumstances the collector should only traverse objects of that maatine to
 propagate marks but due to the fact that objects can be shared accross maatines,
-the collector might encounter a shared object, an object that may not belong
-to this maatine. As we said from the start, memory of objects should only be
-reclaimed by the collector that ran the collection for the maatine owning these
-objects which is why any encountered shared objects from the worklist will
-either be marked gray or send to the worklist of the maatine that owns this
-shared object. We are not stoping the world when performing a collection which
+the collector might encounter a shared object, an object that may not belong to
+this maatine. As we said from the start, memory of objects should only be
+reclaimed by the collector that ran the collection for the maatine owning those
+objects which is why any encountered shared object we don't own from the
+worklist will either be marked gray or send to the share worklist of the maatine
+that owns it. We are not stoping the world when performing a collection which
 is why processing shared objects by marking them gray will likely happen unless
 there's an emergency in which all the maatines much make a gc run. Every
 encountered shared object we don't own might have links to objects we own and so
@@ -152,6 +148,31 @@ if we cannot send shared objects to the worklist of their owners and rely on
 them to forward back our objects to our worklist, we'll be obliged to process
 them in our worklist with the aim of marking other shared objects we don't own
 gray and shared and blacken the ones we own.
+
+**What is a worklist?**
+
+**What is a share worklist?**
+
+Each maatine has its own share worklist which contains shared objects that it
+owns and were found by other maatines when going through their worklist.
+
+**Why sending a shared object we don't own to the share worklist of the maatine
+that owns it?**
+
+As said before, in a situation where the gc run for maatine owning a shared
+object hasn't yet started, the maatine that found that shared object  just
+continues processing it in its worklist because it **may** have links to other
+object it owns, this truly is not just an assumption because there is no
+garantee that the objects we own linked to this shared object is reachable from
+the maatine' rootset. In practice the number of objects forward-linked to shared
+objects we don't own is little or even zero which why it's best to let the
+maatine that owns their shared object process it because otherwise you would
+be going over the graph of object we don't own which hinder performance because
+it would imply a double traversal if the shared object is reachable from the
+maatine that owns it, but then it does not save us that much from sending
+the shared object to the share worklist of its owner because we'll have to
+wait for the gc run of that maatine to process that share worklist so that it
+can send any of shared gc object we own back to our own share worklist.
 
 **Why are we marking shared objects gray?**
 
@@ -166,38 +187,43 @@ gray and shared and blacken the ones we own.
   in it's maatine and therefore it'll not be part of the maatine's LSO.
 
 **Why are you marking any subsequent object directly or indirectly linked to the
-shared object we don't know shared**
+shared object we don't own shared?**
 
-Remember that we only marked shared the top-level objects at sharing points, the
-objects directly/indirectly linked to the shared object which logically should be marked shared where
-not marked shared and this was a wise move because it actually did avoid pauses.
-We are in the middle of a gc run which means that we'll eventually traverse
-object which is an opportunity to mark supposed to be shared object shared. An this is
-done in the following scenarios.
+Remember that we only marked "shared" top-level shared objects at sharing
+points, objects directly/indirectly linked to these top-level object which
+logically should also be marked shared where not marked shared and this was a
+wise move because it actually did avoid pauses. We are in the middle of a gc run
+which means that we'll eventually traverse object which is an opportunity to
+mark supposed to be marked shared object shared and this is done in the
+following scenarios:
 
-* Propagating the black mark over shared reachable objects we own is a great opportunity
-* The shared mark does not only help us in avoiding the lost of references but also
-  in the auto-synchronization of access to shared resources. Which is
-  why whenever operations on complex shared object such as arrays, maps return other
-  objects, these objects will be automatically be marked shared because they may be
-  subjected to other concurrent access operations.
-* When processing the share worklist, the share work list of a maatine is processed after 
-  its worklist has been process with the aim of marking all object shared and gray
-  and this is done before the sweeping phase because we need to make sure all shared
-  objects end up in the maatine' LSO.
-
+* When propagating the black mark over shared reachable objects we own, this is
+  a great opportunity we have here.
+* The shared mark does not only help us in avoiding lost of references when
+  garbage collecting but also helps us in the auto-synchronization of concurrent
+  access to shared resources. Which is why whenever operations on complex shared
+  object such as arrays, maps return other objects, these objects will be
+  automatically marked shared because they may be subjected to other concurrent
+  access operations.
+* When processing a share worklist. The share worklist of a maatine is processed
+  after its worklist has been processed, the aim of processing the share
+  worklist is to mark all objects shared and gray and this is done before the
+  sweeping phase because we need to make sure all shared objects end up in the
+  maatine' LSO.
 
 **What happens when we encounter a shared black object we don't own?**
 
-A shared black object we don't own is already reachable to the maatine that owns
-the object and will not appear in the object's LSO which is why we just have to
-simply ignore it, if the object is linked to any object we own, the gc run from
-that maatine will make sure to send it to our share work list.
+Whether in the worklist or share worklist, a shared black object we don't own is
+already reachable to the maatine that owns it and will not appear in the
+maatine's LSO which is why we just have to simply ignore it, if the shared black
+object is linked to any object we own, the gc run from that maatine will make
+sure it sends it to our share worklist.
 
+**What happens when we encounter a shared gray object we don't own?**
 
-**Why sending a shared object we don't own to the worklist of the maatine that
-owns it?**
-
+Such shared objects have already been encountered in the gc run of a maatine
+that does not own it and all the things we would've done has already or is
+currently been done.
 
 **Why sending a shared gray object to the share worklist of the maatine that
 owns it?**
@@ -205,8 +231,14 @@ owns it?**
 A gc run for a maatine processes its worklist before processing its share
 worklist. There is no garantee that the shared gray object is reachable to the
 maatine that owns it, if it is reachable, it'll eventually be blackened before
-the share worklist is even processed which is why every black object in the
-shared worklist will be ignored.
+the share worklist is even processed which is why all black objects in the share
+worklist are not processed.
+
+#### Sweeping the LSO of each Maatine
+
+
+
+
 
 #### The Mutator
 
@@ -214,6 +246,9 @@ shared worklist will be ignored.
 
 #### 
 
+A concurrently running program is said to have done a complete GC round when all
+its maatines have at least done a single GC cycle whether in incremental or
+generational mode.
 
 
 Some useful properties:
