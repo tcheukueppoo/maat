@@ -132,7 +132,7 @@ Traverse(R1) = R1 + Traverse(R4)                               = [R1, R4, R5, R6
 Traverse(A)  =      Traverse(R1) + Traverse(R2) + Traverse(R3) = [R1, R2, R3, R4, R6, R5, R8, R7]
 ```
 
-This looks good because there's no need to use an external data structure as
+This looks good because there's no need of using an external data structure as
 dynamic table to keep track of the sub-solutions.
 
 Pseudo-code:
@@ -274,7 +274,7 @@ fn search_field (A, name) {
          let accessor = { |v|
             return __NARGS__ == 1 ? buf(A)[l] = v : buf(A)[l];
          };
-         cache_accessor(A, name, accessor);
+         bind_accessor(A, name, accessor);
          return accessor;
       }
    }
