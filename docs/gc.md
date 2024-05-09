@@ -151,6 +151,33 @@ share worklist, we'll be obliged to process them in our worklist with the aim of
 marking other shared objects we don't own gray and shared and blacken the ones
 we own.
 
+```maat
+// Possible objects' colors
+enum (
+   WHITE = 0,
+   WHITE2,
+   GRAY,
+   BLACK,
+)
+
+// Garbage collection states
+enum (
+  PROPAGATE
+  // ...
+  SWEEP_LSO
+  // ...
+)
+
+// Abstract representation of a garbage collectable object
+let obj = {
+   // ...
+   color  => WHITE,
+   shared => 0,
+   gray2  => 0,
+   // ...
+};
+```
+
 **What is a worklist?**
 
 A worklist is simply a list of reachable objects a maatine has to traverse with
@@ -175,36 +202,36 @@ object hasn't yet started, the maatine that found that shared object just
 continues processing it in its worklist because it **may** have links to other
 object it owns, this truly is not just an assumption because there is no
 garantee that the objects we own linked to this shared object is reachable from
-our rootset. In practice the number of objects we own that are forward-linked to
+our root set. In practice the number of objects we own that are forward-linked to
 shared objects we don't own is little or even zero which is why it's best to
 let the gc of maatines process shared objects the own because otherwise it would
 imply a double traversal of certain shared objects if they are reachable from
 maatines that own them and this hinder performance.
 
 From the time we are done processing our worklist, all shared white object we
-own detected by other maatines are not reachable from our rootset because if
-they were, they would've been traversed and be blackened when we were
-processing our worklist. This is why at that time it isn't productive to recieve
-any shared object we own from other maatines to our share worklist because its
-reachable solely depend on other maatines and so we should let them process is as it
-is less likely we'll be more involved later.
+own detected by other maatines are not reachable from our root set because if
+they were, they would've been traversed and be blackened when we were processing
+our worklist. This is why at that time it isn't productive to recieve any
+shared object we own from other maatines to our share worklist because its
+reachable solely depend on other maatines and so we should let them process is
+as it is less likely we'll be more involved later.
 
 A gc run for a maatine processes its worklist before its share worklist. There
 is no garantee that the shared object we don't own encountered in our worklist
 is reachable to the maatine that owns it as it depends on the gc state of that
 maatine, if it is reachable, it'll eventually be blackened before the share
 worklist of the owner of that maatine is even processed which is why all black
-objects in the share worklist are not processed. We all this said, the best time
-to send a shared object we don't own to the share worklist of the maatine that
-owns it is when the gc state of that maatine has passed its mark propagation
-phase.
+objects in the share worklist are not processed. With all this said, the best
+time to send a shared object we don't own to the share worklist of the maatine
+that owns it is when the gc state of that maatine has passed its mark
+propagation phase.
 
 ```
 (shared gray object) --(x)--> (shared black object)
 ```
 
 ```
-fn send_to_share_list(m1, m2) {
+fn send_share_object_to_share_list(ma, obj) {
    spin_lock();
    if (gc_state(m1) == NONE || gc_state(m2) > SWEEP)
       return false;
@@ -253,10 +280,10 @@ following scenarios:
 **What happens when we encounter a shared black object we don't own?**
 
 Whether in the worklist or share worklist, a shared black object we don't own is
-already reachable to the maatine that owns it and will not appear in the
+already reachable to the maatine that owns it and will not appear in that
 maatine's LSO which is why we just have to simply ignore it, if the shared black
-object is linked to any object we own, the gc for that maatine will make
-sure it sends it to our share worklist.
+object is linked to any object we own, the gc for that maatine will make sure
+it sends it to our share worklist.
 
 **What happens when we encounter a shared gray object we don't own?**
 
@@ -265,6 +292,9 @@ that does not own it and all the things we would've done has already or is
 currently been done and so we just have to simply ignore it.
 
 #### Sweeping the LSO of each Maatine
+
+Sweeping the LSO of a maatine is the very last sweep in the gc for that maatine
+and depends on that gc state of other maatines, when is to 
 
 The gc of a maatine after its sweep phase where the memory of all unreachable
 non-shared objects are reclaim, it needs to wait until all the other maatine
