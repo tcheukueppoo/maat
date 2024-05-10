@@ -1,15 +1,21 @@
 # The Maat Garbage Collector
 
-Maat implements concurrent generational and incremental garbage collection
-**without** stoping the world. This section focuses more on implementation,
-optimization, and synchronization details, check the below links to know what
+Maat does generational and incremental garbage collection **without** stoping
+the world. Technically, it either simply do an incremental collection or a
+generational collection incrementally, in other words it makes sure all maatines
+collectively performing a garbage collection in small steps as it can
+significantly reduce latency. This section focuses more on implementations,
+optimizations, and synchronization details, check the below links to know what
 generational and incremental garbage collection are.
 
 We are in a concurrent system where maatines a.k.a VM-level non-blocking threads
 are scheduled by the Maat runtime scheduler to run over operating system
-threads. A maatine is basically a lightweight thread that has at least one state
-a.k.a context with each state owning a stack to execute some bytecodes, a
-maatine can switch between any of its states, each maatine performs its
+threads. A maatine is basically a lightweight or virtual thread that has at
+least one state a.k.a context with each state owning a stack to execute some
+bytecodes, a maatine can switch between any of its states or states from other
+maatine gotten via sharing points.
+
+each maatine performs its
 collection either incrementally or generationally and independently of the other
 ones. That said, a lot must be considered to assure coherency and efficient
 synchronization.
@@ -123,55 +129,58 @@ slow down our running program, marking the roots suffices, however there is an
 exception where upvalues of shared closures are also marked shared for the sake
 of implementing [built-in auto-synchronization](./concurrency.md).
 
-Maatines should only free objects they have allocated, no other maatine should
-do it! That said, we should find a way to know if a shared object unreachable to
-the maatine that created it is not referenced by a living object in another
-maatine and we can only be sure of this by making sure that at every sweep
-phase of the gc of a maatine, unreachable shared objects instead of being freed,
-they are rather it added to the maatine's LSO. The collection of objects in the
-LSO of each maatine will be done when all maatines have performed a collection
-since this assures us on the reachable of all shared objects.
+Maatines should only free objects they have allocated. That said, we should find
+a way to know if a shared object unreachable to the maatine that allocated it
+is not referenced by a living object in another maatine. We can only be sure of
+this by making sure the first two sweeps in the gc of a maatine (`sweep_gcs` and
+`sweep_fin`) put unreachable shared objects in the gc's LSO. An LSO sweep can
+only be done when all maatines have initiated a gc run that has passed the
+atomic phase as it'll assure all reachable shared objects are marked and avoid
+loss of references. This means that a garbage collector of a maatine will wait
+until all the other garbage collectors of the other maatines have passed the
+atomic phase(`atomic`) before sweeping its LSO, this is not really bad because
+most objects are maatine-local and have already been freed in the previous
+sweeps.
 
 When an OS thread starts the garbage collector for a maatine, it'll have to
 process the maatine' worklist of objects which at the start logically should
 contain rooted objects the maatine owns. In normal circumstances the collector
 should only traverse objects of that maatine to propagate marks but due to the
 fact that objects can be shared accross maatines, the collector might encounter
-a shared object, an object that may not belong to this maatine. As we said from
-the start, memory of objects should only be reclaimed by the collector that ran
-the collection for the maatine owning those objects which is why any encountered
-shared object we don't own from the worklist will either be marked gray or send
-to the share worklist of the maatine that owns it. We are not stoping the world
-when performing a collection which is why processing shared objects by marking
-them gray will likely happen unless there's an emergency in which a gc run must
-be made for all maatines. Every encountered shared object we don't own might
-have links to objects we own and so if we cannot send shared objects to the
-worklist of their owners and rely on them to forward back our objects to our
-share worklist, we'll be obliged to process them in our worklist with the aim of
-marking other shared objects we don't own gray and shared and blacken the ones
-we own.
+a shared object that does not belong to this maatine. As we said from the start,
+memory of objects should only be reclaimed by the collector that ran the
+collection for the maatine owning those objects which is why any encountered
+shared object we don't own from the worklist will first be marked **gray** and
+be either processed or send to the share worklist of the maatine that owns it.
+Whether to process or send the object to the share worklist of its owner depends
+on the garbage collection state of the owner. Every encountered shared object
+we don't own might have links to objects we own and so if we cannot send shared
+objects to the share worklist of their owners and rely on them to forward back
+our objects to our share worklist, we'll be obliged to process them in our
+worklist with the aim of blackening objects we own and marking **shared** and
+**gray** shared objects we don't own.
 
 ```maat
 // Possible objects' colors
-enum (
-   WHITE = 0,
-   WHITE2,
-   GRAY,
-   BLACK,
-)
+let gcolor = Enum.new(<white white2 gray black>);
 
 // Garbage collection states
-enum (
-  PROPAGATE
-  // ...
-  SWEEP_LSO
-  // ...
-)
+let gstate = Enum.new(<
+                        propagate_wl
+                        atomic
+                        propagate_swl
+                        sweep_gcs
+                        sweep_fin
+                        call_tobefin
+                        sweep_lso
+                        call_lsofin
+                        pause
+                     >);
 
 // Abstract representation of a garbage collectable object
 let obj = {
    // ...
-   color  => WHITE,
+   color  => gcolor<white>,
    shared => 0,
    gray2  => 0,
    // ...
@@ -194,37 +203,36 @@ shared object, these shared object should only be owned by the maatine that owns
 the list. Processing a share worklist is all about marking every objects in the
 list gray and shared before the sweep phase.
 
-**Why sending a shared object we don't own to the share worklist of the maatine
-that owns it?**
+**Why and when to send a shared object we don't own to the share worklist of the
+maatine that owns it**
 
-As said before, in a situation where the gc run for the maatine owning a shared
-object hasn't yet started, the maatine that found that shared object just
-continues processing it in its worklist because it **may** have links to other
-object it owns, this truly is not just an assumption because there is no
-garantee that the objects we own linked to this shared object is reachable from
-our root set. In practice the number of objects we own that are forward-linked to
-shared objects we don't own is little or even zero which is why it's best to
-let the gc of maatines process shared objects the own because otherwise it would
-imply a double traversal of certain shared objects if they are reachable from
-maatines that own them and this hinder performance.
+Any shared object we don't own encountered in our worklist **may** links to
+objects we own, this truly is not just an assumption and there is no garantee
+that the objects we own linked to this shared object is reachable from our root
+set. It's very hard to speculate on the number of objects we own that are
+forward-linked to shared objects we don't own and in the worst case these shared
+objects could be connected to a very dense graphs of objects reachable to
+maatines that owns them which would imply multiple useless graph retraversals if
+we decide to process these shared objects, this is why it's performant to let
+the gc of maatines process shared objects the own. However there's an exception,
 
-From the time we are done processing our worklist, all shared white object we
-own detected by other maatines are not reachable from our root set because if
-they were, they would've been traversed and be blackened when we were processing
-our worklist. This is why at that time it isn't productive to recieve any
-shared object we own from other maatines to our share worklist because its
-reachable solely depend on other maatines and so we should let them process is
-as it is less likely we'll be more involved later.
+After the atomic phase, all shared white object we own detected by other
+maatines are not reachable from our root set because if they were, they would've
+been traversed and blackened after the atomic phase. This is why after the
+atomic phase, it wouldn't be efficient to sent any shared object we own from
+other maatines to our share worklist because its reachability solely depends on
+other maatines and so we should let them process it as it is less likely we'll
+be concerned later.
 
 A gc run for a maatine processes its worklist before its share worklist. There
 is no garantee that the shared object we don't own encountered in our worklist
 is reachable to the maatine that owns it as it depends on the gc state of that
 maatine, if it is reachable, it'll eventually be blackened before the share
 worklist of the owner of that maatine is even processed which is why all black
-objects in the share worklist are not processed. With all this said, the best
-time to send a shared object we don't own to the share worklist of the maatine
-that owns it is when the gc state of that maatine has passed its mark
-propagation phase.
+objects in the share worklist are not processed. With all this said, we can
+conclude that the best time to send a shared object we don't own to the share
+worklist of the maatine that owns it is when the gc state of that maatine has
+not passed the atomic phase.
 
 ```
 (shared gray object) --(x)--> (shared black object)
