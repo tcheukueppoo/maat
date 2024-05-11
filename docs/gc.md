@@ -2,11 +2,11 @@
 
 Maat does generational and incremental garbage collection **without** stoping
 the world. Technically, it either simply do an incremental collection or a
-generational collection incrementally, in other words it makes sure all maatines
-collectively performing a garbage collection in small steps as it can
-significantly reduce latency. This section focuses more on implementations,
-optimizations, and synchronization details, check the below links to know what
-generational and incremental garbage collection are.
+generational collection incrementally, it makes sure all maatines collectively
+performing a garbage collection in small steps as it can significantly reduce
+latency. This section focuses more on implementation, optimization, and
+synchronization details, check the below links to know what generational and
+incremental garbage collection are.
 
 We are in a concurrent system where maatines a.k.a VM-level non-blocking threads
 are scheduled by the Maat runtime scheduler to run over operating system
@@ -166,14 +166,12 @@ let gcolor = Enum.new(<white white2 gray black>);
 
 // Garbage collection states
 let gstate = Enum.new(<
-                        propagate_wl
+                        propagate
                         atomic
-                        propagate_swl
+                        end_atomic
                         sweep_gcs
                         sweep_fin
                         call_tobefin
-                        sweep_lso
-                        call_lsofin
                         pause
                      >);
 
@@ -313,113 +311,6 @@ have done the same before sweeping the LSO.
 #### The Mutator
 
 
-
-#### 
-
-A concurrently running program is said to have done a complete GC round when all
-its maatines have at least done a single GC cycle whether in incremental or
-generational mode.
-
-
-Some useful properties:
-
-* The liveness of a shared object can only be determined if that object has
-  survived a complete GC round, that means the shared object is used by at least
-  one maatine.
-* The first maatine of a GC round is the one who in a set of `n` running
-  maatines detected at the time the first GC run was started, is the first to
-  have performed a complete GC cycle.
-* The last maatine of a GC round is the one in that set to have last performed a
-  complete GC cycle.
-* Maatines eligible for a GC round are the ones who were running when the ever
-  first GC run of that round was started.
-* In a running program of `n` maatines, while performing the current GC round,
-  `(n - 1)` maatines can perform GC cycles of the round following this one and
-  we thus have maximum 2 rounds at a time.
-* A maatine can go through multiple GC cycles before the current round is done.
-* New shared objects detected when a maatine performs multiple GC cycles before
-  the end of the current GC round aren't part of this round but the next one.
-
-
-
-For each maatine part of the current GC round, in its own GC cycle, encountered
-green/white root shared objects in the mark phase are turned black but this
-black color isn't propagated over incident node objects. After the sweep phase,
-the LSO is traversed turning all white root shared objects green. In the first
-GC cycle of the last maatine, after the sweep phase, green objects are turned
-red as they are not referenced by any other maatine provided that the
-conversative nature of this GC round is preserved.
-
-It will be a disaster if mark propagation requires synchronization, fortunately,
-we only have to sync when attempting to mark shared objects. Checking wether or
-not an object is shared does not even require synchronization, it is so thanks
-to our pending list and the concept of GC rounds. An object marked **shared**
-will remain shared till its memory is reclaimed, even if it ends up referenced
-by a single Maatine, this implies that it is safe to check without the need to
-synchronized if an object is shared when propagating marks. This is also because
-turning any shared GC object unshared requires expensives synchronization and
-it isn't efficient as it may become shared again. It isn't that inefficient to
-unnecessarily sync operations on a GC object as we will be using spinlocks from
-`librs` and not syscalls and in such cases, there is zero contention.
-
-At the end of each GC round, the LSO will either have black or red objects.
-The red mark of these objects is propagated all over their incident node
-objects and memory of these red objects are then reclaimed, this is known
-as an **LSO sweep**.
-
-Given that multiple maatines can concurrently collect, it appears that
-while traversing the LSO, a root shared object to be or already marked
-green by a maatine may be reachable to other maatines and thus
-synchronization must be done to make sure that in such cases the root
-shared object in question ends up black. While the green mark is propagated
-on incident node objects, black objects could be encountered which is due to
-the fact that some reachable objects local to a maatine have links to the
-shared space, in such cases it is necessary to avoid them, leave them
-unchanged. Why? after every complete GC round, the goal is to traverse green
-objects and mark the ones unreachable to all maatines red and later on free
-all red objects, so we won't want to free a green object referenced by a
-reachable object local to a maatine.
-
-Controlling the number of maatines in a running maat program to choose the
-starting and ending point of a complete GC round is extremely hard, here
-are some problems faced and possible solutions.
-
-2. Setting boundries in the processing of shared objects.
-
-The bad thing with concurrency collection as stated above is that when
-it comes to processing shared objects, we don't know where to start and
-end. We are at the point of starting a GC round, we set an atomic variable
-to notify the start of the round, maatines being part of the round go
-through GC cycles but without even done with this round, a maatine part of
-the round spawns off another maatine, well, this will potentially create
-new shared objects or be linked to already existing ones. How does the
-current GC round deal with this? below are things to consider in order to
-assure coherency and avoid lost of references, bear in mind that most
-collectors are conservative and these techniques aren't far from that.
-
-* All root shared GC objects shared between maatines part of the current
-  GC round and the ones not part of it must be marked black. A root
-  shared object that'll definitely ends up red after the end of the
-  current round should logically never be linked to the object space of
-  maatines that aren't part of the current round. But because gc execution
-  interleaves with the mutator, an object of a new maatine can be linked
-  to a shared object that later on gets unreachable before the
-  **LSO sweep**, if all the maatines part of the current round has lost
-  references to this shared object, then new maatines may lost
-  references to it. Yep! this is kind-of a conversative behavoir here.
-
-* 
-
-
-#### The Concurrency Invariant
-
-
-
-
-
-
-
-
 # Gen algorithm
 
 Two parameters determine whether the next collection to be done is a minor
@@ -435,11 +326,6 @@ Paint to special white ready for the next GC cycle to avoid multiple
 write barriers.
 
 # issue with upvals and coroutines
-
-
-
-- Impossible to know the color of all closures pointing to an upvals
-- A coroutine might point to a white newly created object(barrier?)
 
 
 #### some useful terms
