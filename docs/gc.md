@@ -2,36 +2,135 @@
 
 Maat does generational and incremental garbage collection **without** stoping
 the world. Technically, it either simply do an incremental collection or a
-generational collection incrementally, it makes sure all maatines collectively
-performing a garbage collection in small steps as it can significantly reduce
-latency. This section focuses more on implementation, optimization, and
-synchronization details, check the below links to know what generational and
-incremental garbage collection are.
+somehow incremental generational collection, it makes sure all maatines
+collectively performing a garbage collection in small steps as it can
+significantly reduce latency. This section assumes you know what incremental and
+generational collection is and focuses more on implementation, optimization,
+and synchronization details, if you don't know yet, check the below links to
+know what generational and incremental garbage collection are.
 
 We are in a concurrent system where maatines a.k.a VM-level non-blocking threads
 are scheduled by the Maat runtime scheduler to run over operating system
 threads. A maatine is basically a lightweight or virtual thread that has at
 least one state a.k.a context with each state owning a stack to execute some
-bytecodes, a maatine can switch between any of its states or states from other
-maatine gotten via sharing points.
-
-each maatine performs its
-collection either incrementally or generationally and independently of the other
-ones. That said, a lot must be considered to assure coherency and efficient
-synchronization.
+bytecode, a maatine can switch between any of its states or states from other
+maatines gotten via sharing points. Each maatine performs its collection either
+inc or gen mode and makes sure unreachable objects owned by a maatine and linked
+to live objects in other maatine do not get collected by setting a midpoint
+where all collectors converge into before sweeping. That said, a lot must be
+considered to assure coherency and efficient synchronization. Before you start
+arguing the sense behind doing an incremental generational garbage collection,
+note that an incremental collection in generational mode is performed when we
+are to we are to do major collection since short living objects are small enough
+for a minor collection to be considered as a single garbage collection step.
 
 Why have we choosen this design:
 
-* Most objects are maatine-local and so enough will be freed in a single GC.
-* Only a few number of maatines (a.k.a lightweight threads) might need a
-  collective GC.
-* Concurrent collection avoids us from stoping the world, each maatine performs
-  it collection in gen or inc mode without annoying other maatines unless
-  necessary.
+Only a few number of maatines (lightweight threads) might need a collective GC
+but we must do it this way to avoid loss of references of shared objects,
+stoping the world and using multiple threads to perform a collection can
+introduce very long pauses in a multi-task environment since many threads in the
+threadpool would be stuck on long running C code. Having each maatine
+performing a collection in steps can be very beneficial as it does not only
+reduces these pauses but prevent other virtual threads from starving.
 
-With this design, major problems faced during collection are:
+Since we are in a multi-threaded environment, they're so many subtleties we'll
+have do deal with but for now I'm going to take your attention on some
+implementation details regarding generational and incremental collection.
 
-## Collection of open upvalues scattered across states of a Maatine
+## Generational Garbage Collection
+
+Objects survive two GC cycles before getting old. As you can see, we most of the
+time insist on the fact that Maat can run in a multi-threaded environment, this
+is because effectively handling concurrent execution of Maat code is one of the
+design goals of Maat, we have threads that perform GC in steps and that's good,
+but a collection pace does not suit every use cases and as a consequence it can
+make our program consume too much memory which is why having too many
+potentially unreachable old objects which are later on (**again**) are collected
+in gc steps can unwantedly slowdown the collection as the mutator also has the
+right to allocate more objects. Also, migrating to the old generation only after
+surviving 2 GC cycles can reduce the number of short-lived objects that only
+survive because we happened to GC during their short lifetime.
+
+                               [#1]
+                       +-----------------------+
+      Nursery1         |                       |  Nursery2
+ +=====================|=====+             +===|========================+
+ |                     v     |             |   |                 (w)    |
+ |      (w) (b)     +-----+  |             | +-----+ +-----+-------+    |
+ |                  |white|  +============>| |white| |black|touched|<-+ +===+
+ |    (b)   (w)     +-----+  |             | +-----+ +-----+-------+  | |   |
+ |+-----+-------+            +============>|             (b)          | |   |
+ ||black#touched|  +-----+   |             | +-----+  +-------------+ | +=+ |
+ |+-----+-------+  |black|   |             | |black|  |black#touched| | | | |
+ |  ^ (b)          +-----+   |             | +--+--+  +-----+-------+ | | | |
+ |  |  ^    (w)  (w)  ^      |             |    |           |  ^      | | | |
+ +==|==|==============|======+   [#2]      +====|===========|==|======|=+ | |
+    |  |              +-------------------------+           |  |      |   | |
+    |  +----------------------------------------------------+  |      |   | |
+    |       [#3]               +-------------------------------+      |   | |
+    |                          |                                      |   | |
+    |                          |[#5]                     +------------+   | |
+    |                          |                         |  [#6]          | |
+    |                      +===|=========================|======+         | |
+    |     [#4]             |   |             (b)         |      |         | |
+    +-------------------------(b)     (b)               (b)     |         | |
+                           |                     (b)            |<========+ |
+                           |   (b)  (b)    (b)       (b)  (b)   |           |
+                           |                                    |<==========+
+                           |       (b)      (b)  (b)   (b)  (b) |
+                           |  (b)       (b)                     |
+                           |       (b)          (b)             |
+                           +====================================+
+
+                                     Old Generation
+
+(b): A black object
+(w): A white object
+
+The above is a snapshot of a possible state of objects in each generation after
+atomic phase where all reachable objects have been marked black.
+
+We have three generations--nursery1, nursery2 and old. Objects become old when
+they've survived two GC cycles, that's the first in nursery1 and the second in
+nursery2. After sweeping the first generation(nursery1) in the first cycle,
+survivals are migrated to the second generation(nursery2) and only survivals in
+the second generation of the second cycle are then migrated to the old
+generation. Things are not just as simple as I just explained because we might
+get into a situation where old objects points to objects in either nursery1 or
+nursery2, in a situation where new objects only have to survive one GC cycle
+before being migrated to the old generation, we would simple have to implement a
+write forward/backward barrier to track all the new objects referenced by old
+objects so we can traverse them in the mark phase and mark black every
+encountered object from there since we are not really sure of the liveness of
+old objects and at the end of the cycle these marked black objects become old.
+In this situation, unreachable objects can we swept both in nursery 1 and 2
+which poses multiple issues.
+
+
+
+
+
+
+### Collection Pace
+
+### Finalizers
+
+### Weak Maps
+
+### Ephemeron Maps
+
+## Incremental Garbage Collection
+
+### Description
+
+### Collection Pace
+
+### Finalizers
+
+## Major problems faced during collection
+
+### Collection of open upvalues scattered across states of a Maatine
 
 A Maatine has at least one state which with the use of its own stack, simply has
 to run a function which is literally just a closure that possibly has open
@@ -52,12 +151,12 @@ phase), remove the unmarked states we found in the
 list-of-states-with-open-upvalues from that list as they are now considered
 garbage.
 
-## Objects shared accross maatines
+### Objects shared accross maatines
 
 The fact that each maatine runs its garbage collector independently of the other
 ones poses a real issue on objects shared across Maat's maatines.
 
-### List of sharing points
+#### List of sharing points
 
 1. Upvalues
 
@@ -116,7 +215,7 @@ GC object from one maatine to another also implies transfer ownership by
 changing the object's id. This technique is not space efficient as it will
 require an additional field in the header common to all objects.
 
-### Linked-List of Shared Objects (LSO)
+#### Managing Concurrent Collection across OS Threads.
 
 To safely collect objects shared across maatines, maat introduces a linked-list
 of shared objects. Each maatine hold an LSO.
