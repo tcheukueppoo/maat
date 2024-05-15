@@ -46,71 +46,185 @@ is because effectively handling concurrent execution of Maat code is one of the
 design goals of Maat, we have threads that perform GC in steps and that's good,
 but a collection pace does not suit every use cases and as a consequence it can
 make our program consume too much memory which is why having too many
-potentially unreachable old objects which are later on (**again**) are collected
-in gc steps can unwantedly slowdown the collection as the mutator also has the
+potentially unreachable old objects which are later on (**again**) collected
+in gc **steps** can unwantedly slowdown the collection as the mutator also has the
 right to allocate more objects. Also, migrating to the old generation only after
 surviving 2 GC cycles can reduce the number of short-lived objects that only
 survive because we happened to GC during their short lifetime.
 
-                               [#1]
-                       +-----------------------+
-      Nursery1         |                       |  Nursery2
- +=====================|=====+             +===|========================+
- |                     v     |             |   |                 (w)    |
- |      (w) (b)     +-----+  |             | +-----+ +-----+-------+    |
- |                  |white|  +============>| |white| |black|touched|<-+ +===+
- |    (b)   (w)     +-----+  |             | +-----+ +-----+-------+  | |   |
- |+-----+-------+            +============>|             (b)          | |   |
- ||black#touched|  +-----+   |             | +-----+  +-------------+ | +=+ |
- |+-----+-------+  |black|   |             | |black|  |black#touched| | | | |
- |  ^ (b)          +-----+   |             | +--+--+  +-----+-------+ | | | |
- |  |  ^    (w)  (w)  ^      |             |    |           |  ^      | | | |
- +==|==|==============|======+   [#2]      +====|===========|==|======|=+ | |
-    |  |              +-------------------------+           |  |      |   | |
-    |  +----------------------------------------------------+  |      |   | |
-    |       [#3]               +-------------------------------+      |   | |
-    |                          |                                      |   | |
-    |                          |[#5]                     +------------+   | |
-    |                          |                         |  [#6]          | |
-    |                      +===|=========================|======+         | |
-    |     [#4]             |   |             (b)         |      |         | |
-    +-------------------------(b)     (b)               (b)     |         | |
-                           |                     (b)            |<========+ |
-                           |   (b)  (b)    (b)       (b)  (b)   |           |
-                           |                                    |<==========+
-                           |       (b)      (b)  (b)   (b)  (b) |
-                           |  (b)       (b)                     |
-                           |       (b)          (b)             |
-                           +====================================+
+```
+                     (#1)
+                 .--------------------------------------.
+                 |                                      |
+                 |             (#0)                     |
+                 |     .-----------------.              |
+      Nursery-1  |     |                 |  Nursery-2   |
+ .---------------|-----|-----.       .---|--------------|-------.
+ |               v     v     |       |   |       [b]    |       |
+ | [b]  [w]     [b]   [w]    |       | .---.          .---. [b] |
+ |                           |======>| |w,t| [w] [w]  |w,t|     |=====*
+ |    [b]   [w]      [w] [b] | (M)   | '---'          '---' [w] |     #
+ |              [w]          |======>|         [b]              |===* #
+ |     [w] [b]       [b]     |       | .---.   .---. [w]    [b] |   # #
+ | [b]      ^   [w]      [w] |       | |b,t|   |b,t|    [b]     |   # #
+ |  ^       |        [b]     |       | '---'   '---'     ^  [w] |   # #
+ |  |  [b]  |    [w]  ^      |       |    |     | ^  [w] |      |   # #
+ `--|-------|---------|------' (#2)  `----|-----|-|------|------'   # #
+    |       |         `-------------------'     | |      |          # #
+    |       `-----------------------------------' |      |          # #
+    |       (#3)               .------------------'      |          # # (M)
+    |                          |                         |          # #
+    |                          |(#4)                     |(#6)      # #
+    |                          |                         |          # #
+    |                      .---|-------------------------|------.   # #
+    |                      |   |      [b]    [b]         |      |   # #
+    |     (#5)             | .----.              .----.  |      |   # #
+    `------------------------|b,t2| [b]  [b]     |b,t1|--'  [b] |<==# #
+                           | '----'          [b] '----'         |     #
+                           |           [b]                      |<====#
+                           |       [b]      [b]  [b]   [b]  [b] |
+                           |  [b]       [b]                     |
+                           |       [b]          [b]    [b]  [b] |
+                           `------------------------------------'
 
                                      Old Generation
+```
 
-(b): A black object
-(w): A white object
+- `(#<number>)` represents a backward write barrier.
+- `(M)` represents a migration of objects from one generation to the next one.
+- `[b]` represents a black object.
+- `[w]` represents a white object.
+- `t`, "touched" mark, a mark in nursery2-objects pointing to nursery-1 objects.
+- `t1`, "touched1" mark, a mark in old objects pointing to nursery-1 objects.
+- `t2`, "touched2" mark, a mark in old objects pointing to nursery-2 objects.
 
-The above is a snapshot of a possible state of objects in each generation after
-atomic phase where all reachable objects have been marked black.
+> The above diagram is a snapshot of the possible states of objects of a maatine
+> in each of their generations after the GC has passed the atomic phase and all
+> reachable objects have been blackened. Double line arrows represent the
+> migration of survivals objects from one generation to the next and single line
+> arrows represent write barriers between objects of different generations. Of
+> course, objects within a generation are linked and form a complex graph but
+> the represention these links isn't a necessity.
 
-We have three generations--nursery1, nursery2 and old. Objects become old when
-they've survived two GC cycles, that's the first in nursery1 and the second in
-nursery2. After sweeping the first generation(nursery1) in the first cycle,
-survivals are migrated to the second generation(nursery2) and only survivals in
+We have three generations--nursery-1, nursery-2 and old. Objects become old when
+they've survived two GC cycles, that's the first in nursery-1 and the second in
+nursery-2. After sweeping the first generation(nursery-1) in the first cycle,
+survivals are migrated to the second generation(nursery-2) and only survivals in
 the second generation of the second cycle are then migrated to the old
-generation. Things are not just as simple as I just explained because we might
-get into a situation where old objects points to objects in either nursery1 or
-nursery2, in a situation where new objects only have to survive one GC cycle
-before being migrated to the old generation, we would simple have to implement a
-write forward/backward barrier to track all the new objects referenced by old
-objects so we can traverse them in the mark phase and mark black every
-encountered object from there since we are not really sure of the liveness of
-old objects and at the end of the cycle these marked black objects become old.
-In this situation, unreachable objects can we swept both in nursery 1 and 2
-which poses multiple issues.
+generation. That's not just all, we might get into a situation where old objects
+point to objects in either nursery-1 or 2 and objects in nursery-2 pointing to
+objects in nursery-1. In other generational gc implementations where new objects
+only have to survive one GC cycle before being migrated to the old generation,
+we would simple have to implement a backward write barrier to track all old
+objects(touched objects) referencing the new ones so we can later on traverse
+them in the atomic phase and blacken every encountered object from there since
+we're not really sure of the liveness of old objects. At the end of the cycle,
+blackened objects become old and the generational invariant is not broken until
+the mutator runs before the next GC cycle and thus the list of touched objects
+will simple be dropped. In our own implementation, unreachable objects can be
+swept both in nursery-1 and 2 which can break the generational invariant just
+right after migrations.
+
+No matter how complicated this will look, the main aim is to make sure that when
+the generational invariant is broken by making an old object point to any
+object from either nursery 1 and/or 2, that old object is added to a special
+list of touched object to be traversed in the atomic phase just before sweeping
+objects from each generation and migrating them to their respective next
+generation. As said before, it's because we don't really know anything about the
+liveness of old objects until we do a major collection, so we'd rather be
+conservative to avoid potential loss of references. Let's study each of these
+cases:
+
+1. Case `#0`
+
+When the mutator detects a nursery-2 object pointing to a nursery-1 object, the
+detected object is marked `touched` as we are not sure of its liveness until
+nursery2 is swept. Case `#2` and `#3` dicusses how useful is this marked in case
+the detected object is migrated to the old generation. In this our case, the
+detected object ends up dead after the atomic phase and it'll simply reclamed.
+An object reclamed in nursery-2 simply proofs that the life time of short-living
+objects may exceed a single GC cycle.
+
+2. Case `#1`
+
+This is a special case of the previous one where the nursery-1 object pointed to
+is black. This case is handled the same way as the previous one since the
+nursery-2 object pointing to the nursery-1 object is not reachable from the
+nursery-1 object because if it were then the nursery-2 object would've been
+marked before the sweeping phase.
+
+3. Case `#2` and `#3`
+
+An object in nursery-2 can still be reclamed by the garbage collector, if it's
+not reclamed when nursery-2 is swept, it means it has been blackened in the
+atomic phase and will be migrated to the old generation, but wait..., what
+happens if the mutator makes this object point to an object in nursery 1 before
+the atomic phase? You may have not figured it out yet, this black object
+migrated to the old generation could be the only object pointing to some objects
+in nursery-1 and even if it's not the case, an old object is considered live
+until we do a major collection because after the migration, at anytime, this old
+object can become dead. Therefore, whenever an object in nursery 2 linked to
+any object in nursery-1 is migrated to the old generation, its touched is change
+to "touched2" and and it's then added to the special list of touched objects so
+that objects directly/indirectly linked to this old object are conserved until
+they are migrated to the old generation awaiting a major collection. When this
+object is migrated to the old generation, objects it was linked to in nursery-1
+are migration to nursery-2 and in the next GC cycle they're finally migrated to
+the old generation.
+
+```
+// Rough algorithm demonstrating how objects in nursery-2 are swept.
+let k    = objects_in_nursery2(Maa);
+let iter = k;
+
+while iter != nil {
+   let o = iter.obj;
+
+   ...;
+   if o.is_black && o.is_touched {
+      // 'o' is now 'touched' and not 'touched1'
+      o.touched(1);
+      o.touched1(0);
+
+      // for the next GC cycle
+      touched_list.append(o);
+   }
+   elsif o.is_white {
+      k = iter.next if iter == k;
+      reclamation_of(o);
+   }
+
+   iter = iter.next;
+   ...
+}
+
+/*
+ * 'k' now points to the list of survivals, migrate them to gen2, could
+ * have been done while traversing but that's not important now!
+ */
+migrate_to_old_gen(k);
+```
+
+A nursery-2 object marked `touched` by the mutator will not
+added to the `touched_list` because we are not sure of its liveness until it
+migrates to the old generatio. We would still do the same thing even if we were
+sure of its liveness because the to-become old object should only be traversed
+in the next GC cycle as it's linked nursery-1 objects
+
+4. Case `#4`
 
 
 
+5. Case `#5`
 
+6. Case `#6`
 
+#### Key Notes
+
+- List of touched objects should only contain touched1 and touched2 objects.
+- All touched2 objects are dropped from the list of touched objects after every
+  sweep phase.
+- k
 
 ### Collection Pace
 
@@ -247,7 +361,7 @@ contain rooted objects the maatine owns. In normal circumstances the collector
 should only traverse objects of that maatine to propagate marks but due to the
 fact that objects can be shared accross maatines, the collector might encounter
 a shared object that does not belong to this maatine. As we said from the start,
-memory of objects should only be reclaimed by the collector that ran the
+memory of objects should only be reclamed by the collector that ran the
 collection for the maatine owning those objects which is why any encountered
 shared object we don't own from the worklist will first be marked **gray** and
 be either processed or send to the share worklist of the maatine that owns it.
@@ -402,7 +516,7 @@ Sweeping the LSO of a maatine is the very last sweep in the gc for that maatine
 and depends on that gc state of other maatines, when is to 
 
 The gc of a maatine after its sweep phase where the memory of all unreachable
-non-shared objects are reclaim, it needs to wait until all the other maatine
+non-shared objects are reclame, it needs to wait until all the other maatine
 have done the same before sweeping the LSO. 
 
 
