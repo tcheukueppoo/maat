@@ -67,24 +67,24 @@ survive because we happened to GC during their short lifetime.
  |              [w]          |======>|         [b]              |===* #
  |     [w] [b]       [b]     |       | .---.   .---. [w]    [b] |   # #
  | [b]      ^   [w]      [w] |       | |b,t|   |b,t|    [b]     |   # #
- |  ^       |        [b]     |       | '---'   '---'     ^  [w] |   # #
- |  |  [b]  |    [w]  ^      |       |    |     | ^  [w] |      |   # #
- `--|-------|---------|------' (#2)  `----|-----|-|------|------'   # #
-    |       |         `-------------------'     | |      |          # #
-    |       `-----------------------------------' |      |          # #
-    |       (#3)               .------------------'      |          # # (M)
-    |                          |                         |          # #
-    |                          |(#4)                     |(#6)      # #
-    |                          |                         |          # #
-    |                      .---|-------------------------|------.   # #
-    |                      |   |      [b]    [b]         |      |   # #
-    |     (#5)             | .----.              .----.  |      |   # #
-    `------------------------|b,t2| [b]  [b]     |b,t1|--'  [b] |<==# #
-                           | '----'          [b] '----'         |     #
-                           |           [b]                      |<====#
-                           |       [b]      [b]  [b]   [b]  [b] |
-                           |  [b]       [b]                     |
-                           |       [b]          [b]    [b]  [b] |
+ |  ^  [b]  |        [b]     |       | '---'   '---'     ^  [w] |   # #
+ |  |   ^   |    [w]  ^      |       |    |     | ^  [w] |      |   # #
+ `--|---|---|---------|------' (#2)  `----|-----|-|------|------'   # #
+    |   |   |         `-------------------'     | |      |          # #
+    |   |   `-----------------------------------' |      |          # #
+    |   |   (#3)               .------------------'      |          # # (M)
+    |   |                      |                         |          # #
+    |   |                      |(#5)                     |(#4)      # #
+    |   |                      |                         |          # #
+    |   |                  .---|-------------------------|------.   # #
+    |   |                  |   |      [b]    [b]         |      |   # #
+    |   | (#6)             | .----.              .----.  |      |   # #
+    |   `--------------------|b,t1| [b]  [b]     |b,t2|--'  [b] |<==# #
+    |                      | '----'          [b] '----'         |     #
+    |                      |           [b]                      |<====#
+    |   (#7)               |  .----.         [b] [b]   [b]  [b] |
+    `-------------------------|b,t1| [b] [b]                    |
+                           |  '----'            [b]    [b]  [b] |
                            `------------------------------------'
 
                                      Old Generation
@@ -94,9 +94,9 @@ survive because we happened to GC during their short lifetime.
 - `(M)` represents a migration of objects from one generation to the next one.
 - `[b]` represents a black object.
 - `[w]` represents a white object.
-- `t`, "touched" mark, a mark in nursery2-objects pointing to nursery-1 objects.
-- `t1`, "touched1" mark, a mark in old objects pointing to nursery-1 objects.
-- `t2`, "touched2" mark, a mark in old objects pointing to nursery-2 objects.
+- `t`:  *touched* mark, a mark in nursery2-objects pointing to nursery-1 objects.
+- `t1`: *touched1* mark, a mark in old objects pointing to nursery-1 objects.
+- `t2`: *touched2* mark, a mark in old objects pointing to nursery-2 objects.
 
 > The above diagram is a snapshot of the possible states of objects of a maatine
 > in each of their generations after the GC has passed the atomic phase and all
@@ -127,13 +127,13 @@ right after migrations.
 
 No matter how complicated this will look, the main aim is to make sure that when
 the generational invariant is broken by making an old object point to any
-object from either nursery 1 and/or 2, that old object is added to a special
-list of touched object to be traversed in the atomic phase just before sweeping
-objects from each generation and migrating them to their respective next
-generation. As said before, it's because we don't really know anything about the
-liveness of old objects until we do a major collection, so we'd rather be
-conservative to avoid potential loss of references. Let's study each of these
-cases:
+object from either nursery 1 and/or 2, that old object is grayed and added to a
+special list of touched object to be traversed in the atomic phase just before
+sweeping objects from each generation and migrating them to their respective
+next generation. As said before, it's because we don't really know anything
+about the liveness of old objects until we do a major collection, so we'd rather
+be conservative to avoid potential loss of references. Let's study each of
+these cases:
 
 1. Case `#0`
 
@@ -151,7 +151,7 @@ This is a special case of the previous one where the nursery-1 object pointed to
 is black. This case is handled the same way as the previous one since the
 nursery-2 object pointing to the nursery-1 object is not reachable from the
 nursery-1 object because if it were then the nursery-2 object would've been
-marked before the sweeping phase.
+blackened before the sweeping phase.
 
 3. Case `#2` and `#3`
 
@@ -164,17 +164,21 @@ migrated to the old generation could be the only object pointing to some objects
 in nursery-1 and even if it's not the case, an old object is considered live
 until we do a major collection because after the migration, at anytime, this old
 object can become dead. Therefore, whenever an object in nursery 2 linked to
-any object in nursery-1 is migrated to the old generation, its touched is change
-to "touched2" and and it's then added to the special list of touched objects so
-that objects directly/indirectly linked to this old object are conserved until
-they are migrated to the old generation awaiting a major collection. When this
-object is migrated to the old generation, objects it was linked to in nursery-1
-are migration to nursery-2 and in the next GC cycle they're finally migrated to
-the old generation.
+any object in nursery-1 is migrated to the old generation, its touched value is
+changed to "touched2" and it's then added to the special list of touched objects
+so that objects directly/indirectly linked to this old object are conserved
+until they are migrated to the old generation awaiting a major collection. When
+this object is migrated to the old generation, objects it was linked to in
+nursery-1 are migration to nursery-2 and in the next GC cycle they're finally
+migrated to the old generation.
+
+In simple terms, the nursery-2 object migrated to the old generation is added to
+the list of touched objects because its still have links to object in nursery-1
+which may be collected when they would be in nursery-2.
 
 ```
-// Rough algorithm demonstrating how objects in nursery-2 are swept.
-let k    = objects_in_nursery2(Maa);
+// Rough pseudo-code demonstrating how objects in nursery-2 are swept.
+let k    = objects_in_nursery2(maa);
 let iter = k;
 
 while iter != nil {
@@ -182,12 +186,11 @@ while iter != nil {
 
    ...;
    if o.is_black && o.is_touched {
-      // 'o' is now 'touched' and not 'touched1'
-      o.touched(1);
-      o.touched1(0);
+      // 'o' is now 'touched2' and not 'touched'
+      o.touched2(1);
 
       // for the next GC cycle
-      touched_list.append(o);
+      touched_list(maa).push(o);
    }
    elsif o.is_white {
       k = iter.next if iter == k;
@@ -205,19 +208,89 @@ while iter != nil {
 migrate_to_old_gen(k);
 ```
 
-A nursery-2 object marked `touched` by the mutator will not
-added to the `touched_list` because we are not sure of its liveness until it
-migrates to the old generatio. We would still do the same thing even if we were
-sure of its liveness because the to-become old object should only be traversed
-in the next GC cycle as it's linked nursery-1 objects
+A nursery-2 object marked `touched` by the mutator will not be instantly added
+to the `touched_list` because we are not sure of its liveness until it migrates
+to the old generation. We would still do the same thing if we were sure of its
+liveness because the to-become old object should only be traversed in the next
+GC cycle as it's linked nursery-1 objects which later on get migrated to
+nursery-2.
 
 4. Case `#4`
 
+As you can see, we are in a case where an old object points to a nursery-2
+object which means the old object in question needs to be grayed, marked
+`touched2`, and pushed into the `touched_list` to be traversed in the atomic
+phase. Again, this is a conservative measure, as we're not sure of the liveness
+of old objects until a major collection is done.
 
+After the sweep phase:
+
+* All objects referenced by this old object would be migrated to the old
+  generation which means there is not way they can break the invariant unless
+  they got links to objects in nursery-1 (case `#2` and `#3` explains that).
+
+* All `touched2` objects are dropped from the touched list since the nursery-2
+  objects they got linked to are now old.
 
 5. Case `#5`
 
+This is a special case of the previous one where the nursery-2 object being
+pointed to, points to a nursery-1 object. Though the nursery-2 object is
+`touched`, it does not necessarily guarantee that it won't be reclamed. So when
+a write barrier detects an old object pointing to a `touched` nursery-2 object,
+the old object is grayed, marked `touched2`, and pushed into the `touched_list`
+just like we did in Case `#5`. What is done in Case `#4` after the sweep phase
+is also done here.
+
+
+```
+// old -> nursery2
+fn o_p_n2_write_barrier(o) {
+
+   assert(o.is_gray()), return if o.is_touched1;
+
+   mark_gray(o);
+
+   // make 'o' 'touched2'
+   o.is_touched2(1);
+
+   touched_list(maa).push(o);
+}
+```
+
 6. Case `#6`
+
+Here we have an old object pointing to a nursery-1 object, this time, 
+
+```
+fn o_p_n1_write_barrier(o) {
+
+   // mark 'touched1', 'o' already in 'touched_list'.
+   o.touched1(1), assert(o.is_gray()), return if o.is_touched2;
+
+   mark_gray(o);
+
+   // make 'o' 'touched1'
+   o.touched1(1);
+
+   touched_list(maa).push(o);
+}
+```
+
+```
+// Rough demonstration of what happens in 'touched_list' after all migrations.
+let tl = touched_list(maa);
+let iter = tl;
+
+while iter != nil {
+   let o = iter.obj;
+
+   if o.is_touched2 {
+      tl = iter.next if iter = tl;
+      iter
+   }
+}
+```
 
 #### Key Notes
 
