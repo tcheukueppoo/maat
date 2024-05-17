@@ -14,15 +14,18 @@ are scheduled by the Maat runtime scheduler to run over operating system
 threads. A maatine is basically a lightweight or virtual thread that has at
 least one state a.k.a context with each state owning a stack to execute some
 bytecode, a maatine can switch between any of its states or states from other
-maatines gotten via sharing points. Each maatine performs its collection either
-inc or gen mode and makes sure unreachable objects owned by a maatine and linked
-to live objects in other maatine do not get collected by setting a midpoint
-where all collectors converge into before sweeping. That said, a lot must be
-considered to assure coherency and efficient synchronization. Before you start
-arguing the sense behind doing an incremental generational garbage collection,
-note that an incremental collection in generational mode is performed when we
-are to we are to do major collection since short living objects are small enough
-for a minor collection to be considered as a single garbage collection step.
+maatines gotten via sharing points. Each maatine performs its collection in
+incremental or genenrational mode and makes sure an object unreachable to the
+maatine that owns it, referenced by a live objects from other maatines, is not
+reclamed by the GC. This is achieved by establishing a synchronization point at
+the end of each atomic phase where all collectors have to wait for some times(by
+probably switching to the mutator) before proceeding to the sweep phase. That
+said, a lot must be considered to assure coherency and efficient
+synchronization. Before you start arguing the sense behind doing an incremental
+generational garbage collection, note that an incremental collection in
+generational mode is performed in a major collection since short living objects
+are small enough for a minor collection to be considered as a single garbage
+collection step.
 
 Why have we choosen this design:
 
@@ -139,11 +142,11 @@ these cases:
 
 When the mutator detects a nursery-2 object pointing to a nursery-1 object, the
 detected object is marked `touched` as we are not sure of its liveness until
-nursery2 is swept. Case `#2` and `#3` dicusses how useful is this marked in case
+nursery2 is swept. Case `#2` and `#3` dicusses how useful is this mark in case
 the detected object is migrated to the old generation. In this our case, the
-detected object ends up dead after the atomic phase and it'll simply reclamed.
-An object reclamed in nursery-2 simply proofs that the life time of short-living
-objects may exceed a single GC cycle.
+detected object ends up dead after the atomic phase and it'll simply be
+reclamed. An object reclamed in nursery-2 simply proofs that the life time of
+short-living that object exceeds a single GC cycle.
 
 2. Case `#1`
 
@@ -201,25 +204,22 @@ while iter != nil {
    ...
 }
 
-/*
- * 'k' now points to the list of survivals, migrate them to gen2, could
- * have been done while traversing but that's not important now!
- */
+// 'k' now points to the list of survivals, migrate them to gen2.
 migrate_to_old_gen(k);
 ```
 
 A nursery-2 object marked `touched` by the mutator will not be instantly added
-to the `touched_list` because we are not sure of its liveness until it migrates
+to the touched list because we are not sure of its liveness until it migrates
 to the old generation. We would still do the same thing if we were sure of its
 liveness because the to-become old object should only be traversed in the next
-GC cycle as it's linked nursery-1 objects which later on get migrated to
+GC cycle as nursery-1 objects referencing it are later on get migrated to
 nursery-2.
 
 4. Case `#4`
 
 As you can see, we are in a case where an old object points to a nursery-2
 object which means the old object in question needs to be grayed, marked
-`touched2`, and pushed into the `touched_list` to be traversed in the atomic
+`touched2`, and pushed onto the touched list to be traversed in the atomic
 phase. Again, this is a conservative measure, as we're not sure of the liveness
 of old objects until a major collection is done.
 
@@ -227,10 +227,11 @@ After the sweep phase:
 
 * All objects referenced by this old object would be migrated to the old
   generation which means there is not way they can break the invariant unless
-  they got links to objects in nursery-1 (case `#2` and `#3` explains that).
+  they got references to objects in nursery-1 (case `#2` and `#3` explains
+  that).
 
 * All `touched2` objects are dropped from the touched list since the nursery-2
-  objects they got linked to are now old.
+  objects they referenced are now old.
 
 5. Case `#5`
 
@@ -238,10 +239,9 @@ This is a special case of the previous one where the nursery-2 object being
 pointed to, points to a nursery-1 object. Though the nursery-2 object is
 `touched`, it does not necessarily guarantee that it won't be reclamed. So when
 a write barrier detects an old object pointing to a `touched` nursery-2 object,
-the old object is grayed, marked `touched2`, and pushed into the `touched_list`
-just like we did in Case `#5`. What is done in Case `#4` after the sweep phase
+the old object is grayed, marked `touched2`, and pushed onto the touched list
+just like we did with Case `#5`. What is done in Case `#4` after the sweep phase
 is also done here.
-
 
 ```
 // old -> nursery2
@@ -258,14 +258,33 @@ fn o_p_n2_write_barrier(o) {
 }
 ```
 
+As you can see, the `touched1` mark takes precedence over the `touched2` mark,
+this is because the old object needs to stay in the touched list for some more
+time and this is described in case `#6`.
+
 6. Case `#6`
 
-Here we have an old object pointing to a nursery-1 object, this time, 
+Until now we've been using backward write barriers to make sure our garbage
+collector remains conversative enough to avoid potential lost of references, we
+would stick to this type of barrier til to the end. Other programming languages
+like Lua for example, implement generational collectors that rely on forward
+write barriers and hence too many new objects become old which can be really
+inconvenient here. Why? Because when a nursery-1 object is referenced by an old
+object, there's a chance that the old object lost references to that nursery-1
+object when this one is already migrated to nursery-2 and if when already in
+nursery-2, ends up being unreachable after the atomic phase, it'll be reclaimed.
+
+the nursery-1 object may have links to other nursery-1 objects that their
+short lifetime does not exceed a 2 GC cycles and thus making the referenced nursery-1
+object old too fast makes these objects become unnecessarily old as the could
+be collected in nursery-2.
+
+
 
 ```
 fn o_p_n1_write_barrier(o) {
 
-   // mark 'touched1', 'o' already in 'touched_list'.
+   // mark 'touched1', 'o' already in the touched list
    o.touched1(1), assert(o.is_gray()), return if o.is_touched2;
 
    mark_gray(o);
