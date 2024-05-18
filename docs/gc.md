@@ -17,7 +17,7 @@ bytecode, a maatine can switch between any of its states or states from other
 maatines gotten via sharing points. Each maatine performs its collection in
 incremental or genenrational mode and makes sure an object unreachable to the
 maatine that owns it, referenced by a live objects from other maatines, is not
-reclamed by the GC. This is achieved by establishing a synchronization point at
+reclaimed by the GC. This is achieved by establishing a synchronization point at
 the end of each atomic phase where all collectors have to wait for some times(by
 probably switching to the mutator) before proceeding to the sweep phase. That
 said, a lot must be considered to assure coherency and efficient
@@ -33,7 +33,7 @@ Only a few number of maatines (lightweight threads) might need a collective GC
 but we must do it this way to avoid loss of references of shared objects,
 stoping the world and using multiple threads to perform a collection can
 introduce very long pauses in a multi-task environment since many threads in the
-threadpool would be stuck on long running C code. Having each maatine
+threadpool will be stuck on long running C code. Having each maatine
 performing a collection in steps can be very beneficial as it does not only
 reduces these pauses but prevent other virtual threads from starving.
 
@@ -111,15 +111,15 @@ survive because we happened to GC during their short lifetime.
 
 We have three generations--nursery-1, nursery-2 and old. Objects become old when
 they've survived two GC cycles, that's the first in nursery-1 and the second in
-nursery-2. After sweeping the first generation(nursery-1) in the first cycle,
-survivals are migrated to the second generation(nursery-2) and only survivals in
-the second generation of the second cycle are then migrated to the old
+nursery-2. After sweeping the first generation (nursery-1) in the first cycle,
+survivals are migrated to the second generation (nursery-2) and only survivals
+in the second generation of the second cycle are then migrated to the old
 generation. That's not just all, we might get into a situation where old objects
 point to objects in either nursery-1 or 2 and objects in nursery-2 pointing to
 objects in nursery-1. In other generational gc implementations where new objects
 only have to survive one GC cycle before being migrated to the old generation,
 we would simple have to implement a backward write barrier to track all old
-objects(touched objects) referencing the new ones so we can later on traverse
+objects (touched objects) referencing the new ones so we can later on traverse
 them in the atomic phase and blacken every encountered object from there since
 we're not really sure of the liveness of old objects. At the end of the cycle,
 blackened objects become old and the generational invariant is not broken until
@@ -145,7 +145,7 @@ detected object is marked `touched` as we are not sure of its liveness until
 nursery2 is swept. Case `#2` and `#3` dicusses how useful is this mark in case
 the detected object is migrated to the old generation. In this our case, the
 detected object ends up dead after the atomic phase and it'll simply be
-reclamed. An object reclamed in nursery-2 simply proofs that the life time of
+reclaimed. An object reclaimed in nursery-2 simply proofs that the life time of
 short-living that object exceeds a single GC cycle.
 
 2. Case `#1`
@@ -158,8 +158,8 @@ blackened before the sweeping phase.
 
 3. Case `#2` and `#3`
 
-An object in nursery-2 can still be reclamed by the garbage collector, if it's
-not reclamed when nursery-2 is swept, it means it has been blackened in the
+An object in nursery-2 can still be reclaimed by the garbage collector, if it's
+not reclaimed when nursery-2 is swept, it means it has been blackened in the
 atomic phase and will be migrated to the old generation, but wait..., what
 happens if the mutator makes this object point to an object in nursery 1 before
 the atomic phase? You may have not figured it out yet, this black object
@@ -176,8 +176,9 @@ nursery-1 are migration to nursery-2 and in the next GC cycle they're finally
 migrated to the old generation.
 
 In simple terms, the nursery-2 object migrated to the old generation is added to
-the list of touched objects because its still have links to object in nursery-1
-which may be collected when they would be in nursery-2.
+the list of touched objects because it still has references nursery-1 objects
+which may be collected when migrated to nursery-2 and you don't want this to
+happen.
 
 ```
 // Rough pseudo-code demonstrating how objects in nursery-2 are swept.
@@ -237,11 +238,13 @@ After the sweep phase:
 
 This is a special case of the previous one where the nursery-2 object being
 pointed to, points to a nursery-1 object. Though the nursery-2 object is
-`touched`, it does not necessarily guarantee that it won't be reclamed. So when
+`touched`, it does not necessarily guarantee that it won't be reclaimed. So when
 a write barrier detects an old object pointing to a `touched` nursery-2 object,
 the old object is grayed, marked `touched2`, and pushed onto the touched list
 just like we did with Case `#5`. What is done in Case `#4` after the sweep phase
 is also done here.
+
+Rough pseudo-code implement a write backward barrier for a nursery-2 object.
 
 ```
 // old -> nursery2
@@ -249,7 +252,7 @@ fn o_p_n2_write_barrier(o) {
 
    assert(o.is_gray()), return if o.is_touched1;
 
-   mark_gray(o);
+   o.mark_gray;
 
    // make 'o' 'touched2'
    o.is_touched2(1);
@@ -266,28 +269,85 @@ time and this is described in case `#6`.
 
 Until now we've been using backward write barriers to make sure our garbage
 collector remains conversative enough to avoid potential lost of references, we
-would stick to this type of barrier til to the end. Other programming languages
+will stick to this type of barrier til to the end. Other programming languages
 like Lua for example, implement generational collectors that rely on forward
 write barriers and hence too many new objects become old which can be really
 inconvenient here. Why? Because when a nursery-1 object is referenced by an old
 object, there's a chance that the old object lost references to that nursery-1
-object when this one is already migrated to nursery-2 and if when already in
-nursery-2, ends up being unreachable after the atomic phase, it'll be reclaimed.
+object when this one is already migrated to nursery-2 and if when in nursery-2,
+ends up being unreachable after the atomic phase, it'll be reclaimed with all
+other unreachable objects it points to.
 
-the nursery-1 object may have links to other nursery-1 objects that their
-short lifetime does not exceed a 2 GC cycles and thus making the referenced nursery-1
-object old too fast makes these objects become unnecessarily old as the could
-be collected in nursery-2.
+Here is a Maat code (not a pseudo-code!) that will serve us as an example to
+demonstrate how marking nursery-1 objects old too fast, could unecessarily full
+up the old generation.
+
+```maat
+GC.mode('gen');
+
+let a = <>;
+
+GC.collect;
+GC.collect;
+// Collectible object in 'a' is officially old
+
+// This calls a write barrier
+a[1] = <Darfur El-Fasher>;
+
+GC.collect;
+
+// ...
+
+a[1] = nil;
+// <Darfur El-Fasher> is not eligible for collection
+
+// ...
+
+GC.collect;
+```
+
+If the write barrier makes the collectible object is in `a[1]` old, the object
+will only be a candidate for collection in the next major collection which is
+too far and not efficient because the reference by the old object could be lost
+as in the above case. When the reference is lost, nothing proofs wrong that the
+new object made old could potentially be unreachable if it was instead marked
+touched and get migrated to nursery-2. Another drawback of using a forward write
+barrier in a generational collection where new objects have to survive 2 GC
+cycles in order to become old is how it enforces us to have two many kinds of
+old generation because a nursery-1 object marked old still hold pointers to
+non-old objects and directly moving it to the old generation will result to so
+many write barriers which is why programming languages like Lua revisits these
+marked old nursery-1 objects in each GC cycle until the non-old objects they
+point to become old, this is a bit similar to what we are going to do but much
+simpler.
+
+As said before, a nursery-1 object pointed by an old object could still be
+collected in nursery-2 and even if it's not, it's still got pointers to other
+objects of its generation and therefore, to instantly mark it old is not a
+option to us. To make sure it gets migrated to the old generation together with
+survivals objects of its generation that it may or not have references to, we
+push the old object that points to the nursery-1 object onto the touched list
+and make sure it stays there until all the surviving objects of the generation
+of that nursery-1 object including the nursery-1 object itself become old, i.e
+they'll be migrated to nursery-2 and then to the old generation while the
+touched mark of the old (touched) object is change from `touched1` to
+`touched2`. This approach provides a benefit: in case the old object loses
+reference to the already migrated to nursery-2 the nursery-1 object, the
+migrated object will be reclaimed when nursery-2 will be swept unless it's still
+reachable from the root set or other old (touched) objects from the touched
+list.
 
 
+Rough pseudo-code implement a write backward barrier for a nursery-1 object.
 
 ```
+// old -> nursery1
 fn o_p_n1_write_barrier(o) {
 
    // mark 'touched1', 'o' already in the touched list
-   o.touched1(1), assert(o.is_gray()), return if o.is_touched2;
+   o.touched1(1), assert(o.is_gray), return if o.is_touched2;
 
-   mark_gray(o);
+   o.mark_gray;
 
    // make 'o' 'touched1'
    o.touched1(1);
@@ -296,18 +356,26 @@ fn o_p_n1_write_barrier(o) {
 }
 ```
 
+Rough pseudo-code that demonstrates what happens to the touched list after all
+migrations of a GC cycle have been done.
+
 ```
-// Rough demonstration of what happens in 'touched_list' after all migrations.
 let tl = touched_list(maa);
-let iter = tl;
+let (iter, prev) = tl;
 
 while iter != nil {
    let o = iter.obj;
 
    if o.is_touched2 {
       tl = iter.next if iter = tl;
-      iter
+      prev.next = iter.next;
    }
+   else {
+      o.touched2(1);
+      prev = iter;
+   }
+
+   iter = iter.next;
 }
 ```
 
@@ -389,7 +457,7 @@ The way we designed our garbage collector makes objects of namespaces' global
 symbols pretty hard to manage, in most programming languages, these globals form
 part of the root set but it is rather a completely different thing here. A
 maatine can perform a collection at anytime and thus colors can be concurrently
-set to a collectable object leading to data race and lost of references. Let's
+set to a collectible object leading to data race and lost of references. Let's
 consider a case where a maatine in the mark phase of its collection marks all
 objects of global symbols black and another maatine which is in the sweep phase
 of its collection changes the colors of all reachable objects back to white for
@@ -400,9 +468,9 @@ problem since they're now treated as garbage.
 4. Arguments to Maatine calls
 
 A newly started maatine simply invokes a function in a new state with arguments
-(potentially collectable values) gotten from the maatine that started this one.
+(potentially collectible values) gotten from the maatine that started this one.
 Collectable values passed to a function call are passed by reference and thus
-these collectable values become shared.
+these collectible values become shared.
 
 5. Channels
 
@@ -453,7 +521,7 @@ contain rooted objects the maatine owns. In normal circumstances the collector
 should only traverse objects of that maatine to propagate marks but due to the
 fact that objects can be shared accross maatines, the collector might encounter
 a shared object that does not belong to this maatine. As we said from the start,
-memory of objects should only be reclamed by the collector that ran the
+memory of objects should only be reclaimed by the collector that ran the
 collection for the maatine owning those objects which is why any encountered
 shared object we don't own from the worklist will first be marked **gray** and
 be either processed or send to the share worklist of the maatine that owns it.
@@ -480,7 +548,7 @@ let gstate = Enum.new(<
                         pause
                      >);
 
-// Abstract representation of a garbage collectable object
+// Abstract representation of a garbage collectible object
 let obj = {
    // ...
    color  => gcolor<white>,
