@@ -328,25 +328,24 @@ what we are going to do here but much simpler.
 
 As said before, a nursery-1 object pointed by an old object could still be
 collected in nursery-2 and even if it's not, it's still got pointers to other
-objects of its generation and therefore, to instantly mark it old is not a
-option to us. To make sure it gets migrated to the old generation together with
-survivor objects of its generation that it may or not have references to, we
-push the old object that points to the nursery-1 object onto the touched list
-and make sure it stays there until all the survivor objects of the generation of
-that nursery-1 object including the nursery-1 object itself become old, i.e
-they'll be migrated to nursery-2 and then to the old generation while the
-touched mark of the old (touched) object is change from `touched1` to
-`touched2`. This approach provides a benefit: in case the old object loses
-reference to the already migrated to nursery-2 the nursery-1 object, the
-migrated object will be reclaimed when nursery-2 will be swept unless it's still
-reachable from the root set or other old (touched) objects from the touched
-list.
+objects of its generation which is why to instantly mark it old is not a option.
+To make sure it gets migrated to the old generation together with survivor
+objects of its generation that it may or not have references to, we push the old
+object that points to the nursery-1 object onto the touched list and make sure
+it stays there until all the survivor objects of the generation of that
+nursery-1 object including the nursery-1 object itself become old, i.e they'll
+be migrated to nursery-2 and then to the old generation while the touched mark
+of the old (touched) object is change from `touched1` to `touched2`. This
+approach provides a benefit: in case the old object loses reference to the
+already migrated to nursery-2 the nursery-1 object, the migrated object will be
+reclaimed when nursery-2 will be swept unless it's still reachable from the root
+set or other old (touched) objects from the touched list.
 
 
 Rough pseudo-code implementing a write backward barrier for nursery-1 objects:
 
 ```
-// old -> nursery1
+// old -> nursery-1
 fn o_p_n1_write_barrier(o) {
 
    // mark 'touched1', 'o' already in the touched list
@@ -362,7 +361,7 @@ fn o_p_n1_write_barrier(o) {
 ```
 
 Rough pseudo-code that demonstrates what happens to the touched list after all
-migrations of a GC cycle have been done:
+the migrations in a GC cycle have been performed.
 
 ```
 let tl = touched_list(maa);
@@ -392,19 +391,34 @@ Some key notes:
 
 * The list of touched objects of a maatine should only contain `touched1` and
   `touched2` objects.
-* After `touched1` objects after a GC cycle are changed to `touched2` and
-  remains in the touched list until all the nursery-1 objects in the generation
-  of the object the touched objects points to are migrated to the old
+* All `touched1` objects after every GC cycle should be changed to `touched2`
+  and remains in the touched list until all the nursery-1 objects in the
+  generation of the object the touched objects points to are migrated to the old
   generation.
-* All `touched2` objects are dropped off the list after GC cycle.
-* A nursery-1 object referenced by an old object could might still be collected
-  when migrated to nursery-2.
+* All `touched2` objects are dropped off from the list after every GC cycle.
+* A nursery-1 object referenced by an old object might still be collected when
+  migrated to nursery-2.
 
-### Incremental Major Collection
+### Major Collection (Incrementally)
+
+Minor collections are done in a single garbage collection step because the
+number of short-lived objects is relatively small and thus the marking and
+sweeping operations are relatively inexpensive in terms of time. In contrast,
+the cost of a major collection is about the same as for a stop-the-world basic
+mark-and-sweep garbage collector which is why in non-emergency situations,
+proceeding with incremental major collection is very beneficial.
+
+Performing a non-incremental major collection after a minor collection
+essentially involves the following steps:
+
+* 
+
+
+### Collection Parameters
 
 
 
-### Collection Pace
+
 
 ### Finalizers
 
@@ -416,11 +430,11 @@ Some key notes:
 
 ### Description
 
-### Collection Pace
+### Collection Paramaters
 
 ### Finalizers
 
-## Major problems faced during collection
+## Other major problems faced during collection
 
 ### Collection of open upvalues scattered across states of a Maatine
 
