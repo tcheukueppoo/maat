@@ -386,8 +386,7 @@ while iter != nil {
 }
 ```
 
-
-Some key notes:
+Some key points:
 
 * The list of touched objects of a maatine should only contain `touched1` and
   `touched2` objects.
@@ -401,12 +400,12 @@ Some key notes:
 
 ### Major Collection (Incrementally)
 
-Minor collections are done in a single garbage collection step because the
+A minor collections is done in a single garbage collection step because the
 number of short-lived objects is relatively small and thus the marking and
 sweeping operations are relatively inexpensive in terms of time. In contrast,
 the cost of a major collection is about the same as for a stop-the-world basic
 mark-and-sweep garbage collector which is why in non-emergency situations,
-proceeding with incremental major collection is very beneficial.
+proceeding with an incremental major collection is very beneficial.
 
 Performing a non-incremental major collection after a minor collection
 essentially involves the following steps:
@@ -415,6 +414,17 @@ essentially involves the following steps:
 
 
 ### Collection Parameters
+
+We have multiple parameters that control the Maat garbage collector's behavoir,
+here, we are going to discuss the ones common to the two type of collectors Maat
+implements and dive deep into the ones specific to the generational collector.
+
+1. Garbage Collection Debt
+
+
+
+
+
 
 
 
