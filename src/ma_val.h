@@ -232,7 +232,6 @@ typedef struct Str {
    Header;
    UByte sl;
    UByte check;
-   Object *gcl;
    union {
       struct Str *snext;
       size_t len;

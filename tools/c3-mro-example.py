@@ -8,7 +8,11 @@ class A(object):
     def meth3(self):
         print("A::meth3")
 
-class B(A):
+k = {
+    "one": [ [ A ] ]
+}
+
+class B(k["one"][0][0]):
     def meth2(self):
         print("B::meth2")
 

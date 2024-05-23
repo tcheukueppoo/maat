@@ -4,7 +4,7 @@
 #include "ma_val.h"
 #include "ma_state.h"
 
-/* $$Map of short strings $map, it has size $size, capacity $cap. */
+/* @@Map of short strings @map, it has size @size, capacity @cap. */
 typedef struct SMap {
    Int size;
    Int cap;
@@ -12,33 +12,40 @@ typedef struct SMap {
 } SMap;
 
 /*
- * $$Data common to all Maatines, mutex must be used for some
+ * @@Data common to all Maatines, mutex must be used for some
  * of these variables.
  */
 typedef struct GMaa {
-   /* $seed: Random seed for Maps. */
+   /* @seed: Random seed for Maps. */
    UInt seed;
 
    /*
-    * $scache: Caching strings to reuse later, as it is shared
+    * @scache: Caching strings to reuse later, as it is shared
     * across maatines.
     */
    MStr scache[M_SCACHE][N_SCACHE];
    /* TODO: librs fields */
 
    /*
-    * $smap: Map of short strings, we reuse short strings and
+    * A Map to cache the visual length each of utf-8 string, do not
+    * forget to delete entries of strings whose memory was reclaimed.
+    */
+   Map vlcache;
+   /* TODO: librs fields */
+
+   /*
+    * @smap: Map of short strings, we reuse short strings and
     * never avoid duplicates, this is not to be confused with
-    * $scache.
+    * @scache.
     */
    SMap smap;
    /* TODO: librs fields */
 
    /*
-    * $ns_names: Map of namespaces, each ns name corresponds to
-    * an index of $ns_buf. It is used for checks at compile time
+    * @ns_names: Map of namespaces, each ns name corresponds to
+    * an index of @ns_buf. It is used for checks at compile time
     * so that each namespace has a unique index.
-    * $ns_buf: A buffer of namespaces, since ns resolution is done
+    * @ns_buf: A buffer of namespaces, since ns resolution is done
     * at compile time, each namespace is accessible here via a
     * unique index and hence zero collision at runtime.
     */
@@ -51,28 +58,28 @@ typedef struct GMaa {
 } GMaa;
 
 /*
- * $$The Maatine object, it represents a VM-level thread with its
- * execution scheduled by maat's runtime scheduler.
+ * @@The Maatine object, it represents a VM-level thread with
+ * its execution scheduled by maat's runtime scheduler.
  */
 typedef struct Maa {
    Header;
 
-   /* $status: Status of this Maatine. */
+   /* @status: Status of this Maatine. */
    UByte status;
 
-   /* $id: The id of this Maatine. */
+   /* @id: The id of this Maatine. */
    Uint id;
 
    /*
-    * $state: Initial state of this Maatine as we know Maatines
+    * @state: Initial state of this Maatine as we know Maatines
     * can switch its state to that of a Coroutine or Gfun.
     */
    State *state;
 
-   /* $co: Pointer to the first coroutine of this Maatine. */
+   /* @co: Pointer to the first coroutine of this Maatine. */
    State *co;
 
-   /* $mvm: An instance of a VM this Maatine is attached to. */
+   /* @mvm: An instance of a VM this Maatine is attached to. */
    struct MVM *mvm;
 
    Mem debt;
@@ -80,7 +87,7 @@ typedef struct Maa {
    UMem estimate;
 
    /*
-    * $gc_fgcc:
+    * @gc_fgcc:
     *   Controls whether the maatine has done its first GC cycle
     *   for the first GC round. 1 if yes; 0 otherwise.
     */
@@ -107,13 +114,13 @@ typedef struct Maa {
    Object *fin_old;
    Object *fin_old2;
 
-   /* $mma: Points to the main Maatine. */
+   /* @mma: Points to the main Maatine. */
    Ma *mma;
 
-   /* $states_uvs: list of states with open upvals */
-   State *states_uvs
+   /* @states_uvs: list of states with open upvals */
+   State *state_wuv
 
-   /* $gma: Points to the data common to all Maatines. */
+   /* @gma: Points to the data common to all Maatines. */
    GMa *gma;
 } Maa;
 

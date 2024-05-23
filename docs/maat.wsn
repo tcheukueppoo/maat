@@ -291,7 +291,7 @@ spec_lex_scoped   = dec_int | "N"  | "*" | "." .
 spec_main_package =   "V"   | "O"  | "," | "/"
                     | "|"   | """" | "@" | "0"
                     | "("   | "<"  | "F" | "*"
-                    | "."   | "!"  | "N" .
+                    | "."   | "!"  | "N" | "SIG" .
 
 non_zero_digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" .
 ascii_digit    = "0" | non_zero_digit .

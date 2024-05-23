@@ -78,7 +78,7 @@ typedef struct CallFrame {
     *   attribute buffer.
     * - @cc3: 
     */
-   UByte a_offset;
+   UByte f_offset;
    UByte *cc3;
 
 } CallFrame;
