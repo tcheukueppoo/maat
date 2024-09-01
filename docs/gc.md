@@ -3,38 +3,37 @@
 Maat does generational and incremental garbage collection **without** stoping
 the world. Technically, it either simply do an incremental collection or a
 somehow incremental generational collection, it makes sure all maatines
-collectively performing a garbage collection in small steps as it can
+collectively performing a garbage collection in small steps since doing so can
 significantly reduce latency. This section assumes you know what incremental and
-generational collection is and focuses more on implementation, optimization,
-and synchronization details, if you don't know yet, check the below links to
+generational collection are and focuses more on implementation, optimization,
+and synchronization details. If you don't know yet, check the below links to
 know what generational and incremental garbage collection are.
 
 We are in a concurrent system where maatines a.k.a VM-level non-blocking threads
 are scheduled by the Maat runtime scheduler to run over operating system
 threads. A maatine is basically a lightweight or virtual thread that has at
 least one state a.k.a context with each state owning a stack to execute some
-bytecode, a maatine can switch between any of its states or states from other
+bytecode. A maatine can switch between any of its states or states from other
 maatines gotten via sharing points. Each maatine performs its collection in
 incremental or genenrational mode and makes sure an object unreachable to the
 maatine that owns it, referenced by a live objects from other maatines, is not
 reclaimed by the GC. This is achieved by establishing a synchronization point at
-the end of each atomic phase where all collectors have to gather times(by
-probably switching to the mutator) before proceeding to the sweep phase. That
-said, a lot must be considered to assure coherency and efficient
-synchronization. Before you start arguing the sense behind doing an incremental
-generational garbage collection, note that an incremental collection in
-generational mode is performed in a major collection since short living objects
-are small enough for a minor collection to be considered as a single garbage
-collection step.
+the end of each atomic phase where all collectors have to gather before
+proceeding to the sweep phase. That said, a lot must be considered to assure
+coherency and efficient synchronization. Before you start arguing the sense
+behind doing a generational garbage collection incrementally, note that an
+incremental collection in generational mode is only performed in a major
+collection since short living objects are small enough for a minor collection to
+be done in multiple garbage collection steps.
 
-Why have we choosen this design:
+Why have we choosen this approach:
 
 Only a few number of maatines (lightweight threads) might need a collective GC
-but we must do it this way to avoid loss of references of shared objects,
-stoping the world and using multiple threads to perform a collection can
+but we must synchronize this way to avoid loss of references of shared objects.
+Stoping the world and using multiple threads to perform a collection can
 introduce very long pauses in a multi-task environment since many threads in the
-threadpool will be stuck on long running C code. Having each maatine
-performing a collection in steps can be very beneficial as it does not only
+threadpool will be stuck on long running C code and therefore having each maatine
+perform a collection in steps can be very beneficial as it does not only
 reduces these pauses but prevent other virtual threads from starving.
 
 Since we are in a multi-threaded environment, they're so many subtleties we'll
@@ -50,7 +49,7 @@ most of the time insist on the fact that Maat can run in a multi-threaded
 environment, this is because effectively handling concurrent execution of Maat
 code is one of the design goals of Maat, we have threads that perform GC in
 steps and that's good, but a given collection pace is not always the best for
-certain cases and as a consequence it can make our program consume too much
+certain cases and as a consequence our program can consume too much
 memory which is why having too many potentially unreachable objects in the old
 generation which are later on collected in GC **steps** can unwantedly reduce
 the proportion of collection to memory usage as the mutator also has the right
@@ -128,9 +127,9 @@ the atomic phase and blacken every encountered object from there since we're not
 really sure of the liveness of old objects. At the end of the cycle, all the
 blackened objects become old and the generational invariant is not broken until
 the mutator runs before the next GC cycle and thus the list of touched objects
-will simple be dropped every sweeps. In our own implementation, unreachable
-objects can be swept both in nursery-1 and 2 which can break the generational
-invariant just right after migrations.
+will simple be dropped at the end of every sweeps. In this implementation,
+unreachable objects can be swept both in nursery-1 and 2 which can break the
+generational invariant just right after migrations.
 
 No matter how complicated this will look, the main aim is to make sure that when
 the generational invariant is broken by making an old object point to any
@@ -162,7 +161,7 @@ blackened before the sweeping phase.
 
 3. Case `#2` and `#3`
 
-An object in nursery-2 can still be reclaimed by the garbage collector, if it's
+An object in nursery-2 can still be reclaimed by the garbage collector but if it's
 not reclaimed when nursery-2 is swept, it means it has been blackened in the
 atomic phase and thus, will be migrated to the old generation, but wait..., what
 happens if the mutator makes this object point to an object in nursery-1 before
@@ -390,18 +389,18 @@ Some key points:
 
 * The list of touched objects of a maatine should only contain `touched1` and
   `touched2` objects.
-* All `touched1` objects after every GC cycle should be changed to `touched2`
-  and remains in the touched list until all the nursery-1 objects in the
-  generation of the object the touched objects points to are migrated to the old
+* All `touched1` objects are changed to `touched2` after every GC cycle and
+  remain in the touched list until all the nursery-1 objects in the generation
+  of the object the touched objects points to are migrated to the old
   generation.
-* All `touched2` objects are dropped off from the list after every GC cycle.
+* All `touched2` objects are dropped off the list after every GC cycle.
 * A nursery-1 object referenced by an old object might still be collected when
   migrated to nursery-2.
 
 ### Major Collection (Incrementally)
 
 A minor collections is done in a single garbage collection step because the
-number of short-lived objects is relatively small and thus the marking and
+number of short-lived objects are relatively small and thus the marking and
 sweeping operations are relatively inexpensive in terms of time. In contrast,
 the cost of a major collection is about the same as for a stop-the-world basic
 mark-and-sweep garbage collector which is why in non-emergency situations,
@@ -448,8 +447,8 @@ implements and dive deep into the ones specific to the generational collector.
 
 ### Collection of open upvalues scattered across states of a Maatine
 
-A Maatine has at least one state which with the use of its own stack, simply has
-to run a function which is literally just a closure that possibly has open
+A Maatine has at least one state which with the use of its own stack runs
+a function which is literally just a closure that possibly has open
 upvalues pointing to values living in the stack of another state (if any) of
 this same maatine, the latter state may have not been marked and ends up
 collected but before this has to happen, its open upvalues that have been marked
