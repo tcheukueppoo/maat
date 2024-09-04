@@ -526,7 +526,7 @@ the object is immutable.
 
 Unfortunately, the only feasible way to implement this for now is by having each
 GC object track the id of the maatine that allocated him and thus channeling a
-GC object from one maatine to another also implies transfer ownership by
+GC object from one maatine to another also implies transfering ownership by
 changing the object's id. This technique is not space efficient as it will
 require an additional field in the header common to all objects.
 
@@ -550,29 +550,28 @@ this by making sure the first two sweeps in the gc of a maatine (`sweep_gcs` and
 `sweep_fin`) put unreachable shared objects in the gc's LSO. An LSO sweep can
 only be done when all maatines have initiated a gc run that has passed the
 atomic phase as it'll assure all reachable shared objects are marked and avoid
-loss of references. This means that a garbage collector of a maatine will wait
+loss of references. This means that the garbage collector of a maatine will wait
 until all the other garbage collectors of the other maatines have passed the
 atomic phase(`atomic`) before sweeping its LSO, this is not really bad because
 most objects are maatine-local and have already been freed in the previous
 sweeps.
 
 When an OS thread starts the garbage collector for a maatine, it'll have to
-process the maatine' worklist of objects which at the start logically should
+process the maatine' worklist of objects which at the start should logically
 contain rooted objects the maatine owns. In normal circumstances the collector
 should only traverse objects of that maatine to propagate marks but due to the
 fact that objects can be shared accross maatines, the collector might encounter
 a shared object that does not belong to this maatine. As we said from the start,
-memory of objects should only be reclaimed by the collector that ran the
-collection for the maatine owning those objects which is why any encountered
-shared object we don't own from the worklist will first be marked **gray** and
-be either processed or send to the share worklist of the maatine that owns it.
-Whether to process or send the object to the share worklist of its owner depends
-on the garbage collection state of the owner. Every encountered shared object
-we don't own might have links to objects we own and so if we cannot send shared
-objects to the share worklist of their owners and rely on them to forward back
-our objects to our share worklist, we'll be obliged to process them in our
-worklist with the aim of blackening objects we own and marking **shared** and
-**gray** shared objects we don't own.
+memory of objects should only be reclaimed by the collector of the maatine
+owning those objects which is why any encountered shared object we don't own
+from the worklist will first be marked **gray** and be either processed or send
+to the share worklist of its owner. Whether to process or send the object to the
+share worklist of its owner depends on the garbage collection state of the
+owner. Every encountered shared object we don't own might have links to objects
+we own and so if we cannot send shared objects to the share worklist of their
+owners and rely on them to forward back our objects to our share worklist, we'll
+be obliged to process them in our worklist with the aim of blackening objects
+we own and marking **shared** and **gray** shared objects we don't own.
 
 ```maat
 // Possible objects' colors
@@ -583,6 +582,7 @@ let gstate = Enum.new(<
                         propagate
                         atomic
                         end_atomic
+                        propagate_lso
                         sweep_gcs
                         sweep_fin
                         call_tobefin
@@ -609,16 +609,16 @@ objects it does not own.
 **What is a share worklist?**
 
 Each maatine has its own share worklist which contains shared objects that it
-owns and were found by other maatines when going through their worklist. Don't
-misunderstand the meaning of "share" in share worklist as a list containing any
-shared object, these shared object should only be owned by the maatine that owns
-the list. Processing a share worklist is all about marking every objects in the
-list gray and shared before the sweep phase.
+owns and were found by other maatines when they were going through their
+worklists. Don't misunderstand the meaning of "share" in share worklist as a
+list containing any shared object, these shared object should only be owned by
+the maatine that owns the list. Processing a share worklist is all about marking
+every objects in the list gray and shared before the sweep phase.
 
 **Why and when to send a shared object we don't own to the share worklist of the
 maatine that owns it**
 
-Any shared object we don't own encountered in our worklist **may** links to
+Any shared object we don't own encountered in our worklist **may** have links to
 objects we own, this truly is not just an assumption and there is no garantee
 that the objects we own linked to this shared object is reachable from our root
 set. It's very hard to speculate on the number of objects we own that are
@@ -676,20 +676,47 @@ fn send_share_object_to_share_list(ma, obj) {
 shared object we don't own shared?**
 
 Remember that we only marked "shared" top-level shared objects at sharing
-points, objects directly/indirectly linked to these top-level object which
-logically should also be marked shared where not marked shared and this was a
-wise move because it actually did avoid pauses. We are in the middle of a gc run
-which means that we'll eventually traverse object which is an opportunity to
-mark supposed to be marked shared object shared and this is done in the
-following scenarios:
+points, objects directly/indirectly linked to these top-level objects which
+logically should also be marked "shared" where not marked and this was made so
+to avoid pauses. We are in the middle of a gc run which means that we'll
+eventually traverse object which is an opportunity to mark supposed to be marked
+"shared" object "shared" and this is done in the following scenarios:
+
 
 * When propagating the black mark over shared reachable objects we own, this is
   a great opportunity we have here.
-* The shared mark does not only help us in avoiding lost of references when
+
+* The `propagate_lso` phase, At sharing points, top-level shared objects are
+  added to the LSO of their owners so that at this phase the LSO is processed to
+  propagate the "shared" mark. This phase is right before sweeping phase to
+  avoid freeing not yet marked "shared" some shared objects that ended up being
+  reachable only to maatines they don't belong to. Black shared objects are
+  skipped since the "shared" mark is also propagated when propagating the black
+  mark.
+
+```maat
+let iter = get_lso_list(maa);
+
+while iter != nil {
+    let obj = iter.obj;
+
+    if ! obj.is_black {
+        let objs = objects_directly_linked_to(obj);
+
+        objs.each: .mark_shared;
+        lso_list(maa).append(objs);
+    }
+
+    prev = iter;
+    iter = iter.next;
+}
+```
+  
+* The mark "shared" does not only help us in avoiding lost of references when
   garbage collecting but also helps us in the auto-synchronization of concurrent
   access to shared resources. Which is why whenever operations on complex shared
   object such as arrays, maps return other objects, these objects will be
-  automatically marked shared because they may be subjected to other concurrent
+  automatically marked "shared" because they may be subjected to other concurrent
   access operations.
 * When processing a share worklist. The share worklist of a maatine is processed
   after its worklist has been processed, the aim of processing the share
