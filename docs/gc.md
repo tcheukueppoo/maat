@@ -682,17 +682,16 @@ to avoid pauses. We are in the middle of a gc run which means that we'll
 eventually traverse object which is an opportunity to mark supposed to be marked
 "shared" object "shared" and this is done in the following scenarios:
 
-
 * When propagating the black mark over shared reachable objects we own, this is
   a great opportunity we have here.
 
-* The `propagate_lso` phase, At sharing points, top-level shared objects are
+* The `propagate_lso` phase. At sharing points, top-level shared objects are
   added to the LSO of their owners so that at this phase the LSO is processed to
-  propagate the "shared" mark. This phase is right before sweeping phase to
+  propagate the "shared" mark. This phase is right before the sweeping phase to
   avoid freeing not yet marked "shared" some shared objects that ended up being
   reachable only to maatines they don't belong to. Black shared objects are
-  skipped since the "shared" mark is also propagated when propagating the black
-  mark.
+  skipped from the LSO since the "shared" mark is also propagated when
+  propagating the black mark.
 
 ```maat
 let iter = get_lso_list(maa);
@@ -717,7 +716,9 @@ while iter != nil {
   access to shared resources. Which is why whenever operations on complex shared
   object such as arrays, maps return other objects, these objects will be
   automatically marked "shared" because they may be subjected to other concurrent
-  access operations.
+  access operations. Marking the to-be-returned object "shared" does not require
+  sync since access to the shared object it is linked is sync.
+
 * When processing a share worklist. The share worklist of a maatine is processed
   after its worklist has been processed, the aim of processing the share
   worklist is to mark all objects shared and gray and this is done before the
