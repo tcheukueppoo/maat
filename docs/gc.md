@@ -231,7 +231,7 @@ of old objects until a major collection is done.
 
 After the sweep phase:
 
-* All objects referenced by this old object would be migrated to the old
+* All objects referenced by this old object will be migrated to the old
   generation which means there is no way they can break the invariant unless
   they've got references to objects in nursery-1 (case `#2` and `#3` explained
   how this is tackled).
@@ -418,22 +418,85 @@ We have multiple parameters that control the Maat garbage collector's behavoir,
 here, we are going to discuss the ones common to the two type of collectors Maat
 implements and dive deep into the ones specific to the generational collector.
 
-1. Garbage Collection Debt
+1. Garbage Collection Debt (**GCDebt**)
+
+The garbage collection debt determines how much memory your program owns, it's
+set to a negative value say `-K` where `K` is a positive integer. If the garbage
+collection is greater than or equal to zero then it means Maat needs to perform
+a garbage collection.
+
+Whether incremental or generational collection, a garbage collection step 
+
+```
+fn gc_step (Maa) {
+    if gc_debt(Maa) >= 0 {
+        do_a_gc_step(Maa)
+    }
+}
+```
+
+2. Garbage collection estimate (**GCEstimate**)
+
+This is an estimate of non-garbage memory in use. The garbage collection
+estimate changes after every garbage collection cycle. At the start of the new
+collection, the garbage collection estimate equals the total number of bytes
+allocated in your program and when collecting, numbers of bytes are substracted
+from this estimate for each garbage object whose memory is reclaimed.
+
+3. Garbage Collection Pause Size (**GCPause**)
+
+Defines the wait time between successive garbage collection cycles, it's from
+this parameter that we determine the garbage collection debt. It's a factor that
+determines how much of the initial estimate the memory of your maat program has
+to grow before we start a new garbage collection. At the end of a garbage
+collection cycle, the garbage collection estimate value equals the total number
+of bytes used in a Maat program.
+
+This algorithms calculates the garbage collection debt based on the pause size:
+
+```
+fn cal_gc_debt (Maa) {
+    let estimate = get_gc_estimate(Maa);
+    let pause_size = get_gc_pausesize(Maa);
+    let totalbytes = get_totalbytes(Maa);
+
+    // 
+    assert(totalbytes == estimate);
+
+    // The maximum amount of memory maat can allocate
+    let max_mem = get_max_maat_mem(Maa);
+
+    threshold = (pause < (max_mem / estimate)) ? estimate * pause_size : max_mem;
+    new_debt = totalbytes - threshold
+
+    set_gcdebt(Maa) = new_debt;
+}
+```
+
+Below is an abstract representation of the maat memory:
+
+ After collection (total allocated bytes == garbage collection estimate)
+ +-----------------------------------+
+ |+++++++++++++++++++++++++++++++++++|
+ +-----------------------------------+
+
+                                      <--- GCdebt given 'pause_size' --->
+ +----------------------------------------------------------------------+
+ |++++++++++++++++++++++++++++++++++++##################################|
+ +----------------------------------------------------------------------+
 
 
 
+4. Minor collection size (**MinorSize**)
 
+3. Major collection size (**MajorSize**)
 
-
-
-
-
-
-### Finalizers
 
 ### Weak Maps
 
 ### Ephemeron Maps
+
+### Finalizers
 
 ## Incremental Garbage Collection
 
@@ -451,7 +514,7 @@ A Maatine has at least one state which with the use of its own stack runs
 a function which is literally just a closure that possibly has open
 upvalues pointing to values living in the stack of another state (if any) of
 this same maatine, the latter state may have not been marked and ends up
-collected but before this has to happen, its open upvalues that have been marked
+collected but before this happens, its open upvalues that have been marked
 during the marking phase of the maatine GC run must be closed and painted black
 so that they cannot longer be collected during the sweeping phase.
 
