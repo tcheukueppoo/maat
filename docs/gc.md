@@ -414,28 +414,62 @@ essentially involves the following steps:
 
 ### Collection Parameters
 
-We have multiple parameters that control the Maat garbage collector's behavoir,
-here, we are going to discuss the ones common to the two type of collectors Maat
-implements and dive deep into the ones specific to the generational collector.
+We have multiple parameters that control the behavoir of the Maat garbage
+collector. Here, we are going to discuss the ones common to the two type of
+collectors Maat implements and dive deep into the ones specific to the
+generational collector.
 
 1. Garbage Collection Debt (**GCDebt**)
 
-The garbage collection debt determines how much memory your program owns, it's
-set to a negative value say `-K` where `K` is a positive integer. If the garbage
-collection is greater than or equal to zero then it means Maat needs to perform
-a garbage collection.
-
-Whether incremental or generational collection, a garbage collection step 
+The garbage collection debt determines how much memory your program owns.
+Initially, the debt is set to a negative integer say `-K` which means maat has
+to allocate at least `K` bytes before initiating a GC. In other words if the
+garbage collection debt is greater than zero then it means maat needs to perform
+a collection so as to pay its memory debt.
 
 ```
 fn gc_step (Maa) {
-    if gc_debt(Maa) >= 0 {
-        do_a_gc_step(Maa)
-    }
+   if gc_debt(Maa) > 0 {
+      // an inc or gen step
+      do_a_gc_step(Maa)
+   }
 }
 ```
 
-2. Garbage collection estimate (**GCEstimate**)
+```
+                   0  GCDebt
+-----------------------------------------
+                   ^
+```
+
+When a maat program starts running, it allocates memory for its structures which
+at that time is the total number of bytes allocated in the system. Further
+allocations of objects augment the debt up until it gets to a value greater than
+zero which triggers a collection. Therefore the debt is an essential parameter
+used in calculating the total number of allocated bytes in the system.
+
+Setting the garbage collection debt requires us to substract the debt from the
+total number of bytes such that the debt added to the total number of bytes
+equals the actual number of bytes allocated in the system.
+
+```
+fn set_gc_debt (Maa, debt) {
+    let totalbytes = get_totalbytes(Maa);
+    let max_mem = get_max_maat_mem(Maa);
+
+    debt = totalbytes - max_mem if debt < totalbytes - max_mem;
+
+    set_totalbytes(Maa, totalbytes - debt);
+    set_debt(Maa, debt);
+}
+```
+
+
+
+
+
+
+2. Garbage Collection Estimate (**GCEstimate**)
 
 This is an estimate of non-garbage memory in use. The garbage collection
 estimate changes after every garbage collection cycle. At the start of the new
@@ -467,25 +501,30 @@ fn cal_gc_debt (Maa) {
     let max_mem = get_max_maat_mem(Maa);
 
     threshold = (pause < (max_mem / estimate)) ? estimate * pause_size : max_mem;
-    new_debt = totalbytes - threshold
+    new_debt  = totalbytes - threshold;
 
     set_gcdebt(Maa) = new_debt;
 }
 ```
 
-Below is an abstract representation of the maat memory:
+Below is an abstract representation of the Maat memory:
 
- After collection (total allocated bytes == garbage collection estimate)
+```
+
+ After collection (totalbytes == estimate)
  +-----------------------------------+
  |+++++++++++++++++++++++++++++++++++|
  +-----------------------------------+
+ <--     estimate     --> <--      -->
+```
 
+```
+pause_size = 2
                                       <--- GCdebt given 'pause_size' --->
+ +------------------------------------------------------------------è---+
+ |+++++++++++++++++++++++++++++++++++###################################|
  +----------------------------------------------------------------------+
- |++++++++++++++++++++++++++++++++++++##################################|
- +----------------------------------------------------------------------+
-
-
+```
 
 4. Minor collection size (**MinorSize**)
 
