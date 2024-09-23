@@ -436,12 +436,6 @@ fn gc_step (Maa) {
 }
 ```
 
-```
-                   0  GCDebt
------------------------------------------
-                   ^
-```
-
 When a maat program starts running, it allocates memory for its structures which
 at that time is the total number of bytes allocated in the system. Further
 allocations of objects augment the debt up until it gets to a value greater than
@@ -454,42 +448,53 @@ equals the actual number of bytes allocated in the system.
 
 ```
 fn set_gc_debt (Maa, debt) {
-    let totalbytes = get_totalbytes(Maa);
     let max_mem = get_max_maat_mem(Maa);
 
+    // Actual allocated mem in the system, it's based on the current debt
+    let totalbytes = get_totalbytes(Maa) + get_debt(Maa);
+
+    // Make sure (totalbytes - debt) does not overflow.
     debt = totalbytes - max_mem if debt < totalbytes - max_mem;
 
-    set_totalbytes(Maa, totalbytes - debt);
     set_debt(Maa, debt);
+
+    // (totalbytes + debt) remains unchanged
+    set_totalbytes(Maa, totalbytes - debt);
 }
 ```
 
+```
+                                  Debt
+(Still need to allocate memory)    0   (Owes more than the debt, time to collect)
+---------------------------------------------------------------------------------
+                                   ^
+```
 
-
-
-
+At any time `(get_totalbytes(Maa) + get_debt(Maa))` is always the correct number
+of bytes of memory allocated in the system. As the debt grows to a positive
+value, it's got more bytes to be added to `totalbytes` and when it reduces to
+a negative value, it's got more bytes to be reduced from `totalbytes` which
+happens after the collector has freed unreachable objects.
 
 2. Garbage Collection Estimate (**GCEstimate**)
 
 This is an estimate of non-garbage memory in use. The garbage collection
-estimate changes after every garbage collection cycle. At the start of the new
-collection, the garbage collection estimate equals the total number of bytes
-allocated in your program and when collecting, numbers of bytes are substracted
-from this estimate for each garbage object whose memory is reclaimed.
+estimate changes after every complete garbage collection cycle. At the end of a
+garbage collection cycle, the garbage collection estimate value equals the total
+number of bytes allocated in the system.
 
 3. Garbage Collection Pause Size (**GCPause**)
 
-Defines the wait time between successive garbage collection cycles, it's from
-this parameter that we determine the garbage collection debt. It's a factor that
-determines how much of the initial estimate the memory of your maat program has
-to grow before we start a new garbage collection. At the end of a garbage
-collection cycle, the garbage collection estimate value equals the total number
-of bytes used in a Maat program.
+GCPause defines the wait time between successive garbage collection cycles. It's
+from this parameter that we determine the garbage collection debt, it's also a
+factor that determines how much of the initial estimate of the memory of your maat
+program has to grow before we start a new collection.
 
-This algorithms calculates the garbage collection debt based on the pause size:
+This algorithms calculates based on the pause size and sets the garbage
+collection debt:
 
 ```
-fn cal_gc_debt (Maa) {
+fn cal_and_set_gc_debt (Maa) {
     let estimate = get_gc_estimate(Maa);
     let pause_size = get_gc_pausesize(Maa);
     let totalbytes = get_totalbytes(Maa);
@@ -503,7 +508,7 @@ fn cal_gc_debt (Maa) {
     threshold = (pause < (max_mem / estimate)) ? estimate * pause_size : max_mem;
     new_debt  = totalbytes - threshold;
 
-    set_gcdebt(Maa) = new_debt;
+    set_gc_debt(Maa, new_debt);
 }
 ```
 
@@ -511,22 +516,23 @@ Below is an abstract representation of the Maat memory:
 
 ```
 
- After collection (totalbytes == estimate)
  +-----------------------------------+
  |+++++++++++++++++++++++++++++++++++|
  +-----------------------------------+
- <--     estimate     --> <--      -->
-```
+ <--   estimate   --> <-- garbage -->
 
-```
-pause_size = 2
-                                      <--- GCdebt given 'pause_size' --->
+With pause_size = 2
+                                     <-- New debt given 'pause_size'  -->
  +------------------------------------------------------------------è---+
- |+++++++++++++++++++++++++++++++++++###################################|
+ |+++++++++++++++++++++++++++++++++++???????????????????????????????????|
  +----------------------------------------------------------------------+
+
+Allocations fills in the '?' uptil it triggers a collection
 ```
 
-4. Minor collection size (**MinorSize**)
+4. Minor collection size (**GCMinorSize**)
+
+
 
 3. Major collection size (**MajorSize**)
 
