@@ -530,11 +530,40 @@ With pause_size = 2
 Allocations fills in the '?' uptil it triggers a collection
 ```
 
-4. Minor collection size (**GCMinorSize**)
+4. Minor collection size (**MinorSize**)
 
+GCMinorSIze controls the minor collection pace, it starts a minor collection
+when memory grows `MinorSize%` larger than it was since the last collection.
 
+```
+fn set_minordebt (Maa) {
+    let minor_size = get_minor_size(Maa);
+    let totalbytes = get_totalbytes(Maa) + get_debt(Maa);
+    let debt = ( totalbytes / 100 ) * minor_size;
+
+    set_gc_debt(Maa, -debt);
+}
+```
+
+In a generational step, the collector determines if it's in a condition of
+performing a major collection, if not, it performs a minor collection and sets
+the minor debt for the next generational step.
 
 3. Major collection size (**MajorSize**)
+
+A major collection is performed when memory grows `MajorSize%` larger than the
+garbage collection estimate obtained after the last major collection. For every
+minor collection, the rest of the non-garbage objects from the nursery migrated
+to the old generation will accumulate sufficiently up until the condition to
+perform a major collection is met.
+
+
+```
+fn gen_step (Maa) {
+    let major_base = get_mejor_base(Maa);
+    let totalbytes = get_totalbytes(Maa) + get_debt(Maa);
+}
+```
 
 
 ### Weak Maps
