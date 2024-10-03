@@ -552,18 +552,75 @@ the minor debt for the next generational step.
 3. Major collection size (**MajorSize**)
 
 A major collection is performed when memory grows `MajorSize%` larger than the
-garbage collection estimate obtained after the last major collection. For every
-minor collection, the rest of the non-garbage objects from the nursery migrated
-to the old generation will accumulate sufficiently up until the condition to
-perform a major collection is met.
-
+garbage collection estimate obtained after the last major collection. In a minor
+collection, the rest of the non-garbage objects in the nursery are migrated to
+the old generation. This happens for every minor collection and thus objects
+are accumulated in the old generation up until the condition to perform a major
+collection is met.
 
 ```
-fn gen_step (Maa) {
+fn generational_step (Maa) {
+
+    // Was the previous collection bad?
+    if get_hop_count(Maa) != 0 {
+        smart_full_collection();
+        return
+    }
+
+    // Get the GCEstimate of the last major collection.
     let major_base = get_mejor_base(Maa);
+
+    let major_size = get_major_size(Maa);
     let totalbytes = get_totalbytes(Maa) + get_debt(Maa);
+
+    let major_new = (major_base / 100) * major_size;
+    if totalbytes >= major_base + major_new { 
+        // Do a major collection
+        hop_count = major_collection(Maa);
+
+        // Now test if major collection was good, meaning that it has
+        // freed at least half of the memory that grown.
+        if totalbytes < major_base + (major_new / 2) {
+            // To start doing minor collection
+            assert(hop_count == 0);
+            set_minordebt(Maa);
+        }
+
+        // A bad collection, would switch to inc mode until further
+        // collections becomes good.
+        else {
+            cal_and_set_gc_debt(Maa);
+            // Signal in the next GC cycle that the previous collection was bad
+            set_hop_count(Maa, hop_count);
+        }
+    }
+    
+    // Do a minor collection
+    else {
+        minor_collection(Maa);
+        set_minordebt(Maa);
+    }
 }
 ```
+
+From the Lua programming language perspective, a major collection is said to be
+a good collection if it has freed at least half of the memory that has grown;
+otherwise it's bad. It is also stated that a bad collection arises When a
+running program is building an immensely big data structure, the build
+allocations lots of memory but yields very little garbage and at this time minor
+collections are a waste as they will be called repeatedly to free very little
+memory. These minor collections are unavoidable until they trigger a major
+collection which in most of the cases is potentially a bad collection. When
+this bad collection is detected, the collector decides to switch to the incremental
+mode until a good collection is made.
+
+
+```
+fn set_minordebt (Maa) {
+}
+```
+
+
 
 
 ### Weak Maps
