@@ -561,12 +561,6 @@ collection is met.
 ```
 fn generational_step (Maa) {
 
-    // Was the previous collection bad?
-    if get_hop_count(Maa) != 0 {
-        smart_full_collection();
-        return
-    }
-
     // Get the GCEstimate of the last major collection.
     let major_base = get_mejor_base(Maa);
 
@@ -574,51 +568,59 @@ fn generational_step (Maa) {
     let totalbytes = get_totalbytes(Maa) + get_debt(Maa);
 
     let major_new = (major_base / 100) * major_size;
+
+    // Major collection condition met?
     if totalbytes >= major_base + major_new { 
-        // Do a major collection
-        hop_count = major_collection(Maa);
+        num_objs = major_collection(Maa);
 
         // Now test if major collection was good, meaning that it has
         // freed at least half of the memory that grown.
         if totalbytes < major_base + (major_new / 2) {
             // To start doing minor collection
-            assert(hop_count == 0);
+            assert(num_objs == 0);
             set_minordebt(Maa);
         }
 
         // A bad collection, would switch to inc mode until further
-        // collections becomes good.
+        // collections become good.
         else {
             cal_and_set_gc_debt(Maa);
-            // Signal in the next GC cycle that the previous collection was bad
-            set_hop_count(Maa, hop_count);
+
+            // Signal to the next GC cycle that this one was bad
+            set_num_objs_traversed(Maa, num_objs);
         }
     }
     
-    // Do a minor collection
+    // Do a minor collection and set the minor debt
     else {
         minor_collection(Maa);
         set_minordebt(Maa);
+
+        // Restore it if minor_collection() ever changed it
+        set_major_base(Maa, major_base);
     }
 }
 ```
 
 From the Lua programming language perspective, a major collection is said to be
 a good collection if it has freed at least half of the memory that has grown;
-otherwise it's bad. It is also stated that a bad collection arises When a
+otherwise it's bad. It is also stated that a bad collection arises when a
 running program is building an immensely big data structure, the build
 allocations lots of memory but yields very little garbage and at this time minor
 collections are a waste as they will be called repeatedly to free very little
 memory. These minor collections are unavoidable until they trigger a major
-collection which in most of the cases is potentially a bad collection. When
-this bad collection is detected, the collector decides to switch to the incremental
-mode until a good collection is made.
+collection which in most of the cases is potentially a bad collection. When this
+bad collection is detected, the collector decides to switch to the incremental
+mode until further collections become good.
 
+While in incremental mode, the collector must decides whether to stay in that
+mode or switch back to generational mode. The collector would switch back to
+generational mode when any collection the follows becomes good, which can only
+be determined by comparing the number of objects traversed in the current cycle
+with the one in the previous cycle. So after the atomic cycle, if the number of
+object traversed is considerably lower than the one in the previous cycle, the
+collector switches back to generational mode.
 
-```
-fn set_minordebt (Maa) {
-}
-```
 
 
 
