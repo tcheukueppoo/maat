@@ -400,17 +400,12 @@ Some key points:
 ### Major Collection (Incrementally)
 
 A minor collections is done in a single garbage collection step because the
-number of short-lived objects are relatively small and thus the marking and
-sweeping operations are relatively inexpensive in terms of time. In contrast,
-the cost of a major collection is about the same as for a stop-the-world basic
-mark-and-sweep garbage collector which is why in non-emergency situations,
-proceeding with an incremental major collection is very beneficial.
-
-Performing a non-incremental major collection after a minor collection
-essentially involves the following steps:
-
-* 
-
+number of short-lived objects are small and thus the marking and sweeping
+operations are relatively inexpensive in terms of time. In contrast, the cost of
+a major collection is about the same as for a stop-the-world basic
+mark-and-sweep garbage collector, so proceeding with an incremental major
+collection in non-emergency situations is very beneficial. More is explained
+in the section discussing the `MajorSize` GC parameter.
 
 ### Collection Parameters
 
@@ -552,10 +547,10 @@ the minor debt for the next generational step.
 3. Major collection size (**MajorSize**)
 
 A major collection is performed when memory grows `MajorSize%` larger than the
-garbage collection estimate obtained after the last major collection. In a minor
+garbage collection estimate obtained in the last major collection. In a minor
 collection, the rest of the non-garbage objects in the nursery are migrated to
-the old generation. This happens for every minor collection and thus objects
-are accumulated in the old generation up until the condition to perform a major
+the old generation. This happens for every minor collection and thus objects are
+accumulated in the old generation up until the condition to perform a major
 collection is met.
 
 ```
@@ -602,28 +597,24 @@ fn generational_step (Maa) {
 }
 ```
 
-From the Lua programming language perspective, a major collection is said to be
-a good collection if it has freed at least half of the memory that has grown;
-otherwise it's bad. It is also stated that a bad collection arises when a
-running program is building an immensely big data structure, the build
-allocations lots of memory but yields very little garbage and at this time minor
-collections are a waste as they will be called repeatedly to free very little
-memory. These minor collections are unavoidable until they trigger a major
-collection which in most of the cases is potentially a bad collection. When this
-bad collection is detected, the collector decides to switch to the incremental
-mode until further collections become good.
-
-While in incremental mode, the collector must decides whether to stay in that
-mode or switch back to generational mode. The collector would switch back to
-generational mode when any collection the follows becomes good, which can only
-be determined by comparing the number of objects traversed in the current cycle
-with the one in the previous cycle. So after the atomic cycle, if the number of
-object traversed is considerably lower than the one in the previous cycle, the
-collector switches back to generational mode.
-
-
-
-
+In the Lua programming language, it's stated that a major collection is said to
+be a good collection if it has freed at least half of the memory that has grown
+since the last major collection; otherwise it's bad. It's also stated that a bad
+major collection arises when a running program is building an immensely big
+data structure, the build allocats lots of memory but yields very little garbage
+and at this time minor collections are a waste as they will be called
+repeatedly to free very little or no memory. These minor collections are
+unavoidable until they trigger a major collection which in most of the cases is
+potentially a bad collection. When this bad collection is detected, the
+collector switches to incremental mode in order to improve performance and later
+on returns to generational mode when any further collection is good. We
+determine whether or not a major collection is good after its atomic phase by
+comparing the complete number of objects traversed with the one of the previous
+major collection. If the number of object traversed is considerably lower than
+the one of the previous major collection, the collection is said to be good and
+collector switches back to generational mode before finishing its cycle and set
+the minor debt for the next cycle. As in normal incremental mode, a major
+collection can go full in emergency situations.
 
 ### Weak Maps
 
@@ -633,7 +624,11 @@ collector switches back to generational mode.
 
 ## Incremental Garbage Collection
 
-### Description
+THe maat programming language also got an incremental garbage collector where it
+interleaves its execution with that of the collector. From the garbage
+collector's point of view, the program is just some nuisance changing the data
+it is trying to collect and hence it called the mutator.
+
 
 ### Collection Paramaters
 
