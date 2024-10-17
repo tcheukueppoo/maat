@@ -614,7 +614,7 @@ major collection. If the number of object traversed is considerably lower than
 the one of the previous major collection, the collection is said to be good and
 collector switches back to generational mode before finishing its cycle and set
 the minor debt for the next cycle. As in normal incremental mode, a major
-collection can go full in emergency situations.
+collection goes full in emergency situations.
 
 ### Weak Maps
 
@@ -624,10 +624,28 @@ collection can go full in emergency situations.
 
 ## Incremental Garbage Collection
 
-THe maat programming language also got an incremental garbage collector where it
-interleaves its execution with that of the collector. From the garbage
-collector's point of view, the program is just some nuisance changing the data
-it is trying to collect and hence it called the mutator.
+The Maat programming language also got an incremental garbage collector in which
+the execution of the main program is interleaved with the collector. From the
+garbage collector's point of view, the program is just some nuisance changing
+the data it is trying to collect and hence it's called the mutator. In order to
+implement an incremental collector, we need to know how work is percieved here
+and the miminum work that needs to be done in an incremental step.
+
+In an incremental step, a work is done when an object is processed. An object
+could be processed to change its mark, reclame its memory or to perform a
+special task. The execution of the main program is interleaved with the
+collector at the rate at which the main program allocated memory and therefore
+we need to find the equivalence between a unit of work (processing an object)
+and memory. Letting a unit of work be an abitrary number of bytes affects the
+collection pace but we merely can't estimate how much number of bytes which is
+why the step multiplier exists as a factor to speed up the collection.
+
+1. Garbage Collection Step Size (**GCSS**)
+
+
+
+2. Garbage Collection Step Multiplier (**GCSM**)
+
 
 
 ### Collection Paramaters
@@ -636,7 +654,7 @@ it is trying to collect and hence it called the mutator.
 
 ## Other major problems faced during collection
 
-### Collection of open upvalues scattered across states of a Maatine
+### Collection of open upvalues scattered across different states of a Maatine
 
 A Maatine has at least one state which with the use of its own stack runs
 a function which is literally just a closure that possibly has open
