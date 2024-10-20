@@ -632,23 +632,41 @@ implement an incremental collector, we need to know how work is percieved here
 and the miminum work that needs to be done in an incremental step.
 
 In an incremental step, a work is done when an object is processed. An object
-could be processed to change its mark, reclame its memory or to perform a
-special task. The execution of the main program is interleaved with the
-collector at the rate at which the main program allocated memory and therefore
-we need to find the equivalence between a unit of work (processing an object)
-and memory. Letting a unit of work be an abitrary number of bytes affects the
-collection pace but we merely can't estimate how much number of bytes which is
-why the step multiplier exists as a factor to speed up the collection.
+could be processed to change its mark, reclame its memory or perform a special
+task. The execution of the main program is interleaved with the collector at the
+rate at which the main program is allocating memory, therefore, we need to find
+the equivalence between a unit of work (processing an object) and allocated
+bytes of memory. Letting a unit of work be an abitrary number of bytes affects
+the collection pace and we are unable to estimate how much number of bytes would
+suffice which is why the step multiplier exists as a factor that speeds up the
+collection. IN the Lua programming language, a unit of work is equal to the
+sizeof the C structure representing Lua values, we are going to do the same
+here.
 
-1. Garbage Collection Step Size (**GCSS**)
+```
+A work, 1w = sizeof(Value)
+```
 
-
-
-2. Garbage Collection Step Multiplier (**GCSM**)
-
-
+Let `w` be the S.I unit of work and 16 bytes be the `sizeof(Value)`, this
+implies `6KB` of memory is equivalent to `384w`.
 
 ### Collection Paramaters
+
+We have very few collection parameters in incremental mode and these parameters
+governs the collection pace.
+
+1. Garbage Collection Step Size (**GCSIZE**)
+
+This paramater determines how much work needs to be done in a incremental step,
+it also translate to how much to allocate before the next step since work and
+memory are interconvertible
+
+2. Garbage Collection Step Multiplier (**GCMUL**)
+
+
+
+
+
 
 ### Finalizers
 
