@@ -399,13 +399,13 @@ Some key points:
 
 ### Major Collection (Incrementally)
 
-A minor collections is done in a single garbage collection step because the
-number of short-lived objects are small and thus the marking and sweeping
-operations are relatively inexpensive in terms of time. In contrast, the cost of
-a major collection is about the same as for a stop-the-world basic
-mark-and-sweep garbage collector, so proceeding with an incremental major
-collection in non-emergency situations is very beneficial. More is explained
-in the section discussing the `MajorSize` GC parameter.
+A minor collections is considered a garbage collection step because the number
+of short-lived objects are small and thus the marking and sweeping operations
+are relatively inexpensive in terms of time. In contrast, the cost of a major
+collection is about the same as for a stop-the-world basic mark-and-sweep
+garbage collector, so proceeding with an incremental major collection in
+non-emergency situations is very beneficial. More is explained in the section
+discussing the `MajorSize` GC parameter.
 
 ### Collection Parameters
 
@@ -418,9 +418,9 @@ generational collector.
 
 The garbage collection debt determines how much memory your program owns.
 Initially, the debt is set to a negative integer say `-K` which means maat has
-to allocate at least `K` bytes before initiating a GC. In other words if the
+to allocate at least `K` bytes before initiating a GC. In other words, if the
 garbage collection debt is greater than zero then it means maat needs to perform
-a collection so as to pay its memory debt.
+a collection in order to pay its memory debt.
 
 ```
 fn gc_step (Maa) {
@@ -438,8 +438,8 @@ zero which triggers a collection. Therefore the debt is an essential parameter
 used in calculating the total number of allocated bytes in the system.
 
 Setting the garbage collection debt requires us to substract the debt from the
-total number of bytes such that the debt added to the total number of bytes
-equals the actual number of bytes allocated in the system.
+real total number of bytes such that the debt added to subtracted value equals
+the real total number of bytes allocated in the system.
 
 ```
 fn set_gc_debt (Maa, debt) {
@@ -475,18 +475,18 @@ happens after the collector has freed unreachable objects.
 
 This is an estimate of non-garbage memory in use. The garbage collection
 estimate changes after every complete garbage collection cycle. At the end of a
-garbage collection cycle, the garbage collection estimate value equals the total
-number of bytes allocated in the system.
+garbage collection cycle, the garbage collection estimate value equals the
+total number of bytes allocated in the system at that time.
 
 3. Garbage Collection Pause Size (**GCPause**)
 
-GCPause defines the wait time between successive garbage collection cycles. It's
-from this parameter that we determine the garbage collection debt, it's also a
-factor that determines how much of the initial estimate of the memory of your maat
-program has to grow before we start a new collection.
+`GCPause` defines the wait time between successive garbage collection cycles.
+It's from this parameter that we determine the garbage collection debt, it's
+also a factor that determines how much of the initial estimate of the memory of
+your maat program has to grow before we start a new collection.
 
-This algorithms calculates based on the pause size and sets the garbage
-collection debt:
+This algorithms calculates and sets the garbage collection debt based on
+the pause size:
 
 ```
 fn cal_and_set_gc_debt (Maa) {
@@ -557,7 +557,7 @@ collection is met.
 fn generational_step (Maa) {
 
     // Get the GCEstimate of the last major collection.
-    let major_base = get_mejor_base(Maa);
+    let major_base = get_major_base(Maa);
 
     let major_size = get_major_size(Maa);
     let totalbytes = get_totalbytes(Maa) + get_debt(Maa);
@@ -568,15 +568,15 @@ fn generational_step (Maa) {
     if totalbytes >= major_base + major_new { 
         num_objs = major_collection(Maa);
 
-        // Now test if major collection was good, meaning that it has
-        // freed at least half of the memory that grown.
+        // Now test if major collection was good, meaning it has freed
+        // at least half of the memory that has grown.
         if totalbytes < major_base + (major_new / 2) {
             // To start doing minor collection
             assert(num_objs == 0);
             set_minordebt(Maa);
         }
 
-        // A bad collection, would switch to inc mode until further
+        // A bad collection, will switch to inc mode until further
         // collections become good.
         else {
             cal_and_set_gc_debt(Maa);
@@ -604,23 +604,31 @@ major collection arises when a running program is building an immensely big
 data structure, the build allocats lots of memory but yields very little garbage
 and at this time minor collections are a waste as they will be called
 repeatedly to free very little or no memory. These minor collections are
-unavoidable until they trigger a major collection which in most of the cases is
-potentially a bad collection. When this bad collection is detected, the
-collector switches to incremental mode in order to improve performance and later
-on returns to generational mode when any further collection is good. We
-determine whether or not a major collection is good after its atomic phase by
-comparing the complete number of objects traversed with the one of the previous
-major collection. If the number of object traversed is considerably lower than
-the one of the previous major collection, the collection is said to be good and
-collector switches back to generational mode before finishing its cycle and set
-the minor debt for the next cycle. As in normal incremental mode, a major
-collection goes full in emergency situations.
+unavoidable until they trigger a bad major collection. When this bad collection
+is detected, the collector switches to incremental mode in order to improve
+performance, later on, when any of the further collections is good, it returns
+to generational mode. We determine whether a major collection was good after its
+atomic phase by comparing the complete number of objects traversed with the one
+of the previous major collection. If the number of object traversed is
+considerably lower than the one of the previous major collection, the collection
+is said to be good and collector switches back to generational mode before
+finishing its cycle and set the minor debt for the next cycle.
+
+- The second white color is for non-dead objects waiting for the next GC cycle
+- Full emergency garbage collections can happen when running finalizers
+- Pause size should be extremely small for an incremental major collection
+- Doing a major collection incrementally should be optional
+- The garbage collection step function of a maatine should not be reentrant
+- 
+
 
 ### Weak Maps
 
 ### Ephemeron Maps
 
 ### Finalizers
+
+- No gc steps when running finalizers
 
 ## Incremental Garbage Collection
 
@@ -650,6 +658,18 @@ A work, 1w = sizeof(Value)
 Let `w` be the S.I unit of work and 16 bytes be the `sizeof(Value)`, this
 implies `6KB` of memory is equivalent to `384w`.
 
+
+### Write Barriers
+
+In incremental garbage collection, the collector distinguishes two different
+types of white colors: A white color is dedicated for objects in the current GC
+cycle while the other is for the next GC cycle and viceversa. A write forward
+barrier in incremental mode deeply marks the referred object black if the sweep
+phase has not yet been reached; otherwise it's marked white for the next GC
+cycle in order to avoid other write barriers form the referred object. A
+backward write barrier in incremental mode simply turns the black referring
+object to gray and insert it in a gray list to be processed in the atomic phase.
+
 ### Collection Paramaters
 
 We have very few collection parameters in incremental mode and these parameters
@@ -657,11 +677,40 @@ governs the collection pace.
 
 1. Garbage Collection Step Size (**GCSIZE**)
 
-This paramater determines how much work needs to be done in a incremental step,
-it also translate to how much to allocate before the next step since work and
+This paramater determines how much work needs to be done in an incremental step,
+it also translates to how much to allocate before the next step since work and
 memory are interconvertible
 
 2. Garbage Collection Step Multiplier (**GCMUL**)
+
+The step multiplier is factor that amplifies the step size and hence controls
+how much work is done in an incremental step. The higher the value the less
+incremental the collector and the smaller the value, the slower the collector,
+the main program is ahead of the collector by the rate at which it allocates
+memory while the collector has not yet even completed a cycle.
+
+A `6KB/384w` step size with a step multiplier of`300` implies a work of
+`115200w` is done in an incremental step.
+
+```
+
+(a) For a quite large GC step multiplier
+  --+---------+------------------+------------------------+-------------------+-----------+--
+    | Program | GC step          |       Program          | GC step           | Program   | 
+  --+---------+------------------+------------------------+-------------------+-----------+--
+
+(b) Compared to a reasonable step size and step multiplier
+  --+---------+-----+---------------+-----+------+-----+-------+-----+-----+-----+--------+-----+--
+    | Program |GCstp|   Program     |GCstp| Prog |GCstp| Progr |GCstp| Pro |GCstp| Progra |GCstp|
+  --+---------+-----+---------------+-----+------+-----+-------+-----+-----+-----+--------+-----+--
+
+```
+
+Irrespective of how much time the program would take to allocate memory up until
+the `GCDebt`/`-GCSIZE` becomes postive, a very large step multiplier can
+significantly affect how the collector's CPU time is spend at the price of
+memory consumption which can radically changes the collector.
+
 
 
 
