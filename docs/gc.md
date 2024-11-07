@@ -642,12 +642,14 @@ and the miminum work that needs to be done in an incremental step.
 In an incremental step, a work is done when an object is processed. An object
 could be processed to change its mark, reclame its memory or perform a special
 task. The execution of the main program is interleaved with the collector at the
-rate at which the main program is allocating memory, therefore, we need to find
-the equivalence between a unit of work (processing an object) and allocated
-bytes of memory. Letting a unit of work be an abitrary number of bytes affects
-the collection pace and we are unable to estimate how much number of bytes would
-suffice which is why the step multiplier exists as a factor that speeds up the
-collection. IN the Lua programming language, a unit of work is equal to the
+rate at which the main program allocates memory, therefore, we need to find an
+equivalence between a unit of work (processing an object) and allocated bytes of
+memory. In an incremental step, allocated bytes of memory that triggered an
+incremental step is translated into the work that needs to be performed and so
+letting a unit of work be an abitrary number of bytes affects the collection
+pace and we are unable to estimate how much number of bytes would suffice which
+is why the step multiplier parameter exists as a factor that speeds up the
+collection. In the Lua programming language, a unit of work is equal to the
 sizeof the C structure representing Lua values, we are going to do the same
 here.
 
@@ -662,13 +664,13 @@ implies `6KB` of memory is equivalent to `384w`.
 ### Write Barriers
 
 In incremental garbage collection, the collector distinguishes two different
-types of white colors: A white color is dedicated for objects in the current GC
-cycle while the other is for the next GC cycle and viceversa. A write forward
+types of white colors: One dedicated to objects in the current GC
+cycle and the other to objects in the next GC cycle. A write forward
 barrier in incremental mode deeply marks the referred object black if the sweep
 phase has not yet been reached; otherwise it's marked white for the next GC
 cycle in order to avoid other write barriers form the referred object. A
 backward write barrier in incremental mode simply turns the black referring
-object to gray and insert it in a gray list to be processed in the atomic phase.
+object gray and insert it in a gray list to be processed in the atomic phase.
 
 ### Collection Paramaters
 
@@ -678,23 +680,24 @@ governs the collection pace.
 1. Garbage Collection Step Size (**GCSIZE**)
 
 This paramater determines how much work needs to be done in an incremental step,
-it also translates to how much to allocate before the next step since work and
-memory are interconvertible
+it also translates to how much memory to allocate before the next step since
+work and memory are interconvertible
 
 2. Garbage Collection Step Multiplier (**GCMUL**)
 
 The step multiplier is factor that amplifies the step size and hence controls
 how much work is done in an incremental step. The higher the value the less
-incremental the collector and the smaller the value, the slower the collector,
-the main program is ahead of the collector by the rate at which it allocates
-memory while the collector has not yet even completed a cycle.
+incremental is the collector, the smaller the value, the slower is the collector
+and in this situation, the main program is ahead of the collector by the rate
+at which it allocates memory while the collector has not yet even completed a
+cycle.
 
 A `6KB/384w` step size with a step multiplier of`300` implies a work of
 `115200w` is done in an incremental step.
 
 ```
 
-(a) For a quite large GC step multiplier
+(a) For a quite large GC step multiplier, akin to a stop the world collector
   --+---------+------------------+------------------------+-------------------+-----------+--
     | Program | GC step          |       Program          | GC step           | Program   | 
   --+---------+------------------+------------------------+-------------------+-----------+--
@@ -709,7 +712,7 @@ A `6KB/384w` step size with a step multiplier of`300` implies a work of
 Irrespective of how much time the program would take to allocate memory up until
 the `GCDebt`/`-GCSIZE` becomes postive, a very large step multiplier can
 significantly affect how the collector's CPU time is spend at the price of
-memory consumption which can radically changes the collector.
+memory consumption which can radically change the nature of the collector.
 
 
 
