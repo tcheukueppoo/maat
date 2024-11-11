@@ -615,10 +615,8 @@ is said to be good and collector switches back to generational mode before
 finishing its cycle and set the minor debt for the next cycle.
 
 - The second white color is for non-dead objects waiting for the next GC cycle
-- Full emergency garbage collections can happen when running finalizers
 - Pause size should be extremely small for an incremental major collection
 - Doing a major collection incrementally should be optional
-- The garbage collection step function of a maatine should not be reentrant
 - 
 
 
@@ -628,7 +626,9 @@ finishing its cycle and set the minor debt for the next cycle.
 
 ### Finalizers
 
+
 - No gc steps when running finalizers
+- Full emergency garbage collections can happen when running finalizers
 
 ## Incremental Garbage Collection
 
@@ -645,32 +645,38 @@ task. The execution of the main program is interleaved with the collector at the
 rate at which the main program allocates memory, therefore, we need to find an
 equivalence between a unit of work (processing an object) and allocated bytes of
 memory. In an incremental step, allocated bytes of memory that triggered an
-incremental step is translated into the work that needs to be performed and so
-letting a unit of work be an abitrary number of bytes affects the collection
-pace and we are unable to estimate how much number of bytes would suffice which
-is why the step multiplier parameter exists as a factor that speeds up the
-collection. In the Lua programming language, a unit of work is equal to the
-sizeof the C structure representing Lua values, we are going to do the same
-here.
+incremental step is translated into the work the collector needs to performed
+and so, letting a unit of work be an abitrary number of bytes affects the
+collection pace and we are unable to estimate how much number of bytes would
+suffice which is why the step multiplier parameter exists as a factor that
+speeds up the collection. In the Lua programming language, a unit of work is
+equal to the sizeof the C structure representing Lua values, we are going to do
+the same here.
 
 ```
 A work, 1w = sizeof(Value)
 ```
 
-Let `w` be the S.I unit of work and 16 bytes be the `sizeof(Value)`, this
+Let `w` be the S.I unit of work and 16 bytes be the `sizeof(Value)`,this
 implies `6KB` of memory is equivalent to `384w`.
 
+
+In a concurrent environment, a gc step is set to run on an OS thread determined
+by the Maat scheduler. It's important for the collection function to not be
+re-entrant since the collection operation is not designed to run in a truly
+parrallel environment as it would require so many synchronization mechanisms in
+it.
 
 ### Write Barriers
 
 In incremental garbage collection, the collector distinguishes two different
-types of white colors: One dedicated to objects in the current GC
-cycle and the other to objects in the next GC cycle. A write forward
-barrier in incremental mode deeply marks the referred object black if the sweep
-phase has not yet been reached; otherwise it's marked white for the next GC
-cycle in order to avoid other write barriers form the referred object. A
-backward write barrier in incremental mode simply turns the black referring
-object gray and insert it in a gray list to be processed in the atomic phase.
+types of white colors: One dedicated to objects in the current GC cycle and the
+other to objects in the next GC cycle. A write forward barrier in incremental
+mode deeply marks the referred object black if the sweep phase has not yet been
+reached; otherwise it's marked white for the next GC cycle in order to avoid
+other write barriers form the referred object. A backward write barrier in
+incremental mode simply turns the black referring object gray and insert it in a
+gray list to be processed in the atomic phase.
 
 ### Collection Paramaters
 
@@ -712,7 +718,8 @@ A `6KB/384w` step size with a step multiplier of`300` implies a work of
 Irrespective of how much time the program would take to allocate memory up until
 the `GCDebt`/`-GCSIZE` becomes postive, a very large step multiplier can
 significantly affect how the collector's CPU time is spend at the price of
-memory consumption which can radically change the nature of the collector.
+memory consumption which at some point can radically change the nature of the
+collector.
 
 
 
