@@ -399,13 +399,15 @@ Some key points:
 
 ### Major Collection (Incrementally)
 
-A minor collections is considered a garbage collection step because the number
-of short-lived objects are small and thus the marking and sweeping operations
-are relatively inexpensive in terms of time. In contrast, the cost of a major
-collection is about the same as for a stop-the-world basic mark-and-sweep
-garbage collector, so proceeding with an incremental major collection in
-non-emergency situations is very beneficial. More is explained in the section
-discussing the `MajorSize` GC parameter.
+In Maat, a minor collection is performed as a gc generational step because the
+number of short-lived objects are small and thus its operations are relatively
+inexpensive in terms of time. In contrast, the cost of a major collection is
+about the same as for a stop-the-world basic mark-and-sweep garbage collection,
+so proceeding with an incremental major collection is very beneficial. However,
+knowing that the number of garbage objects in the old generation are potentially
+high, it's preferable the gc step size is large enough to avoid high memory
+consumption. As a result, doing a major collection incrementally should be
+optional
 
 ### Collection Parameters
 
@@ -460,7 +462,7 @@ fn set_gc_debt (Maa, debt) {
 
 ```
                                   Debt
-(Still need to allocate memory)    0   (Owes more than the debt, time to collect)
+(Still needs to allocate memory)   0   (Owes more than the debt, time to collect)
 ---------------------------------------------------------------------------------
                                    ^
 ```
@@ -611,13 +613,10 @@ to generational mode. We determine whether a major collection was good after its
 atomic phase by comparing the complete number of objects traversed with the one
 of the previous major collection. If the number of object traversed is
 considerably lower than the one of the previous major collection, the collection
-is said to be good and collector switches back to generational mode before
-finishing its cycle and set the minor debt for the next cycle.
+is said to be good and the collector switches back to generational mode to
+finish its cycle and sets the minor debt for the next cycle.
 
 - The second white color is for non-dead objects waiting for the next GC cycle
-- Pause size should be extremely small for an incremental major collection
-- Doing a major collection incrementally should be optional
-- 
 
 
 ### Weak Maps
@@ -626,9 +625,14 @@ finishing its cycle and set the minor debt for the next cycle.
 
 ### Finalizers
 
-
-- No gc steps when running finalizers
-- Full emergency garbage collections can happen when running finalizers
+Maat finalizers are class-based finalizers where an object gets its finalizer
+from the class from which it was instantiated. In this context, we call a
+finalizer function a destructor. Running destructors is a phase in the
+collection process and hence destructors should avoid gc steps and this is done
+by stopping the garbage collector. However, an emergency collection can be
+performed which most of the time happens due to some external factors or when
+the destructor allocated lots of memory. The later case rare happens since most
+destructors' codes are small and are aimed at freeing resources.
 
 ## Incremental Garbage Collection
 
@@ -715,12 +719,14 @@ A `6KB/384w` step size with a step multiplier of`300` implies a work of
 
 ```
 
-Irrespective of how much time the program would take to allocate memory up until
+Irrespective of how much time the program will take to allocate memory up until
 the `GCDebt`/`-GCSIZE` becomes postive, a very large step multiplier can
 significantly affect how the collector's CPU time is spend at the price of
 memory consumption which at some point can radically change the nature of the
 collector.
 
+
+### Incremental Major Collection
 
 
 
