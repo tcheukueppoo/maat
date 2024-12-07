@@ -405,9 +405,9 @@ inexpensive in terms of time. In contrast, the cost of a major collection is
 about the same as for a stop-the-world basic mark-and-sweep garbage collection,
 so proceeding with an incremental major collection is very beneficial. However,
 knowing that the number of garbage objects in the old generation are potentially
-high, it's preferable the gc step size is large enough to avoid high memory
-consumption. As a result, doing a major collection incrementally should be
-optional
+high, it's preferable the gc step size is large enough to avoid allocations
+from overstepping the collection process leading to high memory consumption. As
+a result, doing a major collection incrementally should be optional.
 
 ### Collection Parameters
 
@@ -426,9 +426,12 @@ a collection in order to pay its memory debt.
 
 ```
 fn gc_step (Maa) {
-   if gc_debt(Maa) > 0 {
-      // an inc or gen step
-      do_a_gc_step(Maa)
+   if gc_isrunning(Maa) {
+      if get_gc_mode(Maa) == 1 { generational_step(Maa) }
+      else                     { incremental_step(Maa)  }
+   }
+   else {
+      set_gc_debt(Maa, -3000)
    }
 }
 ```
@@ -625,14 +628,14 @@ finish its cycle and sets the minor debt for the next cycle.
 
 ### Finalizers
 
-Maat finalizers are class-based finalizers where an object gets its finalizer
+Maat finalizers are class-based, meaning that an object receives its finalizer
 from the class from which it was instantiated. In this context, we call a
 finalizer function a destructor. Running destructors is a phase in the
 collection process and hence destructors should avoid gc steps and this is done
 by stopping the garbage collector. However, an emergency collection can be
 performed which most of the time happens due to some external factors or when
-the destructor allocated lots of memory. The later case rare happens since most
-destructors' codes are small and are aimed at freeing resources.
+the destructor allocated lots of memory. The later case rarely happens since
+most destructors' codes are small and are aimed at freeing resources.
 
 ## Incremental Garbage Collection
 
@@ -640,42 +643,39 @@ The Maat programming language also got an incremental garbage collector in which
 the execution of the main program is interleaved with the collector. From the
 garbage collector's point of view, the program is just some nuisance changing
 the data it is trying to collect and hence it's called the mutator. In order to
-implement an incremental collector, we need to know how work is percieved here
-and the miminum work that needs to be done in an incremental step.
+implement an incremental collector, we need to know how work in the collector is
+percieved and the miminum work that needs to be done in an incremental step.
 
 In an incremental step, a work is done when an object is processed. An object
-could be processed to change its mark, reclame its memory or perform a special
+could be processed to change its mark, reclaim its memory or perform a special
 task. The execution of the main program is interleaved with the collector at the
-rate at which the main program allocates memory, therefore, we need to find an
+rate at which the main program allocates memory; therefore, we need to find an
 equivalence between a unit of work (processing an object) and allocated bytes of
-memory. In an incremental step, allocated bytes of memory that triggered an
-incremental step is translated into the work the collector needs to performed
-and so, letting a unit of work be an abitrary number of bytes affects the
-collection pace and we are unable to estimate how much number of bytes would
-suffice which is why the step multiplier parameter exists as a factor that
-speeds up the collection. In the Lua programming language, a unit of work is
-equal to the sizeof the C structure representing Lua values, we are going to do
-the same here.
+memory. In an incremental step, the allocated bytes of memory that triggered an
+incremental step is translated into the work the collector needs to performed.
+Thus, allowing a unit of work to be an abitrary number of bytes affects the
+collection pace, and we are unable to estimate how many bytes would suffice.
+This is why the step multiplier parameter exists as a factor that speeds up the
+collection. In the Lua programming language, a unit of work is equal to the size
+of the struct representing a Lua value; the same will be done here.
 
 ```
 A work, 1w = sizeof(Value)
 ```
 
-Let `w` be the S.I unit of work and 16 bytes be the `sizeof(Value)`,this
+Let `w` be the S.I unit of work and 16 bytes be the `sizeof(Value)`, this
 implies `6KB` of memory is equivalent to `384w`.
 
-
-In a concurrent environment, a gc step is set to run on an OS thread determined
-by the Maat scheduler. It's important for the collection function to not be
-re-entrant since the collection operation is not designed to run in a truly
-parrallel environment as it would require so many synchronization mechanisms in
-it.
+In a concurrent environment, a gc step is set to run on an OS thread. Thus, it's
+important for the collection function to not be re-entrant since the code of a
+collector is not designed to run in a truly parrallel environment as it will
+require so many synchronization mechanisms in it.
 
 ### Write Barriers
 
 In incremental garbage collection, the collector distinguishes two different
 types of white colors: One dedicated to objects in the current GC cycle and the
-other to objects in the next GC cycle. A write forward barrier in incremental
+other to objects in the next GC cycle. A forward write barrier in incremental
 mode deeply marks the referred object black if the sweep phase has not yet been
 reached; otherwise it's marked white for the next GC cycle in order to avoid
 other write barriers form the referred object. A backward write barrier in
@@ -697,13 +697,12 @@ work and memory are interconvertible
 
 The step multiplier is factor that amplifies the step size and hence controls
 how much work is done in an incremental step. The higher the value the less
-incremental is the collector, the smaller the value, the slower is the collector
+incremental is the collector; the smaller the value, the slower is the collector
 and in this situation, the main program is ahead of the collector by the rate
-at which it allocates memory while the collector has not yet even completed a
-cycle.
+at which it allocates memory to the rate at which the collector frees garbages.
 
 A `6KB/384w` step size with a step multiplier of`300` implies a work of
-`115200w` is done in an incremental step.
+at least `115200w` is done in an incremental step.
 
 ```
 
@@ -726,6 +725,32 @@ memory consumption which at some point can radically change the nature of the
 collector.
 
 
+```
+fn incremental_step (Maa) {
+    let step_mul = get_step_mul(Maa);
+
+    // Get GC debt in work
+    let debt = (get_debt(Maa) / sizeof(Value)) * step_mul;
+    let step_size = get_step_size(Maa) * step_mul;
+
+    do {
+        work = single_step();
+        debt -= work;
+    } while debt > -step_size && gc_state(Maa) != PAUSE;
+
+    # Pause until the next GC cycle
+    if gc_state(Maa) == PAUSE {
+        cal_and_set_gc_debt(Maa);
+    }
+
+    # Set in bytes the rest of the work that needs to be perform
+    else {
+        debt = ( debt / stepmul ) * sizeof(Value);
+        set_gc_debt(Maa, debt);
+    }
+}
+```
+
 ### Incremental Major Collection
 
 
@@ -739,13 +764,13 @@ collector.
 
 ### Collection of open upvalues scattered across different states of a Maatine
 
-A Maatine has at least one state which with the use of its own stack runs
-a function which is literally just a closure that possibly has open
-upvalues pointing to values living in the stack of another state (if any) of
-this same maatine, the latter state may have not been marked and ends up
-collected but before this happens, its open upvalues that have been marked
-during the marking phase of the maatine GC run must be closed and painted black
-so that they cannot longer be collected during the sweeping phase.
+A Maatine has at least one state which with the use of its own stack runs a
+function which is literally just a closure that possibly has open upvalues
+pointing to values living in the stack of another state (if any) of this same
+maatine, the latter state may have not been marked and ends up collected but
+before this happens, its open upvalues that have been marked during the marking
+phase of the maatine GC run must be closed and painted black so that they cannot
+longer be collected during the sweeping phase.
 
 Solving this problem enforces us to do the following in each maatine's GC cycle:
 
