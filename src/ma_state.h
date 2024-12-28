@@ -10,15 +10,15 @@
 #include "ma_val.h"
 
 /*
- * @@SV: SV is a queue element of @svq queue for special variables.
+ * @@SV: SV is a stack element of the @svs stack for special variables.
  *
  * - @id: Id of the scope these special variables belongs to.
- * - @sv: Special variables of this scope, keys could be:
+ * - @sv: Special variables of this scope, possible keys:
  *
  *  @<digit>(@1, @2, @3, etc), @., @`, @&, or @'
  *
- * It is in-house C codes that have to set these special variables
- * in below @tmps. e.g the ".match" regex method.
+ * It's mostly internal C code that reads/writes these special variables.
+ * e.g the ".match" regex method.
  */
 typedef struct SV {
    Map *sv;
@@ -29,7 +29,7 @@ typedef struct SV {
 typedef struct CallFrame {
 
    /*
-    * @pc: Program counter which points to the next-to-be executed
+    * @pc: Program counter, points to the next-to-be executed
     * vm instruction.
     */
    uint8_t *pc;
@@ -55,20 +55,21 @@ typedef struct CallFrame {
    Closure *clo;
 
    /*
-    * - @svq: Queue of @@SV elements.
-    * - @qsize: Queue size.
-    * - @front: Index of the front element to-be dequeued when we
-    *   go out-of-scope the SV element belongs to. The front always
-    *   get the variable we want to runtime resolve, so it's fast.
+    * - @svs: Stack of @@SV elements.
+    * - @ssize: Stack size.
+    * - @stop: Index of the top element to-be popped when we exit
+    *   the scope the SV element belongs to. The front always gets
+    *   the special variable we want to runtime resolve, so it's
+    *   fast.
     */
-   SV *svq;
-   UByte front;
-   UByte qsize;
+   SV *svs;
+   UByte stop;
+   UByte ssize;
 
    /*
     * @id: The id of the current scope in this callframe. Sadly,
     * we will have to check at each scope pop if the front to
-    * dequeue its @@SV element.
+    * popped its @@SV element.
     */
    UByte sc_id;
 
