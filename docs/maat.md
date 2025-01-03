@@ -124,16 +124,16 @@ This is the list of all operators supported by the Maat programming language.
 
 # Comments
 
-Use `#` for single line comments and `---` for multi-line comments.
+Use `//` for single line comments and `/* */` for multi-line comments.
 
 ```
-# single line comment
----
-a
-multi
-line
-comment
----
+// single line comment
+/*
+ * a
+ * multi
+ * line
+ * comment
+ */
 ```
 
 # Delimiters
@@ -152,13 +152,13 @@ The following pair delimiters can be used as delimiters for regexes values
 
 ```
 # Could still for example use @a{one two three}
-let x = ['one', 'two', 'three']
+let x = ['one', 'two', 'three'];
 
 # [ "Three", "Two", "One" ]
-let b = x.map(:.cap).rev
+let b = x.map(:.cap).rev;
 
 # [ "0ne", "tw0", "three" ]
-x =~ s<o>«0»
+x =~ s<o>«0»;
 ```
 
 ## Single character delimiters
@@ -296,15 +296,14 @@ read-only (`r`).
 
 ### Type I special variables
 
-We expand the content of a type I special variable using the sigil `$`. It is
-prohibited to declare a variable with a sigil, regardless of whether or not it
-is special.
+We expand the content of a type I special variable using `#`. It is prohibited
+to declare a type I special variable.
 
 ```
-say "Running $0 on $OS"
+say "Running #0 on #O"
 ```
-* `v`: **(r,p)** Maat version.
-* `o`: **(r,p)** OS on which `Maat` was build.
+* `V`: **(r,p)** Maat version.
+* `O`: **(r,p)** OS on which `Maat` was build.
 * `,`: **(w,p)** Cutput field separator.
 * `/`: **(w,p)** Input record separator, new line by default.
 * `|`: **(w,p)** If true, do not wait when buffer is full, flush to the stream after every read/write operation.
@@ -313,7 +312,7 @@ say "Running $0 on $OS"
 * `0`: **(r,p)** Name of the executing program.
 * `(`, `)`: **(r,w,p)** Real and effective gid of the current process, only works on OS supporting membership.
 * `<`, `>`: **(r,w,p)** Real and effective uid of the current process.
-* `f`: **(w,p)** An array object containing the result of `.split` when using maat's `-a`, `-n`, and `-F` CLI options.
+* `F`: **(w,p)** An array object containing the result of `.split` when using maat's `-a`, `-n`, and `-F` CLI options.
 * `*`: **(r,l)** Id of the current maatine, unique to each maatine.
 * `.`: **(r,l)** Line number for the last accessed file handle, .
 * `!`: **(r)** Retrieve errors from syscalls.
@@ -353,12 +352,12 @@ variables can be temporarized.
 
 * `___DATA___`
 
-`___DATA___` is not a variable. Hmm... it is a special token you fit into your
-maat code right at the end so that whatever data following it can be obtained
-via a file handle in the special variable `DATA`.
+`___DATA___` is not a variable. It is a special token you fit into your
+maat code right at the end so that whatever data that follows it can be
+obtained via a file handle in the special variable `DATA`.
 
 ```
-temp $/;
+temp #/;
 
 # Outputs what follows ___DATA___
 DATA.readline.say
@@ -1299,7 +1298,7 @@ Maat has two concurrent programming model which are the asynchronous and
 thread-like model. The thread-like model is what we call
 [Maatines](./types/Ma.md) and the async model is what we call
 [Works](./types/Work.md). Async functionality is implemented with the help of
-Maatines, so yeah… it is just an abstract layer over it. A Work encapsulate a
+Maatines, it is just an abstract layer over it. A Work encapsulate a
 computation called a Work which runs internally as a new or updated Maatine
 object.
 
