@@ -624,8 +624,8 @@ typedef struct FClass {
 
 /*
  * @@MIns: Instance of a Maat class. If this object somehow ends
- * up shared then fields themselves are marked shared since they
- * are the only mutable part of this object.
+ * up shared then fields themselves would be marked shared since
+ * they are the only mutable part of this object.
  *
  * - @fields: A copy of the instance's class @fields.
  */
@@ -672,7 +672,7 @@ typedef struct FIns {
  * 'FOO::BAR::x()' is a call to the function 'x' in 'FOO::BAR'
  * if ever there is.
  *
- * - @ours: Stores the namespace' global symbols, 'x' is a
+ * - @ours: Stores the namespace's global symbols, 'x' is a
  *   global symbol in package namespace 'FOO::BAR' and it can
  *   be fully qualified as in the above call.
  *
@@ -680,7 +680,7 @@ typedef struct FIns {
  * type I & II special variables:
  *
  *   - ENV, ARGC, ARGV, INC, PATH, SIG, DATA
- *   - #v, #o, #,, #/, #\, #|, #", ##, #(, #), #<, #>, #f, #0
+ *   - #V, #O, #,, #/, #\, #|, #", ##, #(, #), #<, #>, #F, #0
  *
  * Accessing any of these variables from the main package most
  * not necessarily be done using a fully qualified form unless
@@ -697,9 +697,8 @@ typedef struct FIns {
  *   namespaces, some can exist as lexically scoped variables or
  *   global symbols of a namespace having an identity of a
  *   package.
- * - For consistency, you can't nest namespaces, so 'FOO::BAR'
- *   having identity of a package doesn't imply that 'BAR' is
- *   another package or a class in 'FOO'.
+ * - For consistency, you can't nest namespaces, for example 'BAR'
+ *   in 'FOO::BAR' cannot be a namespace.
  * 
  * - @val: The namespace value, either a package/class/role.
  *

@@ -15,7 +15,7 @@
  * - @id: Id of the scope these special variables belongs to.
  * - @sv: Special variables of this scope, possible keys:
  *
- *  @<digit>(@1, @2, @3, etc), @., @`, @&, or @'
+ *  #<digit>(#1, #2, #3, etc), #., #`, #&, #', #C, #N, ... (to be added)
  *
  * It's mostly internal C code that reads/writes these special variables.
  * e.g the ".match" regex method.
@@ -58,23 +58,24 @@ typedef struct CallFrame {
     * - @svs: Stack of @@SV elements.
     * - @ssize: Stack size.
     * - @stop: Index of the top element to-be popped when we exit
-    *   the scope the SV element belongs to. The front always gets
-    *   the special variable we want to runtime resolve, so it's
-    *   fast.
+    *   the scope the SV element corresponds to. The front always
+    *   gets the special variable we want to runtime resolve, so
+    *   it's fast.
     */
    SV *svs;
    UByte stop;
    UByte ssize;
 
    /*
-    * @id: The id of the current scope in this callframe. Sadly,
-    * we will have to check at each scope pop if the front to
-    * popped its @@SV element.
+    * @sc_id: The id of the current scope in this callframe. Sadly,
+    * to empty the SV stack we will have to check at each scope pop
+    * operation if @sc_id is the same as that of the top element of
+    * the SV stack.
     */
    UByte sc_id;
 
    /*
-    * - @a_offset: Class' role or inherited methods need specific
+    * - @f_offset: Class' role or inherited methods need specific
     *   offsets to properly access their attributes in the instance
     *   attribute buffer.
     * - @cc3: 
@@ -124,10 +125,10 @@ typedef struct State {
     * If this State is that of a coroutine then @cw is a pointer to
     * its caller coroutine or maatine state @ca.
     * Coroutines as well as generator functions are blocking kinds
-    * of threads running by changing the context(state) of the
-    * maatine it belongs to. That being said, it is quite
+    * of threads running by changing the context (state) of the
+    * maatine they belongs to. That being said, it is quite
     * impossible for a coroutine to yield control back to another
-    * coroutine of a different maatine, but that is not a problem
+    * coroutine from a different maatine, but that is not a problem
     * as we are implementing asymmetric coroutines.
     */
    union {

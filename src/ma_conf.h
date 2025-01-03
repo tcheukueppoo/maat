@@ -163,7 +163,7 @@
  *
  * Without this attribute, check with:
  *    `nm libmaat.so | grep ' T ' | wc -l`
- * to see how the number of dynamic symbols increased.
+ * to see how the number of dynamic symbols increases
  */
 #if defined(__ELF__) && defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 302)
 #define MA_IFUNC  __attribute__ ((visibility("internal")))

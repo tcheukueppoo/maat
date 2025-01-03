@@ -20,23 +20,22 @@ typedef struct GMaa {
    UInt seed;
 
    /*
-    * @scache: Caching strings to reuse later, as it is shared
-    * across maatines.
+    * @scache: Caching strings, it needs sync as it's shared across
+    * maatines.
     */
    MStr scache[M_SCACHE][N_SCACHE];
    /* TODO: librs fields */
 
    /*
-    * A Map to cache the visual length each of utf-8 string, do not
-    * forget to delete entries of strings whose memory was reclaimed.
+    * A Map to cache the visual length utf-8 strings, do not forget
+    * to delete entries of strings whose memory were reclaimed.
     */
    Map vlcache;
    /* TODO: librs fields */
 
    /*
-    * @smap: Map of short strings, we reuse short strings and
-    * never avoid duplicates, this is not to be confused with
-    * @scache.
+    * @smap: Map of short strings, shorts strings are internalized.
+    * This is not to be confused with @scache.
     */
    SMap smap;
    /* TODO: librs fields */
@@ -68,7 +67,7 @@ typedef struct Maa {
    UByte status;
 
    /* @id: The id of this Maatine. */
-   Uint id;
+   UInt id;
 
    /*
     * @state: Initial state of this Maatine as we know Maatines
