@@ -6,7 +6,7 @@
 * `(X)` for grouping, `X` is considered a single unit.
 
 ```
-Block = "{" [ Stats ] "}" .
+MaatCode = Stats .
 
 Stats = { NonBlockStat end { end } | BlockStat } [ NonBlockStat ] .
 
@@ -33,7 +33,10 @@ BlockStat =   PackageBlock
             | Try
             | DeferBlock
             | OnceBlock
-            | Phasers .
+            | Phasers
+            | Block .
+
+Block = "{" Stats "}" .
 
 Package      = "package" namespace .
 PackageBlock = Package Block .
@@ -113,13 +116,13 @@ Fn = [ "const" ]
 FnBody  = Block .
 FnTrait = gen save | save gen .
 FnArgs  =   PosParam { "," PosParam } [ "," AccParam ] [ "," NamedParam ]
-          | AccParam "," NamedParam 
+          | AccParam "," NamedParam
           | AccParam
           | NamedParam .
 
 PosParam   =         name [ DefaultVal ] .
-AccParam   =     "*" name .
-NamedParam = "*" "*" name .
+AccParam   =     "*" name [ DefaultVal ] .
+NamedParam = "*" "*" name [ DefaultVal ] .
 
 Class = [ "const" ] [ Scope ] "class" name { ( is | does ) Exp } [ main ] ClassBody .
 
@@ -241,7 +244,7 @@ ArrayPairTokensPair =   o_cb { uni_e_cb } c_cb
 Map = MapDefault | MapQuoted .
 
 MapDefault = "{" [ KeyValue { Commas KeyValue } { "," } ] "}" .
-KeyValue   = ( str_lit | uni___space | ":" Exp ) "=>" Exp .
+KeyValue   = ( str_lit | uni___space__quotes | ":" Exp ) "=>" Exp .
 
 MapQuoted         = "@m" MapPairTokensPair .
 MapPairTokensPair =   o_cb    { uni_e_cb    uni_e_cb    } c_cb
@@ -260,10 +263,10 @@ MapPairTokensPair =   o_cb    { uni_e_cb    uni_e_cb    } c_cb
 
 StatExp = DoStatExp | MaStatExp .
 
-DoStatExp = "do"  ( Loop    | Flow   ) .
+DoStatExp = "do"  ( Loop    | Flow   | Block ) .
 MaStatExp = "maa" ( ForLoop | FnCall ) .
 
-/** Below is the WSN of all lexical tokens. **/
+/** Below is the WSN of lexical tokens. **/
 
 end = ";" .
 
@@ -341,10 +344,10 @@ list_op_name  =   "say" | "print" | "printf" | "sprintf" | "grep"
                 | "map" | "lmap"  | "join"   | "run"     | "warn"
                 | "die" .
 
-re_mod   =         "i" | "m" | "s" | "a" | "n" | "x" | "p" | "l" .
+re_mod   =      "i" | "m" | "s" | "a" | "n" | "x" | "p" | "l" .
 m_re_mod =   re_mod | "g" | "c" .
 s_re_mod = m_re_mod | "e" .
-t_re_mod =         "c" | "d" | "s" .
+t_re_mod =      "c" | "d" | "s" .
 
 nil_lit  = "nil" .
 bool_lit = "true" | "false" .
@@ -532,20 +535,22 @@ uni_e_sq    = ( uni___space__sq    | e_sq    ) { uni___space__sq    | e_sq    } 
 uni_e_sl    = ( uni___space__sl    | e_sl    ) { uni___space__sl    | e_sl    } .
 uni_e_cm    = ( uni___space__cm    | e_cm    ) { uni___space__cm    | e_cm    } .
 
-uni___space        = /* UTF-8-encoded unicode codepoint except U+0020 */ .
-uni___space__cb    = /* UTF-8-encoded unicode codepoint except U+0020 and U+007D */ .
-uni___space__pr    = /* UTF-8-encoded unicode codepoint except U+0020 and U+0029 */ .
-uni___space__sb    = /* UTF-8-encoded unicode codepoint except U+0020 and U+005D */ .
-uni___space__rab   = /* UTF-8-encoded unicode codepoint except U+0020 and U+003E */ .
-uni___space__rabq  = /* UTF-8-encoded unicode codepoint except U+0020 and U+203A */ .
-uni___space__rdabq = /* UTF-8-encoded unicode codepoint except U+0020 and U+00BB */ .
-uni___space__em    = /* UTF-8-encoded unicode codepoint except U+0020 and U+0021 */ .
-uni___space__bq    = /* UTF-8-encoded unicode codepoint except U+0020 and U+0060 */ .
-uni___space__vb    = /* UTF-8-encoded unicode codepoint except U+0020 and U+007C */ .
-uni___space__dq    = /* UTF-8-encoded unicode codepoint except U+0020 and U+0022 */ .
-uni___space__sq    = /* UTF-8-encoded unicode codepoint except U+0020 and U+0027 */ .
-uni___space__sl    = /* UTF-8-encoded unicode codepoint except U+0020 and U+002F */ .
-uni___space__cm    = /* UTF-8-encoded unicode codepoint except U+0020 and U+002C */ .
+uni___space         = /* UTF-8-encoded unicode codepoint except U+0020 */ .
+uni___space__cb     = /* UTF-8-encoded unicode codepoint except U+0020 and U+007D */ .
+uni___space__pr     = /* UTF-8-encoded unicode codepoint except U+0020 and U+0029 */ .
+uni___space__sb     = /* UTF-8-encoded unicode codepoint except U+0020 and U+005D */ .
+uni___space__rab    = /* UTF-8-encoded unicode codepoint except U+0020 and U+003E */ .
+uni___space__rabq   = /* UTF-8-encoded unicode codepoint except U+0020 and U+203A */ .
+uni___space__rdabq  = /* UTF-8-encoded unicode codepoint except U+0020 and U+00BB */ .
+uni___space__em     = /* UTF-8-encoded unicode codepoint except U+0020 and U+0021 */ .
+uni___space__bq     = /* UTF-8-encoded unicode codepoint except U+0020 and U+0060 */ .
+uni___space__vb     = /* UTF-8-encoded unicode codepoint except U+0020 and U+007C */ .
+uni___space__dq     = /* UTF-8-encoded unicode codepoint except U+0020 and U+0022 */ .
+uni___space__sq     = /* UTF-8-encoded unicode codepoint except U+0020 and U+0027 */ .
+uni___space__sl     = /* UTF-8-encoded unicode codepoint except U+0020 and U+002F */ .
+uni___space__cm     = /* UTF-8-encoded unicode codepoint except U+0020 and U+002C */ .
+uni___space__quotes = /* UTF-8-encoded unicode codepoint except U+0020, U+002C, ... and ... */ .
+
 
 ```
 
