@@ -52,8 +52,7 @@ Load = "load" str_lit .
 ExpList = Exp { Commas Exp } { "," } .
 Commas  = "," { "," } .
 
-VarDef = ( [ "const" ] Scope Names | "const" Names | "temp" AnyNames ) [ "=" Exp ] .
-Scope  = export "our" | "let" | "state" .
+VarDef = ( [ "const" ] ( "let" | "state" ) Names | [ export ] [ "const" ] "our" Names | "const" Names | "temp" AnyNames ) [ "=" Exp ] .
 
 Names = name [ im ] | "(" NameList ")" .
 
