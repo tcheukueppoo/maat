@@ -10,13 +10,13 @@ Having an `O(1)` access to an instance' field is critical for system's
 performance since concurrent access to a field of a shared instance by maatines
 in a multi-threaded environment requires synchronization probably via a
 ticket-based spinlock from `librs`. This is why critical section needs to be as
-small as possible. Class' fields are handled the same way we do with lexical
+small as possible. Class' fields are handled the same way as we handle lexical
 variables, i.e by allocating on a stack, but in this case it's each class that
 holds its own stack called a field buffer. For this reason fields can only be
 accessed internal/external to its instance using accessors auto-generated at
 compile-time. This will imply that a field resolution is done at compile-time,
 each field of an instance has a unique index to a slot of a field buffer part of
-that instance. Setting and getting the value of an field within an instance is
+that instance. Setting and getting the value of a field within an instance is
 respectively about reading and writing to a particular slot.
 
 The idea of compiling fields into a buffer to speed up access is quite efficient
@@ -36,10 +36,10 @@ that class.
 A set of roles is said to be composable in a class if the following conditions
 are met otherwise the program reports an error:
 
-1. No duplicate fields exist among their respective field buffers, in other
+1. No duplicate fields should exist among participating roles, in other
    words none of the fields out of their buffers have identical names.
 
-2. No common methods should exists among participating roles, the commonality
+2. No common methods should exist among participating roles, the commonality
    isn't just measured based on methods' names, this means that multi-methods
    can be defined anywhere in the participating roles and each of them will be
    considered unique.
@@ -61,13 +61,13 @@ To reduce complexity, we actually do not compose roles with roles, meaning that
 class A :does R {}
 ```
 
-is basically just doing
+is basically the same as doing
 
 ```maat
 class A :does R :does R1 {}
 ```
 
-because `R1` is not really composed in `R` but rather registered in `R` so that
+because `R1` is not really composed in `R` but rather recorded in `R` so that
 `R1` is later on composed in `A`. This implies that the relationship between
 roles is represented as a directed graph and determining all the roles to be
 composed in a class requires a graph traversal.
@@ -85,13 +85,12 @@ composed in a class requires a graph traversal.
               |     |
               v     v
               R5--->R6
+
 ```
 
 The above is a class `A` which does roles which are connected to a network of
-other roles, I believe this rarely occurs in practice though it looks correct.
-Some folks can't stop doing crazy things and I can't stop thinking of crazy
-possibilities which is why I believe doing a graph traversal to determine all
-the roles that need to be composed in `A` is necessary.
+other roles, I believe doing a graph traversal to determine all the roles that
+need to be composed in `A` is a necessity
 
 The above translates to the following Maat code:
 
@@ -101,8 +100,8 @@ role R8                            {}
 role R7 :does R8                   {}
 role R5 :does R6                   {}
 role R4 :does R5                   {}
-role R3 :does R7 :does R8 :does R6 {}
-role R2 :does R3 :does R4          {}
+role R3 :does R6 :does R8 :does R7 {}
+role R2 :does R4 :does R3          {}
 role R1 :does R4                   {}
 class A :does R1 :does R2 :does R3 {}
 ```
@@ -113,8 +112,8 @@ prematurely optimize role composition but I think this risk is worth taking.
 
 When a role does other roles, we could do more than just referencing, we could
 compute the graph traversal of that role and record it in its internal struture
-so that any other role/class that does him can use the result to compose it in a
-class or  as a subsolution to compute other traversals, this is more of a
+so that any other role/class that does it can use the result to compose it in a
+class or as a subsolution to compute other traversals, this is more of a
 dynamice programming approach which turns out to be viable and efficient. This
 also looks similar to the c3-linearization algorithm.
 
@@ -141,6 +140,7 @@ Pseudo-code:
 fn linearize_roles_of(R) {
    let role_list = roles(R);
 
+   // If R does only one role
    return linearized_roles(role_list[0]) if role_list.len == 1;
 
    let result  = [];
@@ -242,8 +242,8 @@ dynamic programming approach.
 * A Class cannot inherit (`:is`) roles.
 * A class can inherit (`:is`) classes and at the same time do (`:does`) roles.
 * A class can do (`:does`) multiple roles and inherit (`:is`) multiple classes.
-* A role can do (`:does`) other roles but never it does inherit (`:is`) a role
-  or a class.
+* A role can do (`:does`) roles but never it does inherit (`:is`) a role or a
+  class.
 
 Instead of raising conflicts like we do in roles, resolution of an inherited
 field is done by traversing the c3 linearization list of the derived class. The
