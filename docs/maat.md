@@ -9,7 +9,7 @@ email: tcheukueppo@yandex.com
 `Maat` is a multi-paradigm general purpose programming language that empowers
 programmers to easily build fast and scalable applications.
 
-Key features of the Maat programming language:
+Key features of the Maat programming language include:
 
 * Functional Programing
 * Object Oriented Programming
@@ -18,7 +18,7 @@ Key features of the Maat programming language:
 * Concurrency with [Works](./types/Work.md) and [Maatines](./types/Ma.md)
 * Traits
 * Lazy Evaluation
-* Regular Expressions using PCRE2
+* Regular Expressions via PCRE2
 * Full Unicode support
 * Memoization
 
@@ -71,7 +71,7 @@ This is the list of all operators supported by the Maat programming language.
 * `grep`: **(b)** Function version of `.grep` method of the `Array` type.
 * `run`: **(b)** Run the passed as argument commands with their parameters on a new shell.
 * `die`: **(b)** Raise an exception and exit program if there is no handler.
-* `warn`: **(b)** Warn by sending a message to the stderr.
+* `warn`: **(b)** Warn by sending a message to stderr.
 
 ## Binary operators
 
@@ -82,7 +82,7 @@ This is the list of all operators supported by the Maat programming language.
 * `!.^`: **(i)** 
 * `,`: **(i)** Comma separator operator.
 * `=>`: **(i)** Key-value separator operator.
-* `//`: **(i)** A variant of the `||` operator that tests for definedness, `a // b`, returns `a` if it isn't `nil` otherwise `b`.
+* `//`: **(i)** A variant of the `||` operator that tests for definedness, ex: `a // b`, returns `a` if it isn't `nil` otherwise `b`.
 * `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: **(i)** Basic infix operators.
 * `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: **(i)** Add, sub, div, mul, remainder and range operator.
 * `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: **(i)** `X op= Y` same as `X = X op Y`.
@@ -95,6 +95,24 @@ This is the list of all operators supported by the Maat programming language.
 * `?:`: **(?)** Tenary operator.
 
 ## List of all operators from highest precedence to lowest
+
+**left** and **right** are the directions of precedence.
+
+**nonassoc** emphasizes on the fact that the operator is non-associative and thus requires more context if the
+operator is chainable and a different evaluation is required--this can be achieve by using paranthese.
+
+```
+say (2 == 2) == 2; // False, same as True == 2
+say 2 == 2 == 2;   // True
+
+// All True
+say  2 > 3 < 4;
+say (2 > 3) < 4;
+say 2 > (3 < 4);
+```
+
+This shows how the operator `==` is non-associative while `>` and it's counterpart are.
+
 
 * terms and list operators (leftward): left
 * grouping operator `( )`: right
@@ -121,6 +139,9 @@ This is the list of all operators supported by the Maat programming language.
 * `?:`: right
 * `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`: right
 * `,`, `=>`: list
+
+Unary operators are ones of the operators of the highiest precedence and thus operates
+on its operand first before any other binary operator takes action.
 
 # Comments
 
