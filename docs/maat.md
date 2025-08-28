@@ -48,7 +48,8 @@ This is the list of all operators supported by the Maat programming language.
 * `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`: **(b)** Power operators.
 * `Σ`: **(b)** Summation operator.
 * `Π`: **(b)** Product operator.
-* `!`: **(b)** Negation operator ex: `!true == false`.
+* `!`: **(b)** Logical **not**  operator ex: `!true == false`.
+* `not`: **(b)** Logical **not** operator with very low precedence, see below.
 
 ## Named unary operators
 
@@ -84,10 +85,11 @@ This is the list of all operators supported by the Maat programming language.
 * `=>`: **(i)** Key-value separator operator.
 * `//`: **(i)** A variant of the `||` operator that tests for definedness, ex: `a // b`, returns `a` if it isn't `nil` otherwise `b`.
 * `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: **(i)** Basic infix operators.
-* `+`, `-`, `/` / `÷`, `*`,  `%`, `..` / ``: **(i)** Add, sub, div, mul, remainder and range operator.
+* `+`, `-`, `/` / `÷`, `*`,  `%`, `..`: **(i)** Add, sub, div, mul, remainder and range operator.
 * `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: **(i)** `X op= Y` same as `X = X op Y`.
 * `<<`, `>>`, `^`, `&`, `&=`, `|=`: **(i)** Bitwise shift on left and right, logical `or` and `and`.
-* `&&`, `||`, `&&=`, `||=`: **(i)** Logical "and" and "or" operator.
+* `&&`, `||`, `&&=`, `||=`: **(i)** Logical **and** and **or** operator.
+* `and`, `or`: Logical **and** and **or** operator but with very low precedence, see below.
 * `≅` / `=~`, `~~`: **(i)** Regex operator and smartmatch operator.
 * `∉`,  `∈`, `∊`, `∍`, `∋`, `∌`, `⊂`, `⊄`, `⊆`, `⊈`, `⊃`, `⊅`, `⊇`, `⊉`, `≡`, `≢`, `⊖`, `∩`, `⊍`, `∪`, `⊖`, `⊎`, `∖`: **(i)** Set operators.
 * `<=>` : **(i)** `X <=> Y` says yield `-1` if `X < Y`, `0` if `X == Y`, or `-1` if `X > Y`.
@@ -98,8 +100,9 @@ This is the list of all operators supported by the Maat programming language.
 
 **left** and **right** are the directions of precedence.
 
-**nonassoc** emphasizes on the fact that the operator is non-associative and thus requires more context if the
-operator is chainable and a different evaluation is required--this can be achieve by using paranthese.
+**nonassoc** emphasizes on the fact that the operator is non-associative and
+thus requires more context if the operator is chainable and a different
+evaluation is required.
 
 ```
 say (2 == 2) == 2; // False, same as True == 2
@@ -111,11 +114,11 @@ say (2 > 3) < 4;
 say 2 > (3 < 4);
 ```
 
-This shows how the operator `==` is non-associative while `>` and it's counterpart are.
+The above shows how the operator `==` is non-associative while `>` and its
+counterpart are.
 
-
+* group operator `( )`: right
 * terms and list operators (leftward): left
-* grouping operator `( )`: right
 * method call operator `.`: left
 * `++`, `--`, `√` and unary prefix `…` / `...`: nonassoc
 * `**`, `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`: right
@@ -125,23 +128,38 @@ This shows how the operator `==` is non-associative while `>` and it's counterpa
 * `+`, `-`, `.`, `∘`: left
 * `∩`, `⊍`: left
 * `∪`,  `⊖`, `⊎`, `∖`: left
-* `∈`, `∊`, `∉`, `∋`, `∍`, `∌`, `≡`, `≢`, `⊂`, `⊄`, `⊃`, `⊅`, `⊆`, `⊈`, `⊇`, `⊉`, `≼`, `≽`: chained
 * `<<`, `>>`: left
 * named unary operators: nonassoc
 * `isa`: nonassoc
 * `<`, `>`, `<=` / `≤`, `>=` / `≥`: chained
+* `∈`, `∊`, `∉`, `∋`, `∍`, `∌`, `≡`, `≢`, `⊂`, `⊄`, `⊃`, `⊅`, `⊆`, `⊈`, `⊇`, `⊉`, `≼`, `≽`: chained
 * `==`, `!=`, `<=>`, `~~`: chain/na
 * `&`: left
 * `|`, `^`: left
 * `&&`: left
-* `||`, `//`: left
+* `||`, `\\`: left
 * `..`, lonely operator `…` / `...`: nonassoc
 * `?:`: right
-* `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`: right
+* `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `\\=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`: right
 * `,`, `=>`: list
+* `list operators` (rightward) : right/na
+* `not` :  right
+* `and`: left
+* `or`:  left
 
-Unary operators are ones of the operators of the highiest precedence and thus operates
-on its operand first before any other binary operator takes action.
+|     |     |
+| :-- | --: |
+|     |     |
+|     |     |
+| :-- | --: |
+|     |     |
+
+Unary operators are among the operators with the highest precedence and thus
+operate on their operands first before any other binary operator of lower
+precedence takes action.
+
+List operators appear two times in the list and this is because there exist
+logical operators of very low precedence
 
 # Comments
 
