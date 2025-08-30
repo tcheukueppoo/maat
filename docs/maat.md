@@ -37,64 +37,72 @@ This is the list of all operators supported by the Maat programming language.
 
 ## Basic unary operators
 
-* `++`: **(p,b)** Incrementation operator.
-* `--`: **(p,b)** Decrementation operator.
-* `-`: **(b)** Negation operator.
-* `+`: **(b)** Positive operator, result of the evaluation is equal to the operand.
-* `~`: **(b)** Binary complement.
-* `*`: **(b)** Array destructor/accumulator operator.
-* `^`: **(p)** Range operator, `^5` returns a `Range` object, i.e `Range.new(0, 5)`.
-* `√`: **(p)** Sqaure root operator.
-* `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`: **(b)** Power operators.
-* `Σ`: **(b)** Summation operator.
-* `Π`: **(b)** Product operator.
-* `!`: **(b)** Logical **not**  operator ex: `!true == false`.
-* `not`: **(b)** Logical **not** operator with very low precedence, see below.
+|  Sign        | Description | Type    |
+| ------------ | ---- | ------- |
+| `++` | Incrementation | prefix, postfix |
+| `--` | Decrementation | prefix, postfix |
+| `-` | Negation | prefix |
+| `+` | Absolute value operator, result of the evaluation is equal to the operand. | prefix |
+| `~` | Binary complement. | prefix |
+| `*` | Array destructor/accumulator | prefix |
+| `^` | Range operator, `^5` returns a `Range` object, i.e `Range.new(0, 5)`. | postfix |
+| `√` | Sqaure root | postfix |
+| `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹` | Power operators. | prefix |
+| `Σ` | Summation | prefix |
+| `Π` | Product | prefix |
+| `!` | Logical **negation**,  ex: `!true == false`. | prefix |
+| `not` | Logical **negation** operator with very low precedence, see below. | prefix |
 
 ## Named unary operators
 
-* `defined`: **(b)** Check if a variable is `nil`.
-* `sleep`: **(b)** Sleep the current Maatine for a given amount of time.
-* `return`: **(b)** Return from a function.
-* `assert`: **(b)** Test an assertion.
-* `assert_eq`: **(b)** Equality test assertion.
-* `exit`: **(b)** Exit program with given exit code.
+|  Sign        | Description | Type    |
+| ------------ | ---- | ------- |
+| `defined` | Check if a variable is `nil`. | prefix |
+| `sleep` | Sleep the current Maatine for a given amount of time. | prefix |
+| `return` | Return from a function. | prefix |
+| `assert` | Test an assertion. | prefix |
+| `assert_eq` | Equality test assertion. | prefix |
+| `exit` | Exit program with given exit code. | prefix |
 
 ## Named list operators
 
-* `say`: **(b)** Print to the standard output with a trailing new line.
-* `print`: **(b)** Print without a new line.
-* `printf`: **(b)** Print formatted string.
-* `sprintf`: **(b)** Sprintf, return formatted string.
-* `join`: **(b)** Function version of `.join` method of the `Array` type.
-* `map`: **(b)** Function version of `.map` method of the `Array` type.
-* `lmap`: **(b)** Function version of `.lmap` method of the `Array` type.
-* `grep`: **(b)** Function version of `.grep` method of the `Array` type.
-* `run`: **(b)** Run the passed as argument commands with their parameters on a new shell.
-* `die`: **(b)** Raise an exception and exit program if there is no handler.
-* `warn`: **(b)** Warn by sending a message to stderr.
+|  Name        | Description | Type    |
+| ------------ | ---- | ------- |
+| `say` | Print to the standard output with a trailing new line. | prefix |
+| `print` | Print without a new line. | prefix |
+| `printf` | Print formatted string. | prefix |
+| `sprintf` | Sprintf, return formatted string. | prefix |
+| `join` | Function version of `.join` method of the `Array` type. | prefix |
+| `map` | Function version of `.map` method of the `Array` type. | prefix |
+| `lmap` | Function version of `.lmap` method of the `Array` type. | prefix |
+| `grep` | Function version of `.grep` method of the `Array` type. | prefix |
+| `run` | Run the passed as argument commands with their parameters on a new shell. | prefix |
+| `die` | Raise an exception and exit program if there is no handler. | prefix |
+| `warn` | Warn by sending a message to stderr. | prefix |
 
 ## Binary operators
 
-* `=`: **(i)** Assignment operator.
-* `.`: **(i)** Method call operator on objects and classes.
-* `.^`: **(i)** Method call operator for meta-programming.
-* `!.`: **(i)** 
-* `!.^`: **(i)** 
-* `,`: **(i)** Comma separator operator.
-* `=>`: **(i)** Key-value separator operator.
-* `//`: **(i)** A variant of the `||` operator that tests for definedness, ex: `a // b`, returns `a` if it isn't `nil` otherwise `b`.
-* `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤`: **(i)** Basic infix operators.
-* `+`, `-`, `/` / `÷`, `*`,  `%`, `..`: **(i)** Add, sub, div, mul, remainder and range operator.
-* `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=`: **(i)** `X op= Y` same as `X = X op Y`.
-* `<<`, `>>`, `^`, `&`, `&=`, `|=`: **(i)** Bitwise shift on left and right, logical `or` and `and`.
-* `&&`, `||`, `&&=`, `||=`: **(i)** Logical **and** and **or** operator.
-* `and`, `or`: Logical **and** and **or** operator but with very low precedence, see below.
-* `≅` / `=~`, `~~`: **(i)** Regex operator and smartmatch operator.
-* `∉`,  `∈`, `∊`, `∍`, `∋`, `∌`, `⊂`, `⊄`, `⊆`, `⊈`, `⊃`, `⊅`, `⊇`, `⊉`, `≡`, `≢`, `⊖`, `∩`, `⊍`, `∪`, `⊖`, `⊎`, `∖`: **(i)** Set operators.
-* `<=>` : **(i)** `X <=> Y` says yield `-1` if `X < Y`, `0` if `X == Y`, or `-1` if `X > Y`.
-* `∘`: **(i)** Function composition infix operator.
-* `?:`: **(?)** Tenary operator.
+|  Sign        | Description | Type    |
+| ------------ | ---- | ------- |
+| `=` | Assignment operator. | infix |
+| `.` | Method call operator on objects and classes. | infix |
+| `.^` | Method call operator for meta-programming. | infix |
+| `!.` | TODO | infix |
+| `!.^`| TODO | infix |
+| `,` | Comma separator operator. | infix |
+| `=>` | Key-value separator operator. | infix |
+| `//` | A variant of the `||` operator that tests for definedness, ex: `a // b`, returns `a` if it isn't `nil` otherwise `b`. | infix |
+| `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤` | Basic infix operators. | infix |
+| `+`, `-`, `/` / `÷`, `*`,  `%`, `..` | Add, sub, div, mul, remainder and range operator. | infix |
+| `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=` | `X op= Y` same as `X = X op Y`. | infix |
+| `<<`, `>>`, `^`, `&`, `&=`, `|=` | Bitwise shift on left and right, logical `or` and `and`. | infix |
+| `&&`, `\|\|`, `&&=`, `\|\|=` | Logical **and** and **or** operator | infix |
+| `and`, `or` |  Logical **and** and **or** operator but with very low precedence, see below | infix |
+| `≅` / `=~`, `~~` | Regex operator and smartmatch operator | infix |
+| `∉`,  `∈`, `∊`, `∍`, `∋`, `∌`, `⊂`, `⊄`, `⊆`, `⊈`, `⊃`, `⊅`, `⊇`, `⊉`, `≡`, `≢`, `⊖`, `∩`, `⊍`, `∪`, `⊖`, `⊎`, `∖` | Set operators. | infix |
+| `<=>` | `X <=> Y` says yield `-1` if `X < Y`, `0` if `X == Y`, or `-1` if `X > Y`. | infix |
+| `∘` | Function composition infix operator. | infix |
+| `?:`|  Tenary operator. | TODO |
 
 ## List of all operators from highest precedence to lowest
 
