@@ -33,8 +33,6 @@ This is the list of all operators supported by the Maat programming language.
 
 * `…`, `...`: to specify unimplemented code
 
-**p**: postfix, **i**: infix, **b**: prefix
-
 ## Basic unary operators
 
 |  Sign        | Description | Type    |
@@ -42,7 +40,7 @@ This is the list of all operators supported by the Maat programming language.
 | `++` | Incrementation | prefix, postfix |
 | `--` | Decrementation | prefix, postfix |
 | `-` | Negation | prefix |
-| `+` | Absolute value operator, result of the evaluation is equal to the operand. | prefix |
+| `+` | This positive sign has no effect, result of the evaluation is equal to the operand. | prefix |
 | `~` | Binary complement. | prefix |
 | `*` | Array destructor/accumulator | prefix |
 | `^` | Range operator, `^5` returns a `Range` object, i.e `Range.new(0, 5)`. | postfix |
@@ -72,11 +70,11 @@ This is the list of all operators supported by the Maat programming language.
 | `print` | Print without a new line. | prefix |
 | `printf` | Print formatted string. | prefix |
 | `sprintf` | Sprintf, return formatted string. | prefix |
-| `join` | Function version of `.join` method of the `Array` type. | prefix |
-| `map` | Function version of `.map` method of the `Array` type. | prefix |
-| `lmap` | Function version of `.lmap` method of the `Array` type. | prefix |
-| `grep` | Function version of `.grep` method of the `Array` type. | prefix |
-| `run` | Run the passed as argument commands with their parameters on a new shell. | prefix |
+| `join` | Functional version of `.join` method of the `Array` type. | prefix |
+| `map` | Functional version of `.map` method of the `Array` type. | prefix |
+| `lmap` | Functional version of `.lmap` method of the `Array` type. | prefix |
+| `grep` | Functional version of `.grep` method of the `Array` type. | prefix |
+| `run` | Run the passed as argument commands on a new shell. | prefix |
 | `die` | Raise an exception and exit program if there is no handler. | prefix |
 | `warn` | Warn by sending a message to stderr. | prefix |
 
@@ -125,42 +123,37 @@ say 2 > (3 < 4);
 The above shows how the operator `==` is non-associative while `>` and its
 counterpart are.
 
-* group operator `( )`: right
-* terms and list operators (leftward): left
-* method call operator `.`: left
-* `++`, `--`, `√` and unary prefix `…` / `...`: nonassoc
-* `**`, `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹`: right
-* `!`, `~`, `\` and unary `+` and `-`: right
-* `=~`, `!~`: left
-* `*`, `/`, `%`: left
-* `+`, `-`, `.`, `∘`: left
-* `∩`, `⊍`: left
-* `∪`,  `⊖`, `⊎`, `∖`: left
-* `<<`, `>>`: left
-* named unary operators: nonassoc
-* `isa`: nonassoc
-* `<`, `>`, `<=` / `≤`, `>=` / `≥`: chained
-* `∈`, `∊`, `∉`, `∋`, `∍`, `∌`, `≡`, `≢`, `⊂`, `⊄`, `⊃`, `⊅`, `⊆`, `⊈`, `⊇`, `⊉`, `≼`, `≽`: chained
-* `==`, `!=`, `<=>`, `~~`: chain/na
-* `&`: left
-* `|`, `^`: left
-* `&&`: left
-* `||`, `\\`: left
-* `..`, lonely operator `…` / `...`: nonassoc
-* `?:`: right
-* `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `\\=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump`: right
-* `,`, `=>`: list
-* `list operators` (rightward) : right/na
-* `not` :  right
-* `and`: left
-* `or`:  left
-
-|     |     |
-| :-- | --: |
-|     |     |
-|     |     |
-| :-- | --: |
-|     |     |
+|  Operator    |  Sense   |
+| ------------ | -------- |
+| group operator `( )` | right |
+| terms and list operators (leftward) | left |
+| method call operator `.` | left |
+| `++`, `--`, `√` and unary prefix `…` / `...` | nonassoc |
+| `**`, `⁰`, `¹`, `²`, `³`, `⁴`, `⁵`, `⁶`, `⁷`, `⁸`, `⁹` | right |
+| `!`, `~`, `\` and unary `+` and `-` | right |
+| `=~`, `!~` | left |
+| `*`, `/`, `%` | left |
+| `+`, `-`, `.`, `∘` | left |
+| `∩`, `⊍` | left |
+| `∪`,  `⊖`, `⊎`, `∖` | left |
+| `<<`, `>>` | left |
+| named unary operators | nonassoc |
+| `isa` | nonassoc |
+| `<`, `>`, `<=` / `≤`, `>=` / `≥` | chained |
+| `∈`, `∊`, `∉`, `∋`, `∍`, `∌`, `≡`, `≢`, `⊂`, `⊄`, `⊃`, `⊅`, `⊆`, `⊈`, `⊇`, `⊉`, `≼`, `≽` | chained |
+| `==`, `!=`, `<=>`, `~~` | chain/na |
+| `&` | left |
+| `|`, `^` | left |
+| `&&` | left |
+| `||`, `\\` | left |
+| `..`, lonely operator `…` / `...` | nonassoc |
+| `?:` | right |
+| `=`, `:=`, `&=`, `|=`, `&&=`, `||=`, `+=`, `/=` / `÷=`, `-=`, `\\=`, `*=`, `.=`, `%=`, `last`, `break`, `redo`, and `dump` | right |
+| `,`, `=>` | list |
+| `list operators` (rightward)  | right/na |
+| `not`  |  right |
+| `and` | left |
+| `or` |  left |
 
 Unary operators are among the operators with the highest precedence and thus
 operate on their operands first before any other binary operator of lower
