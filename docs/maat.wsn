@@ -2,7 +2,7 @@
 
 * `{X}` stands for 0 or more of `X`.
 * `[X]` implies `X` is optional.
-* `|` stands for alternation.
+* `|` for alternation.
 * `(X)` for grouping, `X` is considered a single unit.
 
 ```
@@ -47,7 +47,7 @@ Label = name ":" .
 
 Use = "use" namespace [ "(" [ name { "," name } ] ")" ] .
 
-Load = "load" str_lit .
+Load = "load" Exp.
 
 ExpList = Exp { Commas Exp } { "," } .
 Commas  = "," { "," } .
@@ -61,7 +61,7 @@ NameList = { Name_ } [ "*" ] name [ im ] { _Name } { "," } .
 Name_ =        name [ im ] Commas .
 _Name = Commas name [ im ] .
 
-AnyNames = "(" AnyNameList ")" | any_name [ im ] .
+AnyNames = any_name [ im ] | "(" AnyNameList ")" .
 
 AnyNameList = { AnyName_ } [ "*" ] any_name [ im ] { _AnyName } { "," } .
 
