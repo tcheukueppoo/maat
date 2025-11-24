@@ -70,13 +70,13 @@ This is the list of all operators supported by the Maat programming language.
 | `print` | Print without a new line. | prefix |
 | `printf` | Print formatted string. | prefix |
 | `sprintf` | Sprintf, return formatted string. | prefix |
-| `join` | Functional version of `.join` method of the `Array` type. | prefix |
-| `map` | Functional version of `.map` method of the `Array` type. | prefix |
-| `lmap` | Functional version of `.lmap` method of the `Array` type. | prefix |
-| `grep` | Functional version of `.grep` method of the `Array` type. | prefix |
+| `join` | Functional version of `.join` method of the `Array` class. | prefix |
+| `map` | Functional version of `.map` method of the `Array` class. | prefix |
+| `lmap` | Functional version of `.lmap` method of the `Array` class. | prefix |
+| `grep` | Functional version of `.grep` method of the `Array` class. | prefix |
 | `run` | Run the passed as argument commands on a new shell. | prefix |
 | `die` | Raise an exception and exit program if there is no handler. | prefix |
-| `warn` | Warn by sending a message to stderr. | prefix |
+| `warn` | Warn by sending a message to standard error. | prefix |
 
 ## Binary operators
 
@@ -85,14 +85,14 @@ This is the list of all operators supported by the Maat programming language.
 | `=` | Assignment operator. | infix |
 | `.` | Method call operator on objects and classes. | infix |
 | `.^` | Method call operator for meta-programming. | infix |
-| `!.` | TODO | infix |
-| `!.^`| TODO | infix |
+| `!.` | Maybe operator which is a variant of the ordinary method call operator, it returns `nil` in case the invoker is `nil`. | infix |
+| `!.^`| Maybe operator for meta-programming. | infix |
 | `,` | Comma separator operator. | infix |
 | `=>` | Key-value separator operator. | infix |
 | `//` | A variant of the `||` operator that tests for definedness, ex: `a // b`, returns `a` if it isn't `nil` otherwise `b`. | infix |
 | `==` / `⩵`, `!=` / `≠`, `>`, `>=` / `≥`, `<`, `<=` / `≤` | Basic infix operators. | infix |
 | `+`, `-`, `/` / `÷`, `*`,  `%`, `..` | Add, sub, div, mul, remainder and range operator. | infix |
-| `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=` | `X op= Y` same as `X = X op Y`. | infix |
+| `+=`, `/=` / `÷=`, `-=`, `//=`, `*=`, `%=` | Compound assignment operators. `X op= Y` is equivalent to `X = X op Y`. | infix |
 | `<<`, `>>`, `^`, `&`, `&=`, `|=` | Bitwise shift on left and right, logical `or` and `and`. | infix |
 | `&&`, `\|\|`, `&&=`, `\|\|=` | Logical **and** and **or** operator | infix |
 | `and`, `or` |  Logical **and** and **or** operator but with very low precedence, see below | infix |
@@ -143,7 +143,7 @@ counterpart are.
 | `∈`, `∊`, `∉`, `∋`, `∍`, `∌`, `≡`, `≢`, `⊂`, `⊄`, `⊃`, `⊅`, `⊆`, `⊈`, `⊇`, `⊉`, `≼`, `≽` | chained |
 | `==`, `!=`, `<=>`, `~~` | chain/na |
 | `&` | left |
-| `|`, `^` | left |
+| `\|`, `^` | left |
 | `&&` | left |
 | `||`, `\\` | left |
 | `..`, lonely operator `…` / `...` | nonassoc |
